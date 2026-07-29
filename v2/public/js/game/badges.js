@@ -96,7 +96,7 @@ export const TITLES = {
   tete_a_claques: { id: 'tete_a_claques', name: 'Tête à claques',     desc: 'Le plus accusé de menteur de la partie', check: c => c.isTopMenteur && (c.menteurCaught || 0) >= 2 },
   boulet:         { id: 'boulet',         name: 'Le boulet',          desc: 'Rater ses 4 cartes en phase mémoire (0/4)', check: c => !!c.memoryFail },
   // ── Titres cachés (easter-eggs) — débloqués par le pseudo, invisibles tant que non obtenus ──
-  oss117:   { id: 'oss117',   name: 'OSS 117',              desc: '« Hubert, tu permets ? »',       hidden: true, pseudo: ['hubert', 'oss 117', 'oss117', 'bonisseur', 'bonnisseur', 'la bath'] },
+  oss117:   { id: 'oss117',   name: 'OSS 117',              desc: '« Hubert, tu permets ? »',       hidden: true, pseudo: ['hubert'] },
 };
 
 export const BORDERS = {
