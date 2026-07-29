@@ -438,11 +438,10 @@
     document.getElementById('btn-remove-photo').onclick = () => setAvatar('🃏');
 
     // ── Outils de test (mon compte uniquement) ──────────────
-    const DEV_UIDS   = ['vUp9JQbAOpM1D5Q0HKOZfII5MP82']; // legrosfilipe
     const DEV_EMAILS = ['esthor.pl@gmail.com'];
     function isDevUser(user) {
       return user && !user.isAnonymous &&
-        (DEV_UIDS.includes(user.uid) || DEV_EMAILS.includes((user.email || '').toLowerCase()));
+        DEV_EMAILS.includes((user.email || '').toLowerCase());
     }
     function setupDevTools(user) {
       const section = document.getElementById('dev-section');
