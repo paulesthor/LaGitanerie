@@ -279,7 +279,7 @@
           <div class="tu-label">Titre secret débloqué</div>
           <div class="tu-name">${def.name}</div>
           <div class="tu-desc">${def.desc}</div>
-          <button class="btn btn-primary tu-ok">Stylé</button>
+          <button class="btn btn-primary tu-ok">${titleId === 'oss117' ? 'Hassoul' : 'Stylé'}</button>
         </div>`;
       document.body.appendChild(ov);
       requestAnimationFrame(() => ov.classList.add('show'));
