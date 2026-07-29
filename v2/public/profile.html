@@ -223,7 +223,7 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { auth, firestore } from '/js/firebase-config.js';
+    import { auth, getFirestore } from '/js/firebase-config.js';
     import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
     import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { getGuestName, setGuestName, getGuestAvatar, setGuestAvatar, showToast } from '/js/game/utils.js';
@@ -241,7 +241,10 @@
     // Sauvegarde immédiate d'un cosmétique (badge/cadre/titre) — sans bouton
     async function saveActive(patch) {
       if (!currentUser || currentUser.isAnonymous) return;
-      try { await setDoc(doc(firestore, 'users', currentUser.uid), patch, { merge: true }); }
+      try {
+        const firestore = await getFirestore();
+        await setDoc(doc(firestore, 'users', currentUser.uid), patch, { merge: true });
+      }
       catch (e) { /* silencieux, on retentera à la prochaine action */ }
     }
 
@@ -479,6 +482,7 @@
         document.getElementById('xp-section').classList.remove('hidden');
         document.getElementById('level-badge').classList.remove('hidden');
 
+        const firestore = await getFirestore();
         const snap = await getDoc(doc(firestore, 'users', user.uid));
         const data = snap.exists() ? snap.data() : {};
         const name   = data.displayName || user.displayName || 'Joueur';
@@ -573,6 +577,7 @@
 
       if (currentUser && !currentUser.isAnonymous) {
         try {
+          const firestore = await getFirestore();
           await setDoc(doc(firestore, 'users', currentUser.uid), {
             displayName:  name,
             avatar:       selectedAvatar,

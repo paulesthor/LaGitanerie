@@ -4,14 +4,14 @@
 // (localStorage) et flushe automatiquement au retour du réseau.
 // Consultation : Console Firebase → Firestore → errorLogs (tri par createdAt).
 // =============================================
-import {
-  collection, addDoc, serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+// Firestore est importé DYNAMIQUEMENT au moment du flush (voir flush()), pour ne
+// pas alourdir les pages qui n'utilisent que le RTDB. Tant qu'aucune erreur n'est
+// à envoyer, le module Firestore n'est jamais chargé.
 
 const BUFFER_KEY = 'gita_errorLogBuffer';
 const MAX_BUFFER = 50;
 
-let _db = null;
+let _getDb = async () => null;   // accès paresseux à l'instance Firestore
 let _getUid = () => null;
 let _appVersion = 'unknown';
 let _flushing = false;
@@ -61,10 +61,17 @@ export function logError(context, error, extra = {}) {
 }
 
 async function flush() {
-  if (_flushing || !_db) return;
+  if (_flushing) return;
   if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+  if (readBuffer().length === 0) return;   // rien à envoyer → ne charge pas Firestore
   _flushing = true;
   try {
+    // Chargement paresseux de Firestore + de ses fonctions (uniquement ici).
+    const _db = await _getDb();
+    if (!_db) return;
+    const { collection, addDoc, serverTimestamp } =
+      await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+
     let buf = readBuffer();
     while (buf.length) {
       const rec = buf[0];
@@ -78,14 +85,17 @@ async function flush() {
         break;
       }
     }
+  } catch (_) {
+    // Firestore indisponible (réseau) → on garde le buffer pour un prochain flush
   } finally {
     _flushing = false;
   }
 }
 
 // Initialise le logger + installe les capteurs globaux. Appelé par firebase-config.js.
-export function initLogger(db, getUid, appVersion) {
-  _db = db;
+// `getDb` : fonction async renvoyant l'instance Firestore (chargée paresseusement).
+export function initLogger(getDb, getUid, appVersion) {
+  if (typeof getDb === 'function') _getDb = async () => getDb();
   if (typeof getUid === 'function') _getUid = getUid;
   if (appVersion) _appVersion = appVersion;
 

@@ -118,7 +118,7 @@
   </div>
 
   <script type="module">
-    import { db, auth, firestore } from '/js/firebase-config.js';
+    import { db, auth, getFirestore } from '/js/firebase-config.js';
     import { ref, get, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
     import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
     import { doc, getDoc, setDoc, increment } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
@@ -245,7 +245,8 @@
         const bluffThisGame = me?.bluffSuccess || 0;
         const baseXp = Math.max(10, 10 + givenThisGame - sipsThisGame);
 
-        // Lire le profil actuel
+        // Lire le profil actuel (Firestore chargé paresseusement ici)
+        const firestore = await getFirestore();
         let userData = {};
         try {
           const dsnap = await getDoc(doc(firestore, 'users', user.uid));

@@ -69,7 +69,7 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { auth, firestore, withRetry, friendlyError, logError } from '/js/firebase-config.js';
+    import { auth, getFirestore, withRetry, friendlyError, logError } from '/js/firebase-config.js';
     import {
       signInWithEmailAndPassword,
       createUserWithEmailAndPassword,
@@ -94,6 +94,7 @@
 
     // Crée le profil Firestore s'il n'existe pas (ne touche jamais un profil existant)
     async function ensureUserProfile(user) {
+      const firestore = await getFirestore();
       const ref = doc(firestore, 'users', user.uid);
       const snap = await withRetry(() => getDoc(ref));
       if (!snap.exists()) {

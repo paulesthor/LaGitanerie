@@ -189,7 +189,7 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { auth, firestore } from '/js/firebase-config.js';
+    import { auth, getFirestore } from '/js/firebase-config.js';
     import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
     import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { isPhotoAvatar } from '/js/game/avatar.js';
@@ -239,6 +239,7 @@
     async function renderUser(user) {
       if (user && !user.isAnonymous) {
         try {
+          const firestore = await getFirestore();
           const snap = await getDoc(doc(firestore, 'users', user.uid));
           if (snap.exists()) {
             const d = snap.data();

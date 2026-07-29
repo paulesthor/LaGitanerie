@@ -6,9 +6,6 @@ import {
 import {
   getDatabase, ref as dbRef, onValue
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-import {
-  initializeFirestore, persistentLocalCache, persistentMultipleTabManager
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { initLogger, logError } from "./logger.js";
 import { initPresence } from "./presence.js";
 
@@ -47,26 +44,37 @@ setPersistence(auth, indexedDBLocalPersistence)
 export const db = getDatabase(app);
 
 /* ---------------------------------------------------------------------------
- *  FIRESTORE — configuré pour survivre à la PIRE connexion possible
- *  - experimentalForceLongPolling : force le transport long-polling. Le flux
- *    WebChannel par défaut casse dès que le réseau mobile est faible / passe par
- *    un proxy opérateur / un portail captif → "impossible de se connecter".
- *    Le long-polling est plus lent mais PASSE même avec une très mauvaise réception.
- *  - persistentLocalCache : cache hors-ligne. L'app lit/écrit dans le cache et
- *    synchronise automatiquement au retour du signal au lieu d'échouer.
+ *  FIRESTORE — chargement PARESSEUX
+ *  Le module Firestore est lourd (SDK + cache IndexedDB). Les pages de JEU
+ *  n'utilisent que le RTDB : les charger avec Firestore ralentit leur démarrage
+ *  pour rien. On ne télécharge/initialise Firestore QUE lorsqu'une page en a
+ *  besoin (accueil, profil, login, fin de partie) via getFirestore().
+ *
+ *  Config anti-mauvais-réseau conservée :
+ *  - experimentalForceLongPolling : passe même sur réseau mobile faible / proxy.
+ *  - persistentLocalCache : cache hors-ligne, synchro auto au retour du signal.
  * ------------------------------------------------------------------------- */
-export const firestore = initializeFirestore(app, {
-  experimentalForceLongPolling: true,
-  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-});
+let _firestorePromise = null;
+export function getFirestore() {
+  if (!_firestorePromise) {
+    _firestorePromise = import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js")
+      .then(({ initializeFirestore, persistentLocalCache, persistentMultipleTabManager }) =>
+        initializeFirestore(app, {
+          experimentalForceLongPolling: true,
+          localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+        }))
+      .catch((e) => { _firestorePromise = null; throw e; }); // permet un nouvel essai
+  }
+  return _firestorePromise;
+}
 
 /* ---------------------------------------------------------------------------
  *  Journal d'erreurs — capteurs globaux actifs sur toutes les pages.
- *  Enregistre chaque erreur (JS, promesse rejetée, connexion) dans Firestore
- *  (collection "errorLogs"), avec l'identité du joueur (uid ou guestId).
+ *  Le logger reçoit un accès PARESSEUX à Firestore : tant qu'aucune erreur n'est
+ *  à envoyer, Firestore n'est pas chargé (les pages de jeu restent légères).
  * ------------------------------------------------------------------------- */
 initLogger(
-  firestore,
+  getFirestore,
   () => (auth.currentUser && auth.currentUser.uid)
         || (typeof localStorage !== 'undefined' && localStorage.getItem('guestId'))
         || null,
