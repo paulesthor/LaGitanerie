@@ -154,6 +154,31 @@
       <button id="btn-account" class="link-btn">Connexion</button>
     </div>
 
+    <!-- Peinture optimiste SYNCHRONE (avant la 1re peinture) → pas de flash "Invité" -->
+    <script>
+      (function () {
+        try {
+          var c = JSON.parse(localStorage.getItem('profileCache'));
+          if (!c) return;
+          var name = document.getElementById('user-name');
+          var btn  = document.getElementById('btn-account');
+          var av   = document.getElementById('user-avatar');
+          var wrap = document.getElementById('user-avatar-wrap');
+          if (name) name.textContent = c.displayName || 'Joueur';
+          if (btn)  { btn.textContent = 'Mon profil'; btn.onclick = function () { window.location.href = '/profile.html'; }; }
+          if (av && c.avatar) {
+            if (/^data:|^http/.test(c.avatar)) av.innerHTML = '<img src="' + c.avatar + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover">';
+            else av.textContent = c.avatar;
+          }
+          if (wrap && c.activeBorder) { wrap.className = 'avatar-framed border-' + c.activeBorder; }
+          var xp = c.xp || 0, lvl = Math.floor(xp / 100);
+          var xw = document.getElementById('xp-wrap'); if (xw) xw.style.display = 'flex';
+          var xv = document.getElementById('xp-val'); if (xv) xv.textContent = 'Niv. ' + lvl + ' · ' + xp + ' XP';
+          var xf = document.getElementById('xp-bar-fill'); if (xf) xf.style.width = (xp % 100) + '%';
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- Hero -->
     <div class="hero">
       <h1 class="hero-title"><span class="amp">La</span><br>Gitanerie</h1>
