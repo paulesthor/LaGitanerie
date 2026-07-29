@@ -232,8 +232,13 @@
       });
 
       // --- XP + récompenses si connecté ---
+      let _rewardsProcessed = false;
       onAuthStateChanged(auth, async (user) => {
         if (!user || user.isAnonymous) return;
+        // Garde 1 : onAuthStateChanged peut se déclencher plusieurs fois dans un
+        // même chargement (rafraîchissement de token) → une seule exécution.
+        if (_rewardsProcessed) return;
+        _rewardsProcessed = true;
 
         const sipsThisGame  = me?.sipsToDrink || 0;
         const givenThisGame = me?.sipsGiven   || 0;
@@ -246,6 +251,10 @@
           const dsnap = await getDoc(doc(firestore, 'users', user.uid));
           if (dsnap.exists()) userData = dsnap.data();
         } catch(e) {}
+
+        // Garde 2 (durable) : cette partie a déjà été comptabilisée (écran de fin
+        // rechargé/revisité) → on n'accumule ni ne re-récompense.
+        if (userData.lastRewardedGame === gameId) return;
 
         const prevBadges = userData.badges || [];
         const prevTitles = userData.titles || [];
@@ -350,6 +359,7 @@
           totalCulSec:      newTotalCulSec,
           topDrinkerStreak: newTopDrinkerStreak,
           soberStreak:      newSoberStreak,
+          lastRewardedGame: gameId,   // marqueur d'idempotence
         };
         if (newBadges.length > 0) updateData.badges = [...new Set([...prevBadges, ...newBadges])];
         if (newTitles.length > 0) {

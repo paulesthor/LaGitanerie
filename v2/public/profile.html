@@ -457,10 +457,12 @@
         setTimeout(() => location.reload(), 500);
       };
       document.getElementById('btn-dev-reset').onclick = async () => {
-        if (!confirm('Tout retirer : badges, titres, cadre, et XP remis à 0. Continuer ?')) return;
+        if (!confirm('Tout retirer : badges, titres, cadre, XP ET compteurs cumulés (gorgées, parties…) remis à 0. Continuer ?')) return;
         await saveActive({
           badges: [], titles: [], xp: 0,
           activeTitle: null, activeBadge: null, activeBorder: null,
+          totalGames: 0, totalSipsDrunk: 0, totalSipsGiven: 0, bluffSuccess: 0,
+          totalCulSec: 0, topDrinkerStreak: 0, soberStreak: 0, lastRewardedGame: null,
         });
         showToast('Tout retiré ✓', 'success');
         setTimeout(() => location.reload(), 500);
