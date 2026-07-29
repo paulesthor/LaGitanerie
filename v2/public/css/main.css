@@ -57,6 +57,8 @@ body {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
+/* Les champs de saisie doivent rester sélectionnables/éditables malgré user-select:none */
+input, textarea, select { -webkit-user-select: text; user-select: text; }
 
 /* ---- Layout ---- */
 .screen {
@@ -69,6 +71,8 @@ body {
   display: flex;
   flex-direction: column;
   padding: 16px;
+  /* iOS installé : garder les boutons du bas au-dessus de la barre d'accueil */
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
   gap: 14px;
   max-width: 480px;
   width: 100%;
