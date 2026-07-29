@@ -312,9 +312,8 @@
   <div id="modal-memory" class="modal-overlay">
     <div class="modal-sheet flex-col gap-14">
       <div class="modal-handle"></div>
-      <p class="label-caps text-center">Quelle était cette carte ?</p>
+      <p class="label-caps text-center">Quel était le chiffre ?</p>
       <div id="mem-val-grid" class="mem-val-grid"></div>
-      <div id="mem-suit-grid" class="mem-suit-grid"></div>
       <button id="mem-confirm-btn" class="btn btn-primary" disabled>
         <i class="fas fa-eye"></i> Révéler
       </button>
@@ -1181,23 +1180,9 @@
           _mVal = v;
           vg.querySelectorAll('.mem-val-btn').forEach(x => x.classList.remove('sel'));
           b.classList.add('sel');
-          document.getElementById('mem-confirm-btn').disabled = !(_mVal && _mSuit);
+          document.getElementById('mem-confirm-btn').disabled = !_mVal;
         };
         vg.appendChild(b);
-      });
-
-      const sg = document.getElementById('mem-suit-grid');
-      _MS.forEach(s => {
-        const b = document.createElement('button');
-        b.className = 'mem-suit-btn';
-        b.innerHTML = `<span style="color:${s.c}">${s.s}</span>`;
-        b.onclick = () => {
-          _mSuit = s.k;
-          sg.querySelectorAll('.mem-suit-btn').forEach(x => x.classList.remove('sel'));
-          b.classList.add('sel');
-          document.getElementById('mem-confirm-btn').disabled = !(_mVal && _mSuit);
-        };
-        sg.appendChild(b);
       });
 
       document.getElementById('modal-memory').addEventListener('click', (e) => {
@@ -1213,16 +1198,15 @@
     }
 
     function _openMemCard(idx) {
-      _mIdx = idx; _mVal = null; _mSuit = null;
+      _mIdx = idx; _mVal = null;
       document.getElementById('mem-val-grid').querySelectorAll('.mem-val-btn').forEach(b => b.classList.remove('sel'));
-      document.getElementById('mem-suit-grid').querySelectorAll('.mem-suit-btn').forEach(b => b.classList.remove('sel'));
       document.getElementById('mem-confirm-btn').disabled = true;
       document.getElementById('modal-memory').classList.add('show');
     }
 
     async function _confirmMem() {
       const card    = game.players[playerId].cards[_mIdx];
-      const correct = _mVal === card.value && _mSuit === card.suit;
+      const correct = _mVal === card.value; // seule la valeur compte (pas l'enseigne)
       _mRes[_mIdx]  = correct ? 'ok' : 'ko';
       document.getElementById('modal-memory').classList.remove('show');
 
@@ -1275,14 +1259,11 @@
         wrap.className = `mem-card-wrap ${_mRes[i] !== null ? 'done' : ''}`;
 
         if (_mRes[i] !== null) {
-          const isRed = ['hearts','diamonds'].includes(card.suit);
-          const sym   = SUIT_SYMBOL[card.suit] || '';
-          const col   = isRed ? '#e74c3c' : '#1a1a2e';
           wrap.innerHTML = `
-            <div class="mem-card-face ${_mRes[i]}" style="color:${col};animation:mem-flip .35s ease both">
-              <div>${card.value}${sym}</div>
-              <div style="font-size:.95rem;text-align:center">${sym}</div>
-              <div style="align-self:flex-end;transform:rotate(180deg)">${card.value}${sym}</div>
+            <div class="mem-card-face ${_mRes[i]}" style="color:#1a1a2e;animation:mem-flip .35s ease both">
+              <div>${card.value}</div>
+              <div style="font-size:1.6rem;text-align:center;font-weight:800">${card.value}</div>
+              <div style="align-self:flex-end;transform:rotate(180deg)">${card.value}</div>
             </div>
             <div class="mem-result ${_mRes[i]}"><i class="fas fa-${_mRes[i]==='ok'?'check':'times'}"></i></div>`;
         } else {
@@ -1324,14 +1305,12 @@
 
     let _memNotifTimer = null, _memNotifCd = null;
     function showMemRevealNotif({ name, card, correct }) {
-      const isRed = ['hearts','diamonds'].includes(card.suit);
-      const sym   = SUIT_SYMBOL[card.suit] || '';
       const notif = document.getElementById('proof-notif');
 
-      document.getElementById('proof-mini-card').className = `mini-card ${isRed ? 'red' : 'black'}`;
-      document.getElementById('proof-top').textContent = `${card.value}${sym}`;
-      document.getElementById('proof-sym').textContent = sym;
-      document.getElementById('proof-bot').textContent = `${card.value}${sym}`;
+      document.getElementById('proof-mini-card').className = 'mini-card black';
+      document.getElementById('proof-top').textContent = card.value;
+      document.getElementById('proof-sym').textContent = card.value;
+      document.getElementById('proof-bot').textContent = card.value;
       document.getElementById('proof-who').textContent = `${name} : ${correct ? '✅ correct' : '❌ raté +3🍺'}`;
       document.getElementById('proof-result').innerHTML = `disparaît dans <span id="proof-countdown">4</span>s`;
 

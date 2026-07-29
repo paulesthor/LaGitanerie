@@ -192,14 +192,13 @@
       const myCards   = game.players?.[playerId]?.cards || [];
       container.innerHTML = '';
       myCards.forEach(card => {
-        const isRed = ['hearts','diamonds'].includes(card.suit);
-        const sym   = SUIT_SYMBOL[card.suit] || '';
-        const el    = document.createElement('div');
-        el.className = `mem-card ${isRed ? 'red' : 'black'}`;
+        // Mémoire = seulement les chiffres, pas les enseignes
+        const el = document.createElement('div');
+        el.className = 'mem-card black';
         el.innerHTML = `
-          <div class="corner">${card.value}${sym}</div>
-          <div class="center">${sym}</div>
-          <div class="corner bot">${card.value}${sym}</div>`;
+          <div class="corner">${card.value}</div>
+          <div class="center" style="font-weight:800">${card.value}</div>
+          <div class="corner bot">${card.value}</div>`;
         container.appendChild(el);
       });
     }
