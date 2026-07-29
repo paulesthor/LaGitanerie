@@ -16,505 +16,297 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
   <link rel="modulepreload" href="/js/firebase-config.js">
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js">
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js">
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js">
+  <link rel="modulepreload" href="/js/phases/waiting.js">
   <style>
-    /* ══ Coquille SPA : une seule page, on affiche une vue par phase ══ */
-    .spa-view { display: none; }
-    .spa-view.active { display: block; }
+    /* ══ Pyramide — variables adaptatives ══ */
+    :root { --py-w:56px; --py-h:78px; --py-gap:6px; --py-fs:.65rem; --py-fsc:1.1rem; --py-fbk:1rem; }
 
-    /* ── Vue « salle d'attente » (portée depuis join.html) ── */
-    .game-code-display {
-      font-size: 2.4rem; font-weight: 700; letter-spacing: 0.25em;
-      color: var(--gold); text-align: center;
-      font-family: 'Courier New', monospace;
-      background: var(--bg-surface); border-radius: var(--radius-sm); padding: 16px;
-    }
-    .player-row {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px; background: var(--bg-surface); border-radius: var(--radius-sm);
-    }
-    .players-list { display: flex; flex-direction: column; gap: 8px; }
-    .host-crown { color: var(--gold); font-size: 0.75rem; }
+    /* ── Salle d'attente ── */
+    .game-code-display { font-size:2.4rem; font-weight:700; letter-spacing:.25em; color:var(--gold); text-align:center; font-family:'Courier New',monospace; background:var(--bg-surface); border-radius:var(--radius-sm); padding:16px; }
+    .player-row { display:flex; align-items:center; gap:12px; padding:12px; background:var(--bg-surface); border-radius:var(--radius-sm); }
+    .players-list { display:flex; flex-direction:column; gap:8px; }
+    .host-crown { color:var(--gold); font-size:.75rem; }
+    .rules-accordion { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .rules-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:var(--bg-card); cursor:pointer; user-select:none; }
+    .rules-header h3 { font-size:1rem; }
+    .rules-header .chevron { transition:transform .25s; font-size:.8rem; color:var(--text-muted); }
+    .rules-accordion.open .rules-header .chevron { transform:rotate(180deg); }
+    .rules-body { display:none; padding:0 16px; background:var(--bg-card); }
+    .rules-accordion.open .rules-body { display:block; }
+    .rule-row { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); gap:12px; }
+    .rule-row:last-child { border-bottom:none; margin-bottom:4px; }
+    .rule-info { flex:1; }
+    .rule-name { font-size:.9rem; font-weight:600; }
+    .rule-desc { font-size:.75rem; color:var(--text-muted); margin-top:2px; }
+    .toggle { position:relative; width:50px; height:28px; flex-shrink:0; }
+    .toggle input { opacity:0; width:0; height:0; position:absolute; }
+    .toggle-slider { position:absolute; inset:0; background:var(--bg-surface); border-radius:14px; cursor:pointer; transition:background .2s; }
+    .toggle-slider::before { content:''; position:absolute; width:22px; height:22px; left:3px; top:3px; background:white; border-radius:50%; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+    .toggle input:checked + .toggle-slider { background:var(--orange); }
+    .toggle input:checked + .toggle-slider::before { transform:translateX(22px); }
+    .stepper { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    .stepper-btn { width:34px; height:34px; border-radius:50%; background:var(--bg-surface); border:1px solid var(--border); color:var(--text); font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .stepper-btn:active { background:var(--orange); border-color:var(--orange); color:#1a1a1a; }
+    .stepper-val { font-size:1.1rem; font-weight:700; min-width:28px; text-align:center; }
+    .segmented { display:flex; background:var(--bg-surface); border-radius:var(--radius-sm); padding:3px; gap:3px; flex-shrink:0; }
+    .seg-btn { padding:6px 10px; border:none; border-radius:7px; background:transparent; color:var(--text-muted); font-family:inherit; font-size:.8rem; font-weight:700; cursor:pointer; transition:all .2s; white-space:nowrap; }
+    .seg-btn.active { background:var(--orange); color:#1a1a1a; }
 
-    .rules-accordion { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-    .rules-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 16px; background: var(--bg-card); cursor: pointer; user-select: none;
-    }
-    .rules-header h3 { font-size: 1rem; }
-    .rules-header .chevron { transition: transform 0.25s; font-size: 0.8rem; color: var(--text-muted); }
-    .rules-accordion.open .rules-header .chevron { transform: rotate(180deg); }
-    .rules-body { display: none; padding: 0 16px; background: var(--bg-card); }
-    .rules-accordion.open .rules-body { display: block; }
-    .rule-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 0; border-bottom: 1px solid var(--border); gap: 12px;
-    }
-    .rule-row:last-child { border-bottom: none; margin-bottom: 4px; }
-    .rule-info { flex: 1; }
-    .rule-name { font-size: 0.9rem; font-weight: 600; }
-    .rule-desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
-    .toggle { position: relative; width: 50px; height: 28px; flex-shrink: 0; }
-    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
-    .toggle-slider {
-      position: absolute; inset: 0; background: var(--bg-surface);
-      border-radius: 14px; cursor: pointer; transition: background 0.2s;
-    }
-    .toggle-slider::before {
-      content: ''; position: absolute;
-      width: 22px; height: 22px; left: 3px; top: 3px;
-      background: white; border-radius: 50%; transition: transform 0.2s;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    }
-    .toggle input:checked + .toggle-slider { background: var(--orange); }
-    .toggle input:checked + .toggle-slider::before { transform: translateX(22px); }
-    .stepper { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-    .stepper-btn {
-      width: 34px; height: 34px; border-radius: 50%;
-      background: var(--bg-surface); border: 1px solid var(--border);
-      color: var(--text); font-size: 1.2rem; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-    }
-    .stepper-btn:active { background: var(--orange); border-color: var(--orange); color: #1a1a1a; }
-    .stepper-val { font-size: 1.1rem; font-weight: 700; min-width: 28px; text-align: center; }
-    .segmented { display: flex; background: var(--bg-surface); border-radius: var(--radius-sm); padding: 3px; gap: 3px; flex-shrink: 0; }
-    .seg-btn {
-      padding: 6px 10px; border: none; border-radius: 7px;
-      background: transparent; color: var(--text-muted);
-      font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
-      transition: all 0.2s; white-space: nowrap;
-    }
-    .seg-btn.active { background: var(--orange); color: #1a1a1a; }
+    /* ── Distribution ── */
+    .phase-label { text-align:center; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); }
+    .turn-banner { background:var(--red); border-radius:var(--radius); padding:14px 16px; display:flex; align-items:center; gap:10px; }
+    .turn-banner .avatar-wrap { width:44px; height:44px; border-radius:50%; overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:1.6rem; background:rgba(0,0,0,.2); }
+    .turn-banner .avatar-wrap img { width:100%; height:100%; object-fit:cover; }
+    .hand-container { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; padding:4px 0; }
+    .p-card { width:72px; height:100px; border-radius:10px; position:relative; cursor:default; flex-shrink:0; contain:layout style; }
+    .p-card .inner { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform .5s ease; border-radius:10px; will-change:transform; }
+    .p-card.revealed .inner { transform:rotateY(180deg); }
+    .p-card .face, .p-card .back { position:absolute; inset:0; border-radius:10px; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
+    .p-card .face { background:white; transform:rotateY(180deg); display:flex; flex-direction:column; justify-content:space-between; padding:5px 6px; border:1px solid #e0e0e0; }
+    .p-card .face.red { color:#e74c3c; }
+    .p-card .face.black { color:#1a1a2e; }
+    .p-card .back { background-color:var(--card-back-color); background-image:var(--card-back-img); border:1px solid var(--card-back-border); box-shadow:var(--card-back-shadow); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .p-card .back img { width:100%; height:100%; object-fit:cover; }
+    .card-corner { font-size:.7rem; font-weight:700; line-height:1.1; }
+    .card-corner.bot { align-self:flex-end; transform:rotate(180deg); }
+    .card-suit-center { font-size:1.5rem; text-align:center; }
+    .prediction-area { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:20px 16px; display:flex; flex-direction:column; gap:14px; animation:pred-up .22s ease-out both; }
+    .prediction-title { font-size:1.1rem; font-weight:700; text-align:center; color:var(--gold); }
+    .prediction-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .pred-btn { padding:16px; border:2px solid var(--border); border-radius:var(--radius-sm); background:var(--bg-surface); color:var(--text); font-family:inherit; font-size:1rem; font-weight:700; cursor:pointer; transition:all var(--transition); text-align:center; }
+    .pred-btn:active { transform:scale(.96); }
+    .pred-btn.red-opt { border-color:#e74c3c; color:#e74c3c; }
+    .pred-btn.black-opt { border-color:#95a5a6; color:#ecf0f1; }
+    .pred-btn.higher { border-color:var(--green); color:var(--green); }
+    .pred-btn.lower { border-color:var(--red); color:var(--red); }
+    .pred-btn.inside { border-color:#3498db; color:#3498db; }
+    .pred-btn.outside { border-color:var(--gold); color:var(--gold); }
+    .pred-btn.hearts, .pred-btn.diamonds { border-color:#e74c3c; color:#e74c3c; font-size:1.4rem; }
+    .pred-btn.clubs, .pred-btn.spades { border-color:#ecf0f1; color:#ecf0f1; font-size:1.4rem; }
+    .waiting-msg { text-align:center; color:var(--text-muted); padding:12px; font-size:.9rem; }
+    @keyframes turn-pulse { 0%,100% { box-shadow:0 0 0 0 rgba(231,76,60,.55); } 55% { box-shadow:0 0 0 10px rgba(231,76,60,0); } }
+    .turn-banner.mine { animation:turn-pulse 1.4s ease-out infinite; }
+    @keyframes pred-up { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes card-land { 0% { transform:scale(1); } 40% { transform:scale(1.06); } 100% { transform:scale(1); } }
+    .p-card.revealed { animation:card-land .3s .5s ease-out both; }
 
-    /* Écran de bascule (redirection vers une phase legacy) */
-    .spa-loading {
-      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
-      background: var(--bg); color: var(--text-muted); font-size: .9rem; gap: 10px; z-index: 10;
-    }
+    /* ── Cible (modale) — version centrée ── */
+    .target-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
+    .target-btn { padding:14px; background:var(--bg-surface); border:2px solid var(--border); border-radius:var(--radius-sm); color:var(--text); font-family:inherit; font-size:1rem; font-weight:700; cursor:pointer; text-align:center; transition:all var(--transition); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+    .target-btn:active { border-color:var(--red); }
+
+    /* ── Bandeau gorgées + notif (partagés distribution/pyramide) ── */
+    .sips-banner { position:fixed; bottom:calc(72px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%) translateY(calc(100% + 80px)); background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 16px; display:flex; align-items:center; gap:12px; z-index:150; pointer-events:none; box-shadow:0 8px 24px rgba(0,0,0,.4); max-width:88vw; transition:transform .35s cubic-bezier(.34,1.56,.64,1); }
+    .sips-banner.show { transform:translateX(-50%) translateY(0); }
+    .sips-banner .sips-text { font-size:.9rem; font-weight:600; flex:1; min-width:0; }
+    .sips-banner .sips-amount { font-size:.95rem; font-weight:700; border-radius:8px; padding:4px 10px; flex-shrink:0; background:rgba(243,156,18,.15); color:var(--gold); }
+    .card-notif { position:fixed; top:64px; left:50%; transform:translateX(-50%) translateY(calc(-100% - 80px)); background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; display:flex; align-items:center; gap:12px; z-index:300; box-shadow:0 8px 24px rgba(0,0,0,.4); pointer-events:none; max-width:88vw; transition:transform .35s cubic-bezier(.34,1.56,.64,1); }
+    .card-notif.show { transform:translateX(-50%) translateY(0); }
+    .mini-card { width:44px; height:62px; border-radius:6px; background:white; display:flex; flex-direction:column; justify-content:space-between; padding:4px 5px; border:1px solid #ddd; flex-shrink:0; }
+    .mini-card.red { color:#e74c3c; }
+    .mini-card.black { color:#1a1a2e; }
+    .mini-card .mc-corner { font-size:.65rem; font-weight:700; line-height:1.1; }
+    .mini-card .mc-center { font-size:1.1rem; text-align:center; }
+    .mini-card .mc-bot { align-self:flex-end; transform:rotate(180deg); font-size:.65rem; font-weight:700; }
+    .notif-text { flex:1; min-width:0; }
+    .notif-who { font-size:.85rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .notif-sub { font-size:.72rem; color:var(--text-muted); }
+
+    /* ── Mémorisation (60s) ── */
+    .timer-circle-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .timer-circle { width:80px; height:80px; position:relative; }
+    .timer-circle svg { transform:rotate(-90deg); }
+    .timer-circle-bg { fill:none; stroke:var(--bg-surface); stroke-width:6; }
+    .timer-circle-fill { fill:none; stroke:var(--orange); stroke-width:6; stroke-linecap:round; stroke-dasharray:220; stroke-dashoffset:0; transition:stroke-dashoffset 1s linear, stroke .5s; }
+    .timer-circle-fill.urgent { stroke:var(--red); }
+    .timer-number { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.4rem; font-weight:700; }
+    .cards-row { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+    .mem-card { width:72px; height:100px; border-radius:10px; background:white; display:flex; flex-direction:column; justify-content:space-between; padding:6px 7px; border:1px solid #e0e0e0; flex-shrink:0; }
+    .mem-card.red { color:#e74c3c; }
+    .mem-card.black { color:#1a1a2e; }
+    .mem-card .corner { font-size:.75rem; font-weight:700; line-height:1.1; }
+    .mem-card .corner.bot { align-self:flex-end; transform:rotate(180deg); }
+    .mem-card .center { font-size:1.6rem; text-align:center; }
+    .players-ready { display:flex; flex-direction:column; gap:8px; }
+    .ready-row { display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--bg-surface); border-radius:var(--radius-sm); }
+    .ready-indicator { width:10px; height:10px; border-radius:50%; background:var(--text-muted); flex-shrink:0; transition:background .3s; }
+    .ready-indicator.ready { background:var(--green); }
+
+    /* ── Pyramide (jeu) ── */
+    .pyramid-area { display:flex; flex-direction:column; align-items:center; gap:var(--py-gap); }
+    .pyramid-row { display:flex; justify-content:center; gap:var(--py-gap); }
+    .pyramid-row-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .py-card { width:var(--py-w); height:var(--py-h); border-radius:8px; position:relative; flex-shrink:0; contain:layout style; }
+    .py-card .inner { width:100%; height:100%; position:relative; transform-style:preserve-3d; transition:transform .5s ease; border-radius:8px; will-change:transform; }
+    .py-card.revealed .inner { transform:rotateY(180deg); }
+    .py-card .face, .py-card .back { position:absolute; inset:0; border-radius:8px; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
+    .py-card .face { background:white; transform:rotateY(180deg); display:flex; flex-direction:column; justify-content:space-between; padding:3px 4px; border:1px solid #e0e0e0; font-size:var(--py-fs); font-weight:700; }
+    .py-card .face.red { color:#e74c3c; }
+    .py-card .face.black { color:#1a1a2e; }
+    .py-card .face .suit-center { font-size:var(--py-fsc); text-align:center; }
+    .py-card .back { background-color:var(--card-back-color); background-image:var(--card-back-img); border:1px solid var(--card-back-border); box-shadow:var(--card-back-shadow); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .py-card.culSec .back { border-color:var(--red); box-shadow:0 0 10px rgba(231,76,60,.5); }
+    .py-card.next-card .back { border-color:var(--gold); box-shadow:0 0 10px rgba(243,156,18,.4); animation:pulse-card 1.5s infinite; }
+    @keyframes pulse-card { 0%,100% { filter:brightness(1); box-shadow:0 0 0 0 rgba(243,156,18,.5); } 50% { filter:brightness(1.25); box-shadow:0 0 0 7px rgba(243,156,18,0); } }
+    @keyframes mem-flip { from { transform:perspective(500px) rotateY(80deg); opacity:0; } to { transform:perspective(500px) rotateY(0deg); opacity:1; } }
+    @keyframes badge-pop { 0% { transform:scale(0) rotate(-15deg); } 55% { transform:scale(1.4) rotate(6deg); } 100% { transform:scale(1) rotate(0deg); } }
+    .timer-bar-wrap { height:4px; background:var(--bg-surface); border-radius:2px; overflow:hidden; }
+    .timer-bar-fill { height:100%; background:var(--green); border-radius:2px; transition:width 1s linear, background .5s; }
+    .timer-bar-fill.urgent { background:var(--red); }
+    .player-hand { display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+    .player-hand::-webkit-scrollbar { display:none; }
+    .ph-card-back { width:48px; height:67px; border-radius:7px; flex-shrink:0; cursor:default; background-color:var(--card-back-color); background-image:var(--card-back-img); border:1px solid var(--card-back-border); box-shadow:var(--card-back-shadow); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .ph-card-back.clickable { border-color:var(--gold); box-shadow:0 0 10px rgba(243,156,18,.5); cursor:pointer; animation:pulse-card 1s infinite; }
+    .action-section { border-radius:var(--radius); padding:14px 16px; display:flex; flex-direction:column; gap:10px; }
+    .action-section.sips-response { background:rgba(231,76,60,.1); border:1px solid rgba(231,76,60,.3); }
+    .action-section.card-action { background:var(--bg-card); border:1px solid var(--border); }
+    .action-label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); }
+    .action-prompt { font-size:.95rem; text-align:center; }
+    .action-prompt strong { color:var(--gold); }
+    .action-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .action-btn { padding:14px; border:none; border-radius:var(--radius-sm); font-family:inherit; font-size:.95rem; font-weight:700; cursor:pointer; transition:all var(--transition); color:white; }
+    .action-btn:active { transform:scale(.96); }
+    .action-btn.give { background:var(--green); }
+    .action-btn.pass { background:var(--bg-surface); color:var(--text); }
+    .action-btn.liar { background:var(--red); }
+    .action-btn.drink { background:var(--bg-surface); color:var(--text); }
+    .action-btn.host-flip { background:var(--gold); color:#1a1a1a; grid-column:span 2; }
+    .waiting-avatars { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+    .waiting-avatar { width:32px; height:32px; border-radius:50%; background:var(--bg-surface); border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:1rem; overflow:hidden; flex-shrink:0; }
+    .waiting-avatar img { width:100%; height:100%; object-fit:cover; }
+    .mem-hand { display:flex; justify-content:center; gap:12px; flex-wrap:wrap; padding:4px 0; }
+    .mem-card-wrap { width:60px; height:84px; border-radius:8px; flex-shrink:0; position:relative; cursor:pointer; transition:transform .14s; }
+    .mem-card-wrap:active { transform:scale(.92); }
+    .mem-card-wrap.done { cursor:default; }
+    .mem-card-back { width:100%; height:100%; border-radius:8px; background-color:var(--card-back-color); background-image:var(--card-back-img); border:2px solid var(--orange); box-shadow:var(--card-back-shadow), 0 0 10px rgba(243,156,18,.3); }
+    .mem-card-face { width:100%; height:100%; border-radius:8px; background:white; display:flex; flex-direction:column; justify-content:space-between; padding:4px 5px; font-size:.62rem; font-weight:700; line-height:1.1; border:2px solid transparent; }
+    .mem-card-face.ok { border-color:var(--green); }
+    .mem-card-face.ko { border-color:var(--red); }
+    .mem-result { position:absolute; top:-8px; right:-7px; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.65rem; font-weight:700; color:white; animation:badge-pop .4s cubic-bezier(.34,1.56,.64,1) both; }
+    .mem-result.ok { background:var(--green); }
+    .mem-result.ko { background:var(--red); }
+    .mem-val-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+    .mem-val-btn { padding:9px 2px; border:1px solid var(--border); border-radius:6px; background:var(--bg-raised); color:var(--text); font-family:inherit; font-size:.82rem; font-weight:700; cursor:pointer; text-align:center; transition:all .13s; -webkit-tap-highlight-color:transparent; }
+    .mem-val-btn.sel { background:var(--orange); color:#1a1a1a; border-color:var(--orange); }
+    .mem-prog-row { display:flex; align-items:center; gap:10px; font-size:.85rem; }
+
+    /* ── Fin de partie ── */
+    .podium-row { display:flex; align-items:center; gap:12px; padding:14px; border-radius:var(--radius-sm); background:var(--bg-surface); }
+    .podium-row.first { background:rgba(243,156,18,.15); border:1px solid var(--gold); }
+    .podium-row.second { background:rgba(189,195,199,.08); border:1px solid rgba(189,195,199,.3); }
+    .podium-row.third { background:rgba(149,82,50,.1); border:1px solid rgba(149,82,50,.3); }
+    .podium-rank { font-size:1.4rem; width:32px; text-align:center; flex-shrink:0; }
+    .stat-card { display:flex; flex-direction:column; gap:6px; }
+    .stat-row { display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-bottom:1px solid var(--border); }
+    .stat-row:last-child { border-bottom:none; }
+    .stat-highlight { display:flex; align-items:center; gap:12px; padding:14px; border-radius:var(--radius-sm); background:var(--bg-surface); }
+    .stat-highlight-icon { font-size:1.8rem; flex-shrink:0; }
+    .xp-section { text-align:center; padding:18px; background:rgba(243,156,18,.1); border-radius:var(--radius); border:1px solid rgba(243,156,18,.25); animation:scale-in .4s cubic-bezier(.34,1.4,.64,1) 1.4s both; }
+
+    /* ── Bascule ── */
+    .spa-loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); color:var(--text-muted); font-size:.9rem; gap:10px; z-index:10; }
   </style>
 </head>
 <body>
 
-  <div class="screen">
-    <header class="app-header">
-      <button class="header-btn" id="btn-leave"><i class="fas fa-door-open"></i></button>
-      <div class="header-brand"><i class="fas fa-guitar" style="color:var(--red);margin-right:6px;font-size:.9rem"></i>La <span class="brand-accent">Gitanerie</span></div>
-      <div style="width:36px"></div>
-    </header>
-
-    <div class="page-content">
-
-      <!-- ══════════ VUE : SALLE D'ATTENTE ══════════ -->
-      <section id="view-waiting" class="spa-view">
-        <!-- Code -->
-        <div class="card flex-col gap-8 text-center">
-          <p class="text-sm text-muted">Code de la partie</p>
-          <div class="game-code-display" id="game-code">----</div>
-          <div class="flex gap-8" style="justify-content:center">
-            <button id="btn-copy-code" class="btn btn-secondary btn-sm" style="width:auto;gap:6px">
-              <i class="fas fa-copy"></i> Copier
-            </button>
-            <button id="btn-share-code" class="btn btn-secondary btn-sm" style="width:auto;gap:6px">
-              <i class="fas fa-share-alt"></i> Partager
-            </button>
-          </div>
-        </div>
-
-        <!-- Joueurs -->
-        <div class="card flex-col gap-12">
-          <div class="flex items-center justify-between">
-            <h3>Joueurs</h3>
-            <span id="player-count" class="badge badge-muted">0</span>
-          </div>
-          <div id="players-list" class="players-list">
-            <div class="text-muted text-sm text-center">En attente...</div>
-          </div>
-        </div>
-
-        <!-- Règles (hôte uniquement) -->
-        <div id="rules-section" class="hidden">
-          <div class="rules-accordion" id="rules-accordion">
-            <div class="rules-header" onclick="toggleRules()">
-              <h3>⚙️ Règles de la partie</h3>
-              <i class="fas fa-chevron-down chevron"></i>
-            </div>
-            <div class="rules-body">
-              <div class="rule-row">
-                <div class="rule-info">
-                  <div class="rule-name">Rangées de la pyramide</div>
-                  <div class="rule-desc">Nombre de rangées (haut = Cul Sec)</div>
-                </div>
-                <div class="stepper">
-                  <button class="stepper-btn" onclick="changeRows(-1)">−</button>
-                  <span class="stepper-val" id="val-rows">5</span>
-                  <button class="stepper-btn" onclick="changeRows(+1)">+</button>
-                </div>
-              </div>
-              <div class="rule-row">
-                <div class="rule-info">
-                  <div class="rule-name">Cartes visibles (phase 1)</div>
-                  <div class="rule-desc">Les autres voient la carte révélée pendant 3s</div>
-                </div>
-                <label class="toggle">
-                  <input type="checkbox" id="rule-showPhase1" checked>
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-              <div class="rule-row">
-                <div class="rule-info">
-                  <div class="rule-name">Preuve visible pour tous</div>
-                  <div class="rule-desc">Quand quelqu'un prouve au Menteur, tous voient la carte</div>
-                </div>
-                <label class="toggle">
-                  <input type="checkbox" id="rule-showProof" checked>
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-              <div class="rule-row">
-                <div class="rule-info">
-                  <div class="rule-name">Multiplicateur de gorgées</div>
-                  <div class="rule-desc">Multiplie toutes les gorgées de la pyramide</div>
-                </div>
-                <div class="segmented">
-                  <button class="seg-btn active" onclick="setMult(1, this)">×1</button>
-                  <button class="seg-btn" onclick="setMult(2, this)">×2</button>
-                  <button class="seg-btn" onclick="setMult(3, this)">×3</button>
-                </div>
-              </div>
-              <div class="rule-row">
-                <div class="rule-info">
-                  <div class="rule-name">Timer par carte</div>
-                  <div class="rule-desc">Délai avant que l'hôte puisse forcer le tour</div>
-                </div>
-                <div class="segmented">
-                  <button class="seg-btn" onclick="setTimer(20, this)">20s</button>
-                  <button class="seg-btn active" onclick="setTimer(30, this)">30s</button>
-                  <button class="seg-btn" onclick="setTimer(45, this)">45s</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tip invite -->
-        <div id="invite-tip" class="hidden" style="padding:12px 16px;background:rgba(243,156,18,.07);border:1px solid rgba(243,156,18,.2);border-radius:var(--radius);text-align:center">
-          <p class="text-sm text-muted" style="line-height:1.5">Partage le code ci-dessus pour inviter tes amis.<br>Min. 2 joueurs pour lancer.</p>
-        </div>
-
-        <!-- Actions -->
-        <div class="flex-col gap-12 mt-auto">
-          <div id="host-section" class="hidden flex-col gap-8">
-            <p class="text-sm text-muted text-center">
-              <i class="fas fa-crown" style="color:var(--gold)"></i> Tu es l'hôte. Lance quand tout le monde est prêt.
-            </p>
-            <button id="btn-start" class="btn btn-primary">
-              <i class="fas fa-play"></i> Lancer la partie
-            </button>
-          </div>
-          <div id="guest-section" class="hidden flex-col gap-8">
-            <button id="btn-ready" class="btn btn-primary">
-              <i class="fas fa-check"></i> Je suis prêt !
-            </button>
-            <p class="text-sm text-muted text-center">L'hôte lancera la partie.</p>
-          </div>
-          <div id="error-msg" class="hidden text-sm text-center" style="color:var(--red)"></div>
-        </div>
-      </section>
-
-      <!-- Les autres phases (distribution, memorize, pyramid, memoryReveal, end) sont
-           pour l'instant gérées par les pages legacy via redirection (voir le routeur).
-           Elles seront portées ici une par une. -->
-
-    </div>
-  </div>
-
-  <div id="spa-loading" class="spa-loading hidden"><i class="fas fa-spinner fa-spin"></i> Chargement…</div>
+  <div id="view-root"></div>
+  <div id="spa-loading" class="spa-loading"><i class="fas fa-spinner fa-spin"></i> Chargement…</div>
   <div id="toast" class="toast"></div>
 
   <script type="module">
     import { db } from '/js/firebase-config.js';
-    import { ref, onValue, update, remove, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-    import {
-      requireSession, showToast, createDeck, createPyramid,
-      createPyramidOrder, defaultPyramidRows, clearGameSession
-    } from '/js/game/utils.js';
-    import { avatarHTML } from '/js/game/avatar.js';
+    import { ref, onValue, update, onDisconnect } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+    import { requireSession, showToast, clearGameSession } from '/js/game/utils.js';
 
     const session = requireSession('/lobbypyramide.html');
     if (!session) throw new Error('No session');
     const { gameId, playerId, isHost } = session;
+    const api = { gameId, playerId, isHost };
 
-    const gameRef   = ref(db, `games/${gameId}`);
-    const playerRef = ref(db, `games/${gameId}/players/${playerId}`);
+    const root = document.getElementById('view-root');
+    const gameRef = ref(db, `games/${gameId}`);
 
-    update(playerRef, { online: true });
-
-    // ══════════════════════════════════════════════════════════════════
-    //  ROUTEUR DE PHASE — cœur de la SPA
-    //  Une seule connexion Firebase, on change de vue selon game.phase.
-    //  Les phases pas encore portées redirigent vers la page legacy
-    //  (comportement identique à aujourd'hui) → toujours fonctionnel.
-    // ══════════════════════════════════════════════════════════════════
-    function showView(id) {
-      document.querySelectorAll('.spa-view').forEach(v => v.classList.toggle('active', v.id === id));
-    }
-    function goLegacy(page) {
-      // On se désabonne pour éviter une double redirection, puis on bascule.
-      _unsub?.();
-      document.getElementById('spa-loading').classList.remove('hidden');
-      window.location.replace(`${page}?gameId=${gameId}&playerId=${playerId}`);
-    }
-
-    let _unsub = null;
-    let _redirecting = false;
-    _unsub = onValue(gameRef, (snap) => {
-      const game = snap.val();
-      if (!game) { clearGameSession(); window.location.href = '/lobbypyramide.html'; return; }
-      if (_redirecting) return;
-      route(game);
+    // Présence (une seule fois pour toute la SPA)
+    onDisconnect(ref(db, `games/${gameId}/players/${playerId}/online`)).set(false);
+    onValue(ref(db, '.info/connected'), (snap) => {
+      if (snap.val()) update(ref(db, `games/${gameId}/players/${playerId}`), { online: true });
     });
 
-    function route(game) {
-      const phase = game.phase || 'waiting';
+    const PHASE_SRC = {
+      waiting:      '/js/phases/waiting.js',
+      distribution: '/js/phases/distribution.js',
+      memorize:     '/js/phases/memorize.js',
+      pyramid:      '/js/phases/pyramid.js',
+      end:          '/js/phases/end.js',
+    };
+    function mapName(game) {
+      const p = game.phase || 'waiting';
+      if (p === 'memoryReveal') return 'pyramid';
+      return PHASE_SRC[p] ? p : 'waiting';
+    }
 
-      // Gestion de l'abandon (valable en salle d'attente)
-      if (game.status === 'abandoned' && !isHost) {
-        _redirecting = true;
+    let current = null;        // { name, ctrl }
+    let _mountingName = null;
+    let _latestGame = null;
+
+    async function mountPhase(name) {
+      if ((current && current.name === name) || _mountingName === name) return;
+      _mountingName = name;
+      try {
+        if (current) { try { current.ctrl.unmount?.(); } catch (e) {} root.innerHTML = ''; current = null; }
+        const mod = await import(PHASE_SRC[name]);
+        const ctrl = mod.mount(root, api);
+        current = { name, ctrl };
+        document.getElementById('spa-loading').style.display = 'none';
+        if (_latestGame && mapName(_latestGame) === name) {
+          try { ctrl.update(_latestGame); } catch (e) { console.error(e); }
+        }
+      } catch (e) {
+        console.error('[SPA] échec de montage', name, e);
+      } finally {
+        _mountingName = null;
+      }
+    }
+
+    function driver(game) {
+      _latestGame = game;
+      const name = mapName(game);
+      if (current && current.name === name) {
+        try { current.ctrl.update(game); } catch (e) { console.error(e); }
+        return;
+      }
+      mountPhase(name);
+    }
+
+    onValue(gameRef, (snap) => {
+      const game = snap.val();
+      if (!game) {
+        // Partie supprimée : l'écran de fin gère sa propre navigation ; sinon retour lobby.
+        if (current && current.name === 'end') return;
+        clearGameSession();
+        window.location.href = '/lobbypyramide.html';
+        return;
+      }
+      if (!game.players?.[playerId]) {
+        clearGameSession();
+        window.location.href = '/';
+        return;
+      }
+      // Abandon en salle d'attente
+      if (game.status === 'abandoned' && !isHost && (!game.phase || game.phase === 'waiting')) {
         clearGameSession();
         showToast("L'hôte a quitté la partie", 'error');
         setTimeout(() => { window.location.href = '/lobbypyramide.html'; }, 1500);
         return;
       }
-
-      switch (phase) {
-        case 'waiting':
-          showView('view-waiting');
-          renderWaiting(game);
-          return;
-        // ── Phases non encore portées → legacy ──
-        case 'distribution':  _redirecting = true; return goLegacy('/game.html');
-        case 'memorize':      _redirecting = true; return goLegacy('/memorize.html');
-        case 'pyramid':       _redirecting = true; return goLegacy('/game2.html');
-        case 'memoryReveal':  _redirecting = true; return goLegacy('/game2.html');
-        case 'end':           _redirecting = true; return goLegacy('/end.html');
-        default:
-          showView('view-waiting');
-          renderWaiting(game);
-      }
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    //  VUE : SALLE D'ATTENTE  (portée fidèlement depuis join.html)
-    // ══════════════════════════════════════════════════════════════════
-    let rules = { rows: 5, showPhase1: true, showProof: true, sipsMultiplier: 1, timerDuration: 30 };
-    let isReady = false;
-    let _waitingInit = false;
-
-    function initWaitingOnce() {
-      if (_waitingInit) return;
-      _waitingInit = true;
-
-      if (isHost) {
-        document.getElementById('host-section').classList.remove('hidden');
-        document.getElementById('rules-section').classList.remove('hidden');
-      } else {
-        document.getElementById('guest-section').classList.remove('hidden');
-      }
-
-      document.getElementById('btn-copy-code').onclick = async () => {
-        const code = document.getElementById('game-code').textContent;
-        if (!code || code === '----') return;
-        try {
-          await navigator.clipboard.writeText(code);
-          const btn = document.getElementById('btn-copy-code');
-          btn.innerHTML = '<i class="fas fa-check"></i> Copié !';
-          setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i> Copier'; }, 2000);
-        } catch { showToast('Copie non supportée sur ce navigateur', 'error'); }
-      };
-      document.getElementById('btn-share-code').onclick = async () => {
-        const code = document.getElementById('game-code').textContent;
-        if (!code || code === '----') return;
-        if (navigator.share) {
-          try { await navigator.share({ title: 'La Gitanerie', text: `Rejoins ma partie ! Code : ${code}\nhttps://la-gitanerie.web.app` }); } catch {}
-        } else {
-          await navigator.clipboard.writeText(code).catch(() => {});
-          showToast(`Code copié : ${code}`, 'success');
-        }
-      };
-
-      document.getElementById('btn-ready')?.addEventListener('click', async () => {
-        await update(playerRef, { ready: !isReady });
-      });
-
-      document.getElementById('btn-start')?.addEventListener('click', onStart);
-
-      document.getElementById('rule-showPhase1')?.addEventListener('change', (e) => { rules.showPhase1 = e.target.checked; });
-      document.getElementById('rule-showProof')?.addEventListener('change', (e) => { rules.showProof = e.target.checked; });
-    }
-
-    function renderWaiting(game) {
-      initWaitingOnce();
-      const players = game.players || {};
-      const entries = Object.entries(players);
-
-      document.getElementById('game-code').textContent = game.gameCode || '----';
-      document.getElementById('player-count').textContent = entries.length;
-
-      const numPlayers = entries.length;
-      if (isHost && rules.rows === rules._defaultRows) {
-        rules.rows = defaultPyramidRows(numPlayers);
-        rules._defaultRows = rules.rows;
-        document.getElementById('val-rows').textContent = rules.rows;
-      } else if (!rules._defaultRows) {
-        rules._defaultRows = defaultPyramidRows(numPlayers);
-        rules.rows = rules._defaultRows;
-        document.getElementById('val-rows').textContent = rules.rows;
-      }
-
-      const tip = document.getElementById('invite-tip');
-      if (tip) tip.classList.toggle('hidden', entries.length >= 4);
-
-      const list = document.getElementById('players-list');
-      list.innerHTML = '';
-      entries.forEach(([id, p]) => {
-        const isMe    = id === playerId;
-        const isHost_ = id === game.hostId;
-        const row = document.createElement('div');
-        row.className = 'player-row';
-        const borderClass = p.activeBorder ? `border-${p.activeBorder}` : '';
-        row.innerHTML = `
-          ${avatarHTML(p.avatar, 40, borderClass)}
-          <div class="flex-col" style="flex:1">
-            <span class="font-bold">${p.name}${isMe ? ' (toi)' : ''}</span>
-            ${isHost_ ? '<span class="host-crown"><i class="fas fa-crown"></i> Hôte</span>' : ''}
-          </div>
-          <span class="badge ${p.ready ? 'badge-gold' : 'badge-muted'}">${p.ready ? 'Prêt' : 'En attente'}</span>`;
-        if (isHost && !isMe && !isHost_) {
-          const kick = document.createElement('button');
-          kick.innerHTML = '<i class="fas fa-times"></i>';
-          kick.title = 'Expulser';
-          kick.style.cssText = 'background:none;border:none;color:var(--red);font-size:1rem;padding:4px 10px;cursor:pointer;margin-left:4px;opacity:.7';
-          kick.onclick = async () => {
-            await remove(ref(db, `games/${gameId}/players/${id}`));
-            showToast(`${p.name} a été expulsé`, 'info');
-          };
-          row.appendChild(kick);
-        }
-        list.appendChild(row);
-        if (isMe) isReady = !!p.ready;
-      });
-
-      const btnStart = document.getElementById('btn-start');
-      if (btnStart) {
-        const nonHostIds = entries.filter(([id]) => id !== game.hostId);
-        const allReady   = nonHostIds.length > 0 && nonHostIds.every(([, p]) => p.ready);
-        const canStart   = entries.length >= 2 && allReady;
-        btnStart.disabled = !canStart;
-        btnStart.innerHTML = canStart
-          ? '<i class="fas fa-play"></i> Lancer la partie'
-          : '<i class="fas fa-hourglass-half"></i> En attente des joueurs…';
-      }
-
-      const btnReady = document.getElementById('btn-ready');
-      if (btnReady) {
-        btnReady.className = isReady ? 'btn btn-secondary' : 'btn btn-primary';
-        btnReady.innerHTML = isReady
-          ? '<i class="fas fa-times"></i> Pas prêt'
-          : '<i class="fas fa-check"></i> Je suis prêt !';
-      }
-    }
-
-    async function onStart() {
-      const snap    = await get(gameRef);
-      const game    = snap.val();
-      const players = game.players || {};
-      const ids     = Object.keys(players);
-
-      if (ids.length < 2) return showError('Il faut au moins 2 joueurs');
-      const nonHostIds = ids.filter(id => id !== playerId);
-      const allReady   = nonHostIds.every(id => players[id]?.ready);
-      if (!allReady) return showError('Tout le monde doit être prêt !');
-
-      const deck    = createDeck();
-      const numRows = rules.rows;
-      const pyramid = createPyramid(numRows);
-      const order   = createPyramidOrder(numRows);
-
-      const updates = {
-        status: 'started',
-        phase: 'distribution',
-        pyramid,
-        pyramidOrder: order,
-        deck,
-        currentTurn: ids[0],
-        rules: {
-          showPhase1:     rules.showPhase1,
-          showProof:      rules.showProof,
-          sipsMultiplier: rules.sipsMultiplier,
-          timerDuration:  rules.timerDuration
-        }
-      };
-      ids.forEach(id => {
-        updates[`players/${id}/cards`]       = deck.splice(0, 4).map(c => ({ ...c, revealed: false }));
-        updates[`players/${id}/sipsToDrink`] = 0;
-        updates[`players/${id}/sipsGiven`]   = 0;
-      });
-      updates.deck = deck;
-      await update(gameRef, updates);
-      // Le routeur verra phase='distribution' → bascule vers game.html (legacy)
-    }
-
-    function showError(msg) {
-      const el = document.getElementById('error-msg');
-      el.textContent = msg;
-      el.classList.remove('hidden');
-      setTimeout(() => el.classList.add('hidden'), 4000);
-    }
-
-    // Quitter (identique à join.html)
-    document.getElementById('btn-leave').onclick = async () => {
-      const btn = document.getElementById('btn-leave');
-      btn.disabled = true;
-      try {
-        if (isHost) {
-          const snap = await get(gameRef);
-          const gameCode = snap.val()?.gameCode;
-          await update(gameRef, { status: 'abandoned' });
-          setTimeout(async () => {
-            if (gameCode) await remove(ref(db, `gameCodes/${gameCode}`));
-            await remove(gameRef);
-          }, 3000);
-        } else {
-          await remove(playerRef);
-        }
-        _unsub?.();
-        clearGameSession();
-        window.location.href = '/lobbypyramide.html';
-      } catch (e) {
-        btn.disabled = false;
-        showToast('Erreur lors de la sortie', 'error');
-      }
-    };
-
-    // Contrôles des règles (hôte)
-    window.toggleRules = () => document.getElementById('rules-accordion').classList.toggle('open');
-    window.changeRows = (delta) => {
-      rules.rows = Math.max(2, Math.min(8, rules.rows + delta));
-      document.getElementById('val-rows').textContent = rules.rows;
-    };
-    window.setMult = (val, btn) => {
-      rules.sipsMultiplier = val;
-      btn.closest('.segmented').querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    };
-    window.setTimer = (val, btn) => {
-      rules.timerDuration = val;
-      btn.closest('.segmented').querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    };
+      driver(game);
+    });
   </script>
 
 </body>

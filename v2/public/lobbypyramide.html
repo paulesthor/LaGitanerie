@@ -296,7 +296,7 @@
         }));
 
         setGameSession({ gameId, playerId, isHost: true });
-        window.location.href = `/join.html?gameId=${gameId}&playerId=${playerId}`;
+        window.location.href = `/play.html?gameId=${gameId}&playerId=${playerId}`;
 
       } catch (e) {
         showError(friendlyError(e));
@@ -355,7 +355,7 @@
             deck: deck.slice(4)
           }));
           setGameSession({ gameId, playerId, isHost: false });
-          window.location.href = `/game2.html?gameId=${gameId}&playerId=${playerId}`;
+          window.location.href = `/play.html?gameId=${gameId}&playerId=${playerId}`;
           return;
         }
 
@@ -370,7 +370,7 @@
         }));
 
         setGameSession({ gameId, playerId, isHost: false });
-        window.location.href = `/join.html?gameId=${gameId}&playerId=${playerId}`;
+        window.location.href = `/play.html?gameId=${gameId}&playerId=${playerId}`;
 
       } catch (e) {
         showError(friendlyError(e));

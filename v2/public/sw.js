@@ -1,4 +1,4 @@
-const CACHE = 'gitanerie-v48';
+const CACHE = 'gitanerie-v49';
 
 // Assets à pré-cacher à l'installation
 const PRECACHE = [
@@ -23,6 +23,11 @@ const PRECACHE = [
   '/js/game/utils.js',
   '/js/game/avatar.js',
   '/js/game/loup.js',
+  '/js/phases/waiting.js',
+  '/js/phases/distribution.js',
+  '/js/phases/memorize.js',
+  '/js/phases/pyramid.js',
+  '/js/phases/end.js',
   '/manifest.json',
   '/icons/hedgehog.png',
   '/icons/icon-192.png',
