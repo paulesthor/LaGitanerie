@@ -82,6 +82,8 @@ export const TITLES = {
   // Paliers gorgées
   descente: { id: 'descente', name: 'Grosse descente',      desc: '10 gorgées bues en une partie',  check: c => c.sipsThisGame >= 10 },
   machine:  { id: 'machine',  name: 'Machine à boire',      desc: '200 gorgées bues au total',      check: c => c.totalSipsDrunk >= 200 },
+  // ── Titres cachés (easter-eggs) — débloqués par le pseudo, invisibles tant que non obtenus ──
+  oss117:   { id: 'oss117',   name: 'OSS 117',              desc: '« Hubert, tu permets ? »',       hidden: true, pseudo: ['hubert', 'oss 117', 'oss117', 'bonisseur', 'bonnisseur', 'la bath'] },
 };
 
 export const BORDERS = {
@@ -111,4 +113,22 @@ export function checkNewBadges(existingBadges = [], ctx = {}) {
 
 export function availableBorders(level) {
   return Object.values(BORDERS).filter(b => level >= b.minLevel);
+}
+
+// ── Titres easter-egg selon le pseudo ─────────────────────
+export function normalizePseudo(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+// Renvoie les titres cachés débloqués par ce pseudo (non encore possédés)
+export function checkPseudoTitles(pseudo, owned = []) {
+  const p = normalizePseudo(pseudo);
+  if (!p) return [];
+  const ownedSet = new Set(owned);
+  const found = [];
+  for (const t of Object.values(TITLES)) {
+    if (!t.pseudo || ownedSet.has(t.id)) continue;
+    if (t.pseudo.some(k => p.includes(normalizePseudo(k)))) found.push(t.id);
+  }
+  return found;
 }

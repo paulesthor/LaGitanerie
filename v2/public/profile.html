@@ -50,6 +50,29 @@
       transition:all var(--transition);
     }
     .title-pill.active { border-color:var(--gold); background:rgba(243,156,18,.15); color:var(--gold); }
+
+    /* Pop-up de déblocage de titre secret */
+    .title-unlock-ov {
+      position:fixed; inset:0; z-index:3000;
+      background:rgba(8,12,16,.72); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px);
+      display:flex; align-items:center; justify-content:center; padding:24px;
+      opacity:0; transition:opacity .25s ease; pointer-events:none;
+    }
+    .title-unlock-ov.show { opacity:1; pointer-events:auto; }
+    .title-unlock-card {
+      background:linear-gradient(160deg,#20303f,#141d26);
+      border:1px solid var(--gold); border-radius:18px;
+      padding:28px 26px; text-align:center; max-width:320px; width:100%;
+      box-shadow:0 20px 60px rgba(0,0,0,.5), 0 0 40px rgba(243,156,18,.15);
+      transform:scale(.85) translateY(10px); transition:transform .3s cubic-bezier(.34,1.5,.64,1);
+      display:flex; flex-direction:column; align-items:center; gap:10px;
+    }
+    .title-unlock-ov.show .title-unlock-card { transform:scale(1) translateY(0); }
+    .tu-crown { font-size:2.4rem; color:var(--gold); filter:drop-shadow(0 3px 10px rgba(243,156,18,.5)); }
+    .tu-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.18em; color:var(--text-muted); }
+    .tu-name  { font-family:var(--font-brand); font-size:1.9rem; font-weight:700; color:var(--text); line-height:1.1; }
+    .tu-desc  { font-size:.85rem; color:var(--text-muted); font-style:italic; }
+    .title-unlock-card .tu-ok { width:auto; padding-left:30px; padding-right:30px; margin-top:8px; }
   </style>
 </head>
 <body>
@@ -190,7 +213,7 @@
     import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
     import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { getGuestName, setGuestName, getGuestAvatar, setGuestAvatar, showToast } from '/js/game/utils.js';
-    import { BADGES, BORDERS, TITLES, availableBorders } from '/js/game/badges.js';
+    import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar } from '/js/game/avatar.js';
 
     const EMOJIS = ['🃏','🎴','🎰','🍺','🥃','🍻','🎭','👑','💀','🔥','⚡','🌙','🎯','🎲','🐍','🦁','🐺','🎸','🤠','🎪'];
@@ -234,6 +257,35 @@
     function updateProfileTitle() {
       const el = document.getElementById('profile-title');
       el.textContent = (selectedTitle && TITLES[selectedTitle]) ? TITLES[selectedTitle].name : '';
+    }
+
+    // ── Titres cachés (easter-egg) selon le pseudo ──────────
+    async function unlockPseudoTitles(pseudo) {
+      const found = checkPseudoTitles(pseudo, ownedTitles);
+      if (!found.length) return;
+      ownedTitles = [...new Set([...ownedTitles, ...found])];
+      renderTitles(ownedTitles, selectedTitle);
+      await saveActive({ titles: ownedTitles });
+      showTitleUnlock(found[0]);
+    }
+
+    function showTitleUnlock(titleId) {
+      const def = TITLES[titleId]; if (!def) return;
+      const ov = document.createElement('div');
+      ov.className = 'title-unlock-ov';
+      ov.innerHTML = `
+        <div class="title-unlock-card">
+          <div class="tu-crown"><i class="fas fa-crown"></i></div>
+          <div class="tu-label">Titre secret débloqué</div>
+          <div class="tu-name">${def.name}</div>
+          <div class="tu-desc">${def.desc}</div>
+          <button class="btn btn-primary tu-ok">Stylé</button>
+        </div>`;
+      document.body.appendChild(ov);
+      requestAnimationFrame(() => ov.classList.add('show'));
+      const close = () => { ov.classList.remove('show'); setTimeout(() => ov.remove(), 260); };
+      ov.querySelector('.tu-ok').onclick = close;
+      ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
     }
 
     // ── Badges ──────────────────────────────────────────────
@@ -401,6 +453,7 @@
         selectedTitle = data.activeTitle || null;
         renderTitles(data.titles || [], selectedTitle);
         updateProfileTitle();
+        unlockPseudoTitles(name);   // titres cachés selon le pseudo (rétroactif)
 
         // Badges et cadres
         const badges      = data.badges       || [];
@@ -485,6 +538,7 @@
           updateProfileTitle();
           try { localStorage.setItem('lastProfileAvatar', selectedAvatar); } catch (e) {}
           showToast('Profil sauvegardé', 'success');
+          unlockPseudoTitles(name);   // easter-egg : titre caché si le pseudo correspond
         } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
       } else {
         setGuestName(name);
