@@ -190,6 +190,20 @@
         <p class="text-sm text-muted">Les cadres se débloquent par niveau. Niv. 5 Bronze · Niv. 10 Argent · Niv. 20 Or · Niv. 30 Légende</p>
       </div>
 
+      <!-- Panneau de test (compte dev uniquement) -->
+      <div id="dev-section" class="card flex-col gap-12 hidden" style="border:1px dashed var(--orange)">
+        <h3><i class="fas fa-flask" style="color:var(--orange)"></i> Outils de test</h3>
+        <p class="text-sm text-muted">Réservé à ton compte. « Tout débloquer » monte aussi le niveau à 30 pour dévoiler les cadres.</p>
+        <div class="flex gap-10 flex-wrap">
+          <button id="btn-dev-unlock" class="btn btn-secondary btn-sm" style="width:auto">
+            <i class="fas fa-unlock"></i> Tout débloquer
+          </button>
+          <button id="btn-dev-reset" class="btn btn-ghost btn-sm" style="width:auto;color:var(--red)">
+            <i class="fas fa-eraser"></i> Tout retirer
+          </button>
+        </div>
+      </div>
+
       <!-- Stats globales -->
       <div class="card flex-col gap-12 hidden" id="stats-section">
         <h3><i class="fas fa-chart-bar" style="color:var(--orange)"></i> Statistiques</h3>
@@ -423,8 +437,40 @@
 
     document.getElementById('btn-remove-photo').onclick = () => setAvatar('🃏');
 
+    // ── Outils de test (mon compte uniquement) ──────────────
+    const DEV_UIDS   = ['vUp9JQbAOpM1D5Q0HKOZfII5MP82']; // legrosfilipe
+    const DEV_EMAILS = ['esthor.pl@gmail.com'];
+    function isDevUser(user) {
+      return user && !user.isAnonymous &&
+        (DEV_UIDS.includes(user.uid) || DEV_EMAILS.includes((user.email || '').toLowerCase()));
+    }
+    function setupDevTools(user) {
+      const section = document.getElementById('dev-section');
+      if (!isDevUser(user)) { section.classList.add('hidden'); return; }
+      section.classList.remove('hidden');
+      document.getElementById('btn-dev-unlock').onclick = async () => {
+        await saveActive({
+          badges: Object.keys(BADGES),
+          titles: Object.keys(TITLES),   // inclut les titres cachés
+          xp: 3000,                      // niveau 30 → tous les cadres dispo
+        });
+        showToast('Tout débloqué ✓', 'success');
+        setTimeout(() => location.reload(), 500);
+      };
+      document.getElementById('btn-dev-reset').onclick = async () => {
+        if (!confirm('Tout retirer : badges, titres, cadre, et XP remis à 0. Continuer ?')) return;
+        await saveActive({
+          badges: [], titles: [], xp: 0,
+          activeTitle: null, activeBadge: null, activeBorder: null,
+        });
+        showToast('Tout retiré ✓', 'success');
+        setTimeout(() => location.reload(), 500);
+      };
+    }
+
     async function loadProfile(user) {
       currentUser = user;
+      setupDevTools(user);
 
       if (user && !user.isAnonymous) {
         document.getElementById('guest-banner').classList.add('hidden');
