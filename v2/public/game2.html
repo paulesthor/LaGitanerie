@@ -1256,11 +1256,14 @@
         wrap.className = `mem-card-wrap ${_mRes[i] !== null ? 'done' : ''}`;
 
         if (_mRes[i] !== null) {
+          const isRed = ['hearts','diamonds'].includes(card.suit);
+          const sym   = SUIT_SYMBOL[card.suit] || '';
+          const col   = isRed ? '#e74c3c' : '#1a1a2e';
           wrap.innerHTML = `
-            <div class="mem-card-face ${_mRes[i]}" style="color:#1a1a2e;animation:mem-flip .35s ease both">
-              <div>${card.value}</div>
-              <div style="font-size:1.6rem;text-align:center;font-weight:800">${card.value}</div>
-              <div style="align-self:flex-end;transform:rotate(180deg)">${card.value}</div>
+            <div class="mem-card-face ${_mRes[i]}" style="color:${col};animation:mem-flip .35s ease both">
+              <div>${card.value}${sym}</div>
+              <div style="font-size:.95rem;text-align:center">${sym}</div>
+              <div style="align-self:flex-end;transform:rotate(180deg)">${card.value}${sym}</div>
             </div>
             <div class="mem-result ${_mRes[i]}"><i class="fas fa-${_mRes[i]==='ok'?'check':'times'}"></i></div>`;
         } else {
@@ -1302,12 +1305,14 @@
 
     let _memNotifTimer = null, _memNotifCd = null;
     function showMemRevealNotif({ name, card, correct }) {
+      const isRed = ['hearts','diamonds'].includes(card.suit);
+      const sym   = SUIT_SYMBOL[card.suit] || '';
       const notif = document.getElementById('proof-notif');
 
-      document.getElementById('proof-mini-card').className = 'mini-card black';
-      document.getElementById('proof-top').textContent = card.value;
-      document.getElementById('proof-sym').textContent = card.value;
-      document.getElementById('proof-bot').textContent = card.value;
+      document.getElementById('proof-mini-card').className = `mini-card ${isRed ? 'red' : 'black'}`;
+      document.getElementById('proof-top').textContent = `${card.value}${sym}`;
+      document.getElementById('proof-sym').textContent = sym;
+      document.getElementById('proof-bot').textContent = `${card.value}${sym}`;
       document.getElementById('proof-who').textContent = `${name} : ${correct ? '✅ correct' : '❌ raté +3🍺'}`;
       document.getElementById('proof-result').innerHTML = `disparaît dans <span id="proof-countdown">4</span>s`;
 
