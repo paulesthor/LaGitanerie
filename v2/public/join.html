@@ -1,0 +1,501 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#e74c3c">
+  <title>Salon — La Gitanerie</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .game-code-display {
+      font-size: 2.4rem; font-weight: 700; letter-spacing: 0.25em;
+      color: var(--gold); text-align: center;
+      font-family: 'Courier New', monospace;
+      background: var(--bg-surface); border-radius: var(--radius-sm); padding: 16px;
+    }
+    .player-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px; background: var(--bg-surface); border-radius: var(--radius-sm);
+    }
+    .players-list { display: flex; flex-direction: column; gap: 8px; }
+    .host-crown { color: var(--gold); font-size: 0.75rem; }
+    .ready-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
+    .ready-dot.ready { background: var(--green); }
+
+    /* Règles */
+    .rules-accordion {
+      border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+    }
+    .rules-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; background: var(--bg-card); cursor: pointer;
+      user-select: none;
+    }
+    .rules-header h3 { font-size: 1rem; }
+    .rules-header .chevron { transition: transform 0.25s; font-size: 0.8rem; color: var(--text-muted); }
+    .rules-accordion.open .rules-header .chevron { transform: rotate(180deg); }
+    .rules-body { display: none; padding: 0 16px; background: var(--bg-card); }
+    .rules-accordion.open .rules-body { display: block; }
+
+    .rule-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 0; border-bottom: 1px solid var(--border); gap: 12px;
+    }
+    .rule-row:last-child { border-bottom: none; margin-bottom: 4px; }
+    .rule-info { flex: 1; }
+    .rule-name { font-size: 0.9rem; font-weight: 600; }
+    .rule-desc { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* Toggle switch */
+    .toggle { position: relative; width: 50px; height: 28px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider {
+      position: absolute; inset: 0; background: var(--bg-surface);
+      border-radius: 14px; cursor: pointer; transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute;
+      width: 22px; height: 22px; left: 3px; top: 3px;
+      background: white; border-radius: 50%; transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .toggle input:checked + .toggle-slider { background: var(--orange); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+    /* Stepper */
+    .stepper { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .stepper-btn {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      color: var(--text); font-size: 1.2rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .stepper-btn:active { background: var(--orange); border-color: var(--orange); color: #1a1a1a; }
+    .stepper-val { font-size: 1.1rem; font-weight: 700; min-width: 28px; text-align: center; }
+
+    /* Segmented control */
+    .segmented { display: flex; background: var(--bg-surface); border-radius: var(--radius-sm); padding: 3px; gap: 3px; flex-shrink: 0; }
+    .seg-btn {
+      padding: 6px 10px; border: none; border-radius: 7px;
+      background: transparent; color: var(--text-muted);
+      font-family: inherit; font-size: 0.8rem; font-weight: 700; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .seg-btn.active { background: var(--orange); color: #1a1a1a; }
+  </style>
+</head>
+<body>
+
+  <div class="screen">
+    <header class="app-header">
+      <button class="header-btn" id="btn-leave"><i class="fas fa-door-open"></i></button>
+      <div class="header-brand"><i class="fas fa-guitar" style="color:var(--red);margin-right:6px;font-size:.9rem"></i>La <span class="brand-accent">Gitanerie</span></div>
+      <div style="width:36px"></div>
+    </header>
+
+    <div class="page-content">
+
+      <!-- Code -->
+      <div class="card flex-col gap-8 text-center">
+        <p class="text-sm text-muted">Code de la partie</p>
+        <div class="game-code-display" id="game-code">----</div>
+        <div class="flex gap-8" style="justify-content:center">
+          <button id="btn-copy-code" class="btn btn-secondary btn-sm" style="width:auto;gap:6px">
+            <i class="fas fa-copy"></i> Copier
+          </button>
+          <button id="btn-share-code" class="btn btn-secondary btn-sm" style="width:auto;gap:6px">
+            <i class="fas fa-share-alt"></i> Partager
+          </button>
+        </div>
+      </div>
+
+      <!-- Joueurs -->
+      <div class="card flex-col gap-12">
+        <div class="flex items-center justify-between">
+          <h3>Joueurs</h3>
+          <span id="player-count" class="badge badge-muted">0</span>
+        </div>
+        <div id="players-list" class="players-list">
+          <div class="text-muted text-sm text-center">En attente...</div>
+        </div>
+      </div>
+
+      <!-- Règles (hôte uniquement) -->
+      <div id="rules-section" class="hidden">
+        <div class="rules-accordion" id="rules-accordion">
+          <div class="rules-header" onclick="toggleRules()">
+            <h3>⚙️ Règles de la partie</h3>
+            <i class="fas fa-chevron-down chevron"></i>
+          </div>
+          <div class="rules-body">
+
+            <!-- Rangées pyramide -->
+            <div class="rule-row">
+              <div class="rule-info">
+                <div class="rule-name">Rangées de la pyramide</div>
+                <div class="rule-desc">Nombre de rangées (haut = Cul Sec)</div>
+              </div>
+              <div class="stepper">
+                <button class="stepper-btn" onclick="changeRows(-1)">−</button>
+                <span class="stepper-val" id="val-rows">5</span>
+                <button class="stepper-btn" onclick="changeRows(+1)">+</button>
+              </div>
+            </div>
+
+            <!-- Cartes visibles phase 1 -->
+            <div class="rule-row">
+              <div class="rule-info">
+                <div class="rule-name">Cartes visibles (phase 1)</div>
+                <div class="rule-desc">Les autres voient la carte révélée pendant 3s</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="rule-showPhase1" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <!-- Preuve visible pour tous -->
+            <div class="rule-row">
+              <div class="rule-info">
+                <div class="rule-name">Preuve visible pour tous</div>
+                <div class="rule-desc">Quand quelqu'un prouve au Menteur, tous voient la carte</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="rule-showProof" checked>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+
+            <!-- Multiplicateur de gorgées -->
+            <div class="rule-row">
+              <div class="rule-info">
+                <div class="rule-name">Multiplicateur de gorgées</div>
+                <div class="rule-desc">Multiplie toutes les gorgées de la pyramide</div>
+              </div>
+              <div class="segmented">
+                <button class="seg-btn active" onclick="setMult(1, this)">×1</button>
+                <button class="seg-btn" onclick="setMult(2, this)">×2</button>
+                <button class="seg-btn" onclick="setMult(3, this)">×3</button>
+              </div>
+            </div>
+
+            <!-- Timer -->
+            <div class="rule-row">
+              <div class="rule-info">
+                <div class="rule-name">Timer par carte</div>
+                <div class="rule-desc">Délai avant que l'hôte puisse forcer le tour</div>
+              </div>
+              <div class="segmented">
+                <button class="seg-btn" onclick="setTimer(20, this)">20s</button>
+                <button class="seg-btn active" onclick="setTimer(30, this)">30s</button>
+                <button class="seg-btn" onclick="setTimer(45, this)">45s</button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Tip invite (visible si peu de joueurs) -->
+      <div id="invite-tip" class="hidden" style="padding:12px 16px;background:rgba(243,156,18,.07);border:1px solid rgba(243,156,18,.2);border-radius:var(--radius);text-align:center">
+        <p class="text-sm text-muted" style="line-height:1.5">Partage le code ci-dessus pour inviter tes amis.<br>Min. 2 joueurs pour lancer.</p>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex-col gap-12 mt-auto">
+        <div id="host-section" class="hidden flex-col gap-8">
+          <p class="text-sm text-muted text-center">
+            <i class="fas fa-crown" style="color:var(--gold)"></i> Tu es l'hôte. Lance quand tout le monde est prêt.
+          </p>
+          <button id="btn-start" class="btn btn-primary">
+            <i class="fas fa-play"></i> Lancer la partie
+          </button>
+        </div>
+
+        <div id="guest-section" class="hidden flex-col gap-8">
+          <button id="btn-ready" class="btn btn-primary">
+            <i class="fas fa-check"></i> Je suis prêt !
+          </button>
+          <p class="text-sm text-muted text-center">L'hôte lancera la partie.</p>
+        </div>
+
+        <div id="error-msg" class="hidden text-sm text-center" style="color:var(--red)"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    import { db } from '/js/firebase-config.js';
+    import { ref, onValue, update, remove, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+    import {
+      requireSession, showToast, createDeck, createPyramid,
+      createPyramidOrder, defaultPyramidRows, clearGameSession
+    } from '/js/game/utils.js';
+    import { avatarHTML } from '/js/game/avatar.js';
+
+    const session = requireSession('/lobbypyramide.html');
+    if (!session) throw new Error('No session');
+
+    const { gameId, playerId, isHost } = session;
+    const gameRef   = ref(db, `games/${gameId}`);
+    const playerRef = ref(db, `games/${gameId}/players/${playerId}`);
+
+    // État des règles (hôte)
+    let rules = { rows: 5, showPhase1: true, showProof: true, sipsMultiplier: 1, timerDuration: 30 };
+
+    update(playerRef, { online: true });
+
+    // Copier / Partager le code
+    async function getCode() { return document.getElementById('game-code').textContent; }
+    document.getElementById('btn-copy-code').onclick = async () => {
+      const code = await getCode();
+      if (!code || code === '----') return;
+      try {
+        await navigator.clipboard.writeText(code);
+        const btn = document.getElementById('btn-copy-code');
+        btn.innerHTML = '<i class="fas fa-check"></i> Copié !';
+        setTimeout(() => { btn.innerHTML = '<i class="fas fa-copy"></i> Copier'; }, 2000);
+      } catch { showToast('Copie non supportée sur ce navigateur', 'error'); }
+    };
+    document.getElementById('btn-share-code').onclick = async () => {
+      const code = await getCode();
+      if (!code || code === '----') return;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'La Gitanerie', text: `Rejoins ma partie ! Code : ${code}\nhttps://la-gitanerie.web.app` });
+        } catch {}
+      } else {
+        await navigator.clipboard.writeText(code).catch(() => {});
+        showToast(`Code copié : ${code}`, 'success');
+      }
+    };
+
+    // Quitter
+    document.getElementById('btn-leave').onclick = async () => {
+      const btn = document.getElementById('btn-leave');
+      btn.disabled = true;
+      try {
+        if (isHost) {
+          // Signaler d'abord aux guests, puis supprimer après délai
+          const snap = await get(gameRef);
+          const gameCode = snap.val()?.gameCode;
+          await update(gameRef, { status: 'abandoned' });
+          setTimeout(async () => {
+            if (gameCode) await remove(ref(db, `gameCodes/${gameCode}`));
+            await remove(gameRef);
+          }, 3000);
+        } else {
+          await remove(playerRef);
+        }
+        clearGameSession();
+        window.location.href = '/lobbypyramide.html';
+      } catch (e) {
+        btn.disabled = false;
+        showToast('Erreur lors de la sortie', 'error');
+      }
+    };
+
+    if (isHost) {
+      document.getElementById('host-section').classList.remove('hidden');
+      document.getElementById('rules-section').classList.remove('hidden');
+    } else {
+      document.getElementById('guest-section').classList.remove('hidden');
+    }
+
+    // Écouter la partie
+    let isReady = false;
+    let numPlayers = 2;
+    onValue(gameRef, (snap) => {
+      const game = snap.val();
+      if (!game) { clearGameSession(); window.location.href = '/lobbypyramide.html'; return; }
+      if (game.status === 'abandoned' && !isHost) {
+        clearGameSession();
+        showToast("L'hôte a quitté la partie", 'error');
+        setTimeout(() => { window.location.href = '/lobbypyramide.html'; }, 1500);
+        return;
+      }
+      if (game.status === 'started') {
+        window.location.href = `/game.html?gameId=${gameId}&playerId=${playerId}`;
+        return;
+      }
+      numPlayers = Object.keys(game.players || {}).length;
+      // Mettre à jour le défaut des rangées quand le nombre de joueurs change
+      if (isHost && rules.rows === rules._defaultRows) {
+        rules.rows = defaultPyramidRows(numPlayers);
+        rules._defaultRows = rules.rows;
+        document.getElementById('val-rows').textContent = rules.rows;
+      } else if (!rules._defaultRows) {
+        rules._defaultRows = defaultPyramidRows(numPlayers);
+        rules.rows = rules._defaultRows;
+        document.getElementById('val-rows').textContent = rules.rows;
+      }
+      renderPlayers(game);
+    });
+
+    function renderPlayers(game) {
+      const players = game.players || {};
+      const entries = Object.entries(players);
+      document.getElementById('game-code').textContent = game.gameCode || '----';
+      document.getElementById('player-count').textContent = entries.length;
+
+      // Tip invite si peu de joueurs
+      const tip = document.getElementById('invite-tip');
+      if (tip) tip.classList.toggle('hidden', entries.length >= 4);
+
+      const list = document.getElementById('players-list');
+      list.innerHTML = '';
+      entries.forEach(([id, p]) => {
+        const isMe    = id === playerId;
+        const isHost_ = id === game.hostId;
+        const row = document.createElement('div');
+        row.className = 'player-row';
+        const borderClass = p.activeBorder ? `border-${p.activeBorder}` : '';
+        row.innerHTML = `
+          ${avatarHTML(p.avatar, 40, borderClass)}
+          <div class="flex-col" style="flex:1">
+            <span class="font-bold">${p.name}${isMe ? ' (toi)' : ''}</span>
+            ${isHost_ ? '<span class="host-crown"><i class="fas fa-crown"></i> Hôte</span>' : ''}
+          </div>
+          <span class="badge ${p.ready ? 'badge-gold' : 'badge-muted'}">${p.ready ? 'Prêt' : 'En attente'}</span>`;
+
+        // Bouton kick (hôte uniquement, pas sur soi-même)
+        if (isHost && !isMe && !isHost_) {
+          const kick = document.createElement('button');
+          kick.innerHTML = '<i class="fas fa-times"></i>';
+          kick.title = 'Expulser';
+          kick.style.cssText = 'background:none;border:none;color:var(--red);font-size:1rem;padding:4px 10px;cursor:pointer;margin-left:4px;opacity:.7';
+          kick.onclick = async () => {
+            await remove(ref(db, `games/${gameId}/players/${id}`));
+            showToast(`${p.name} a été expulsé`, 'info');
+          };
+          row.appendChild(kick);
+        }
+
+        list.appendChild(row);
+        if (isMe) isReady = !!p.ready;
+      });
+
+      // Mise à jour du bouton lancer selon l'état de préparation
+      const btnStart = document.getElementById('btn-start');
+      if (btnStart) {
+        const nonHostIds = entries.filter(([id]) => id !== game.hostId);
+        const allReady   = nonHostIds.length > 0 && nonHostIds.every(([, p]) => p.ready);
+        const canStart   = entries.length >= 2 && allReady;
+        btnStart.disabled = !canStart;
+        btnStart.querySelector('span') && (btnStart.querySelector('span').textContent = canStart ? 'Lancer la partie' : 'En attente des joueurs…');
+        if (!btnStart.querySelector('span')) {
+          btnStart.innerHTML = canStart
+            ? '<i class="fas fa-play"></i> Lancer la partie'
+            : '<i class="fas fa-hourglass-half"></i> En attente des joueurs…';
+        }
+      }
+
+      const btnReady = document.getElementById('btn-ready');
+      if (btnReady) {
+        btnReady.className = isReady ? 'btn btn-secondary' : 'btn btn-primary';
+        btnReady.innerHTML = isReady
+          ? '<i class="fas fa-times"></i> Pas prêt'
+          : '<i class="fas fa-check"></i> Je suis prêt !';
+      }
+    }
+
+    // Toggle prêt
+    document.getElementById('btn-ready')?.addEventListener('click', async () => {
+      await update(playerRef, { ready: !isReady });
+    });
+
+    // Lancer la partie
+    document.getElementById('btn-start')?.addEventListener('click', async () => {
+      const snap    = await new Promise(resolve => onValue(gameRef, resolve, { onlyOnce: true }));
+      const game    = snap.val();
+      const players = game.players || {};
+      const ids     = Object.keys(players);
+
+      if (ids.length < 2) return showError('Il faut au moins 2 joueurs');
+
+      const nonHostIds = ids.filter(id => id !== playerId);
+      const allReady   = nonHostIds.every(id => players[id]?.ready);
+      if (!allReady) return showError('Tout le monde doit être prêt !');
+
+      const deck    = createDeck();
+      const numRows = rules.rows;
+      const pyramid = createPyramid(numRows);
+      const order   = createPyramidOrder(numRows);
+
+      const updates = {
+        status: 'started',
+        phase: 'distribution',
+        pyramid,
+        pyramidOrder: order,
+        deck,
+        currentTurn: ids[0],
+        rules: {
+          showPhase1:      rules.showPhase1,
+          showProof:       rules.showProof,
+          sipsMultiplier:  rules.sipsMultiplier,
+          timerDuration:   rules.timerDuration
+        }
+      };
+
+      ids.forEach(id => {
+        updates[`players/${id}/cards`]       = deck.splice(0, 4).map(c => ({ ...c, revealed: false }));
+        updates[`players/${id}/sipsToDrink`] = 0;
+        updates[`players/${id}/sipsGiven`]   = 0;
+      });
+      updates.deck = deck;
+
+      await update(gameRef, updates);
+    });
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    // --- Contrôles des règles ---
+    window.toggleRules = () => {
+      document.getElementById('rules-accordion').classList.toggle('open');
+    };
+
+    window.changeRows = (delta) => {
+      rules.rows = Math.max(2, Math.min(8, rules.rows + delta));
+      document.getElementById('val-rows').textContent = rules.rows;
+    };
+
+    window.setMult = (val, btn) => {
+      rules.sipsMultiplier = val;
+      btn.closest('.segmented').querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+
+    window.setTimer = (val, btn) => {
+      rules.timerDuration = val;
+      btn.closest('.segmented').querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    };
+
+    document.getElementById('rule-showPhase1')?.addEventListener('change', (e) => {
+      rules.showPhase1 = e.target.checked;
+    });
+    document.getElementById('rule-showProof')?.addEventListener('change', (e) => {
+      rules.showProof = e.target.checked;
+    });
+  </script>
+
+</body>
+</html>

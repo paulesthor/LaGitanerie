@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#e74c3c">
+  <title>Connexion — La Gitanerie</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&amp;family=Playfair+Display:wght@700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+
+  <div class="screen">
+    <!-- Header -->
+    <header class="app-header">
+      <button class="header-btn" onclick="history.back()"><i class="fas fa-arrow-left"></i></button>
+      <h1>Connexion</h1>
+      <div style="width:32px"></div>
+    </header>
+
+    <div class="page-content">
+
+      <div class="text-center flex-col gap-8" style="padding:12px 0 4px">
+        <div style="font-size:3rem">🃏</div>
+        <h2>Rejoins la gitanerie</h2>
+        <p>Un compte pour sauvegarder ton XP et tes stats.<br>Tu peux aussi jouer sans compte.</p>
+      </div>
+
+      <!-- Google -->
+      <button id="btn-google" class="btn btn-ghost" style="border-color:rgba(255,255,255,0.2)">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:20px;height:20px">
+        Continuer avec Google
+      </button>
+
+      <div class="divider">ou</div>
+
+      <!-- Email -->
+      <div id="email-section" class="flex-col gap-12">
+        <div class="input-group">
+          <label>Email</label>
+          <input type="email" id="input-email" class="input" placeholder="ton@email.com" autocomplete="email">
+        </div>
+        <div class="input-group">
+          <label>Mot de passe</label>
+          <input type="password" id="input-password" class="input" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div id="error-msg" class="hidden text-sm" style="color:var(--red);text-align:center"></div>
+        <button id="btn-login" class="btn btn-primary">Se connecter</button>
+        <button id="btn-register" class="btn btn-ghost">Créer un compte</button>
+      </div>
+
+      <div class="divider">jouer sans compte</div>
+
+      <button onclick="window.location.href='/'" class="btn btn-secondary">
+        <i class="fas fa-user-slash"></i> Continuer en invité
+      </button>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    import { auth, firestore, withRetry, friendlyError, logError } from '/js/firebase-config.js';
+    import {
+      signInWithEmailAndPassword,
+      createUserWithEmailAndPassword,
+      GoogleAuthProvider,
+      signInWithPopup,
+      signInWithRedirect,
+      getRedirectResult,
+      onAuthStateChanged
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { doc, setDoc, getDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+    // L'appli est-elle lancée en mode "installé" (écran d'accueil) ?
+    // → dans ce cas la popup Google ne marche pas, on utilise la redirection.
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+
+    const showError = (msg) => {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    };
+
+    // Crée le profil Firestore s'il n'existe pas (ne touche jamais un profil existant)
+    async function ensureUserProfile(user) {
+      const ref = doc(firestore, 'users', user.uid);
+      const snap = await withRetry(() => getDoc(ref));
+      if (!snap.exists()) {
+        await withRetry(() => setDoc(ref, {
+          displayName: user.displayName || 'Joueur',
+          email: user.email,
+          photoURL: user.photoURL || null,
+          xp: 0, level: 0, totalGames: 0,
+          totalSipsGiven: 0, totalSipsDrunk: 0,
+          createdAt: serverTimestamp()
+        }));
+      }
+    }
+
+    // Connexion réussie (popup, redirection ou email) → profil + retour accueil
+    onAuthStateChanged(auth, async (user) => {
+      if (user && !user.isAnonymous) {
+        try { await ensureUserProfile(user); } catch (e) { logError('login.ensureProfile', e); }
+        window.location.href = '/';
+      }
+    });
+
+    // Au chargement : terminer une éventuelle connexion Google par redirection
+    getRedirectResult(auth).catch((e) => {
+      logError('login.redirectResult', e);
+      showError(friendlyError(e));
+    });
+
+    // Google
+    document.getElementById('btn-google').onclick = async () => {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      try {
+        if (isStandalone) { await signInWithRedirect(auth, provider); return; }
+        const result = await signInWithPopup(auth, provider);
+        await ensureUserProfile(result.user);
+        window.location.href = '/';
+      } catch (e) {
+        logError('login.google', e);
+        if (e.code === 'auth/cancelled-popup-request' || e.code === 'auth/popup-closed-by-user') return;
+        // Popup impossible (bloquée / non supportée) → on bascule en redirection
+        if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') {
+          try { await signInWithRedirect(auth, provider); } catch (e2) { showError(friendlyError(e2)); }
+          return;
+        }
+        showError('Erreur Google : ' + (friendlyError(e) || e.message));
+      }
+    };
+
+    // Email login
+    document.getElementById('btn-login').onclick = async () => {
+      const email = document.getElementById('input-email').value.trim();
+      const pass  = document.getElementById('input-password').value;
+      if (!email || !pass) return showError('Remplis tous les champs');
+      try {
+        const result = await signInWithEmailAndPassword(auth, email, pass);
+        await ensureUserProfile(result.user);
+        window.location.href = '/';
+      } catch (e) {
+        logError('login.email', e);
+        showError(e.code === 'auth/network-request-failed' ? friendlyError(e) : 'Email ou mot de passe incorrect');
+      }
+    };
+
+    // Email register
+    document.getElementById('btn-register').onclick = async () => {
+      const email = document.getElementById('input-email').value.trim();
+      const pass  = document.getElementById('input-password').value;
+      if (!email || !pass) return showError('Remplis tous les champs');
+      if (pass.length < 6) return showError('Mot de passe trop court (6 min)');
+      try {
+        const result = await createUserWithEmailAndPassword(auth, email, pass);
+        await ensureUserProfile(result.user);
+        window.location.href = '/';
+      } catch (e) {
+        logError('login.register', e);
+        if (e.code === 'auth/email-already-in-use') showError('Email déjà utilisé');
+        else showError(friendlyError(e) || ('Erreur : ' + e.message));
+      }
+    };
+  </script>
+
+</body></html>

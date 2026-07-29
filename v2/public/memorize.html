@@ -1,0 +1,281 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#e74c3c">
+  <title>Mémorise — La Gitanerie</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .timer-circle-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .timer-circle {
+      width: 80px;
+      height: 80px;
+      position: relative;
+    }
+    .timer-circle svg {
+      transform: rotate(-90deg);
+    }
+    .timer-circle-bg { fill: none; stroke: var(--bg-surface); stroke-width: 6; }
+    .timer-circle-fill {
+      fill: none;
+      stroke: var(--orange);
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 220;
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 1s linear, stroke 0.5s;
+    }
+    .timer-circle-fill.urgent { stroke: var(--red); }
+    .timer-number {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .cards-row {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .mem-card {
+      width: 72px;
+      height: 100px;
+      border-radius: 10px;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 6px 7px;
+      border: 1px solid #e0e0e0;
+      flex-shrink: 0;
+    }
+    .mem-card.red   { color: #e74c3c; }
+    .mem-card.black { color: #1a1a2e; }
+    .mem-card .corner { font-size: 0.75rem; font-weight: 700; line-height: 1.1; }
+    .mem-card .corner.bot { align-self: flex-end; transform: rotate(180deg); }
+    .mem-card .center { font-size: 1.6rem; text-align: center; }
+
+    .players-ready {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .ready-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg-surface);
+      border-radius: var(--radius-sm);
+    }
+    .ready-indicator {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .ready-indicator.ready { background: var(--green); }
+  </style>
+</head>
+<body>
+
+  <div class="screen">
+    <header class="app-header">
+      <div style="width:36px"></div>
+      <div class="header-brand"><i class="fas fa-guitar" style="color:var(--red);margin-right:6px;font-size:.9rem"></i>La <span class="brand-accent">Gitanerie</span></div>
+      <div style="width:36px"></div>
+    </header>
+
+    <div class="page-content">
+
+      <!-- Timer + statut -->
+      <div class="card flex items-center gap-16">
+        <div class="timer-circle-wrap">
+          <div class="timer-circle">
+            <svg width="80" height="80" viewBox="0 0 80 80">
+              <circle class="timer-circle-bg" cx="40" cy="40" r="35"/>
+              <circle id="timer-arc" class="timer-circle-fill" cx="40" cy="40" r="35"/>
+            </svg>
+            <div class="timer-number" id="timer-number">60</div>
+          </div>
+        </div>
+        <div class="flex-col gap-8" style="flex:1">
+          <p class="font-bold">La pyramide démarre dans&nbsp;:</p>
+          <p class="text-sm text-muted">Mémorise bien tes 4 cartes, tu ne pourras plus les voir pendant la pyramide.</p>
+        </div>
+      </div>
+
+      <!-- Mes cartes -->
+      <div class="card flex-col gap-14">
+        <h3>Mes cartes</h3>
+        <div id="cards-row" class="cards-row"></div>
+      </div>
+
+      <!-- Joueurs prêts -->
+      <div class="card flex-col gap-12">
+        <h3>Joueurs</h3>
+        <div id="players-ready" class="players-ready"></div>
+      </div>
+
+      <!-- Bouton prêt -->
+      <div class="mt-auto">
+        <button id="btn-ready" class="btn btn-primary" style="font-size:1.1rem;padding:18px">
+          <i class="fas fa-check"></i> Je suis prêt !
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    import { db } from '/js/firebase-config.js';
+    import { ref, onValue, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+    import { requireSession, showToast, SUIT_SYMBOL, clearGameSession } from '/js/game/utils.js';
+    import { avatarHTML } from '/js/game/avatar.js';
+
+    const session = requireSession('/lobbypyramide.html');
+    if (!session) throw new Error('no session');
+    const { gameId, playerId, isHost } = session;
+
+    const gameRef = ref(db, `games/${gameId}`);
+    let game = {};
+    let timerInterval = null;
+    let isReady = false;
+    const TIMER_DURATION = 60;
+
+    onValue(gameRef, (snap) => {
+      const newGame = snap.val();
+      if (!newGame || !newGame.players?.[playerId]) {
+        clearGameSession();
+        window.location.href = '/';
+        return;
+      }
+      if (newGame.phase === 'pyramid') {
+        window.location.href = `/game2.html?gameId=${gameId}&playerId=${playerId}`;
+        return;
+      }
+
+      game = newGame;
+      renderCards();
+      renderPlayersReady();
+      startTimer();
+      checkAllReady();
+    });
+
+    // --- Cartes ---
+    function renderCards() {
+      const container = document.getElementById('cards-row');
+      const myCards   = game.players?.[playerId]?.cards || [];
+      container.innerHTML = '';
+      myCards.forEach(card => {
+        const isRed = ['hearts','diamonds'].includes(card.suit);
+        const sym   = SUIT_SYMBOL[card.suit] || '';
+        const el    = document.createElement('div');
+        el.className = `mem-card ${isRed ? 'red' : 'black'}`;
+        el.innerHTML = `
+          <div class="corner">${card.value}${sym}</div>
+          <div class="center">${sym}</div>
+          <div class="corner bot">${card.value}${sym}</div>`;
+        container.appendChild(el);
+      });
+    }
+
+    // --- Joueurs prêts ---
+    function renderPlayersReady() {
+      const container = document.getElementById('players-ready');
+      container.innerHTML = '';
+      Object.entries(game.players || {}).forEach(([id, p]) => {
+        const el = document.createElement('div');
+        el.className = 'ready-row';
+        el.innerHTML = `
+          ${avatarHTML(p.avatar, 36)}
+          <span class="font-bold" style="flex:1">${p.name}${id === playerId ? ' (toi)' : ''}</span>
+          <div class="ready-indicator ${p.memorizeReady ? 'ready' : ''}"></div>
+          <span class="text-sm text-muted">${p.memorizeReady ? 'Prêt' : 'En attente'}</span>`;
+        container.appendChild(el);
+      });
+    }
+
+    // --- Timer ---
+    function startTimer() {
+      if (timerInterval) return; // Ne pas redémarrer si déjà lancé
+      const startedAt = game.memorizeStartedAt || Date.now();
+      const arc       = document.getElementById('timer-arc');
+      const numEl     = document.getElementById('timer-number');
+      const circumference = 220;
+
+      timerInterval = setInterval(() => {
+        const elapsed   = Math.floor((Date.now() - startedAt) / 1000);
+        const remaining = Math.max(0, TIMER_DURATION - elapsed);
+        const pct       = remaining / TIMER_DURATION;
+
+        numEl.textContent = remaining;
+        arc.style.strokeDashoffset = circumference * (1 - pct);
+        arc.classList.toggle('urgent', remaining <= 10);
+
+        if (remaining <= 0) {
+          clearInterval(timerInterval);
+          // L'hôte force le démarrage
+          if (isHost) launchPyramid();
+        }
+      }, 1000);
+    }
+
+    // --- Vérifier si tout le monde est prêt ---
+    function checkAllReady() {
+      const players    = Object.values(game.players || {});
+      const allReady   = players.length > 0 && players.every(p => p.memorizeReady);
+      if (allReady && isHost) launchPyramid();
+    }
+
+    // --- Lancer la pyramide ---
+    async function launchPyramid() {
+      clearInterval(timerInterval);
+      await update(gameRef, { phase: 'pyramid' });
+    }
+
+    // --- Bouton prêt ---
+    const btnReady = document.getElementById('btn-ready');
+    btnReady.onclick = async () => {
+      if (isReady) return;
+      btnReady.disabled = true;
+      btnReady.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi…';
+      try {
+        await update(ref(db, `games/${gameId}/players/${playerId}`), { memorizeReady: true });
+        isReady = true;
+        btnReady.innerHTML = '<i class="fas fa-check"></i> Prêt !';
+        btnReady.className = 'btn btn-secondary';
+      } catch (e) {
+        btnReady.disabled = false;
+        btnReady.innerHTML = '<i class="fas fa-check"></i> Je suis prêt !';
+        showToast('Erreur réseau — réessaie', 'error');
+      }
+    };
+  </script>
+
+</body>
+</html>

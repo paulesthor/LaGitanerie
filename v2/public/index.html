@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="La Gitanerie">
+  <meta name="theme-color" content="#0e151c">
+  <title>La Gitanerie</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;family=Playfair+Display:wght@500;600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
+  <!-- Perf : charger le SDK Firebase en parallèle du HTML (init plus rapide) -->
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js">
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js">
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js">
+  <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js">
+  <!-- Perf : préparer les pages de jeu pour un clic instantané -->
+  <link rel="prefetch" href="/lobbypyramide.html">
+  <link rel="prefetch" href="/loupgarou.html">
+  <style>
+    .home-min {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      background: #0e151c;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
+    }
+
+    /* ── Barre compte (discrète) ── */
+    .topbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 16px 22px;
+    }
+    .topbar-id { display: flex; align-items: center; gap: 11px; flex: 1; min-width: 0; }
+    .avatar-sm {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--bg-surface, #1a2530);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.05rem; overflow: hidden; flex-shrink: 0;
+    }
+    .id-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .id-name-row { display: flex; align-items: center; gap: 6px; }
+    .id-name-row .user-name {
+      font-size: 0.9rem; font-weight: 600; color: var(--text, #ecf0f1);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42vw;
+    }
+    .user-title {
+      font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.14em; color: var(--orange, #f39c12);
+    }
+    .xp-mini { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
+    .xp-mini .xp-val-text { font-size: 0.58rem; color: rgba(236,240,241,0.4); letter-spacing: .04em; white-space: nowrap; }
+    .xp-track { width: 70px; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.09); overflow: hidden; }
+    .xp-mini #xp-bar-fill { display: block; height: 100%; background: var(--orange, #f39c12); width: 0%; }
+    .link-btn {
+      background: none; border: none; padding: 6px 2px;
+      font-family: inherit; font-size: 0.78rem; font-weight: 600; letter-spacing: .02em;
+      color: rgba(236,240,241,0.55); cursor: pointer; white-space: nowrap;
+      border-bottom: 1px solid transparent; transition: color .15s, border-color .15s;
+    }
+    .link-btn:active { color: var(--orange, #f39c12); border-color: rgba(243,156,18,0.4); }
+
+    /* ── Hero ── */
+    .hero { padding: 52px 22px 76px; }
+    .hero-eyebrow {
+      font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.32em; color: rgba(236,240,241,0.4); margin-bottom: 18px;
+    }
+    .hero-title {
+      font-family: var(--font-brand, 'Playfair Display', serif);
+      font-weight: 600; font-size: clamp(3rem, 15vw, 4.4rem);
+      line-height: 0.9; letter-spacing: -0.01em; color: var(--text, #ecf0f1);
+    }
+    .hero-title .amp { color: var(--orange, #f39c12); }
+    .hero-tagline {
+      margin-top: 20px; font-size: 0.9rem; line-height: 1.55;
+      color: rgba(236,240,241,0.5); max-width: 30ch;
+    }
+
+    /* ── Liste de jeux (éditoriale) ── */
+    .games { padding: 8px 22px 0; }
+    .games-label {
+      font-size: 0.58rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.28em; color: rgba(236,240,241,0.3);
+      padding-bottom: 6px;
+    }
+    .game {
+      display: flex; align-items: center; gap: 18px;
+      padding: 26px 2px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      text-decoration: none; color: inherit;
+      transition: padding-left .18s ease;
+    }
+    .game:last-of-type { border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .game:active { padding-left: 8px; }
+    .game-num {
+      font-family: var(--font-brand, 'Playfair Display', serif);
+      font-size: 1rem; font-weight: 500; color: rgba(236,240,241,0.28);
+      width: 22px; flex-shrink: 0;
+    }
+    .game-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+    .game-name {
+      font-family: var(--font-brand, 'Playfair Display', serif);
+      font-weight: 600; font-size: clamp(1.45rem, 6.5vw, 1.9rem); line-height: 1.05;
+      color: var(--text, #ecf0f1);
+    }
+    .game-desc { font-size: 0.78rem; color: rgba(236,240,241,0.45); line-height: 1.4; }
+    .game-go {
+      margin-left: auto; flex-shrink: 0;
+      color: var(--orange, #f39c12); font-size: 1.25rem; line-height: 1;
+      transition: transform .18s ease;
+    }
+    .game:active .game-go { transform: translateX(5px); }
+
+    /* ── Footer ── */
+    .home-footer {
+      margin-top: auto; padding: 30px 22px 20px;
+      font-size: 0.66rem; font-style: italic; letter-spacing: .01em;
+      color: rgba(236,240,241,0.22);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="home-min">
+
+    <!-- Compte -->
+    <div class="topbar">
+      <div class="topbar-id">
+        <div id="user-avatar-wrap" style="flex-shrink:0"><div class="avatar-sm" id="user-avatar">👤</div></div>
+        <div class="id-text">
+          <div class="id-name-row">
+            <span class="user-name" id="user-name">Invité</span>
+            <span id="user-badge" style="display:inline-flex"></span>
+          </div>
+          <div class="user-title" id="user-title"></div>
+          <div id="xp-wrap" class="xp-mini" style="display:none">
+            <span class="xp-track"><span id="xp-bar-fill"></span></span>
+            <span class="xp-val-text" id="xp-val">0</span>
+          </div>
+        </div>
+      </div>
+      <button id="btn-account" class="link-btn">Connexion</button>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero">
+      <h1 class="hero-title"><span class="amp">La</span><br>Gitanerie</h1>
+    </div>
+
+    <!-- Jeux -->
+    <nav class="games">
+      <div class="games-label">Choisis ton poison</div>
+
+      <a href="/lobbypyramide.html" class="game">
+        <span class="game-num">01</span>
+        <span class="game-body">
+          <span class="game-name">La Pyramide</span>
+          <span class="game-desc">Cartes, gorgées et mensonges. Le classique des gitans.</span>
+        </span>
+        <span class="game-go" aria-hidden="true">→</span>
+      </a>
+
+      <a href="/loupgarou.html" class="game">
+        <span class="game-num">02</span>
+        <span class="game-body">
+          <span class="game-name">Loup-Garou</span>
+          <span class="game-desc">Une seule nuit, un seul vote. Démasquez les loups… ou survivez.</span>
+        </span>
+        <span class="game-go" aria-hidden="true">→</span>
+      </a>
+    </nav>
+
+    <div class="home-footer">L'abus d'alcool est recommandé par les collègues.</div>
+
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    import { auth, firestore } from '/js/firebase-config.js';
+    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { isPhotoAvatar } from '/js/game/avatar.js';
+    import { BADGES, TITLES } from '/js/game/badges.js';
+
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+
+    // Peint l'entête profil à partir d'un objet { displayName, avatar, activeTitle, activeBadge, activeBorder, xp }
+    function paintUser(d) {
+      const avatarEl = document.getElementById('user-avatar');
+      const btnEl    = document.getElementById('btn-account');
+      document.getElementById('user-name').textContent = d.displayName || 'Joueur';
+      btnEl.textContent = 'Mon profil';
+      btnEl.onclick = () => window.location.href = '/profile.html';
+      document.getElementById('user-title').textContent = (d.activeTitle && TITLES[d.activeTitle]) ? TITLES[d.activeTitle].name : '';
+      const badgeEl = document.getElementById('user-badge');
+      if (d.activeBadge && BADGES[d.activeBadge]) {
+        const bd = BADGES[d.activeBadge];
+        badgeEl.innerHTML = `<span title="${bd.name}" style="display:inline-flex;width:20px;height:20px;border-radius:6px;align-items:center;justify-content:center;background:${bd.bg};box-shadow:0 2px 6px ${bd.glow}"><i class="${bd.icon}" style="color:${bd.textColor};font-size:.72rem"></i></span>`;
+      } else { badgeEl.innerHTML = ''; }
+      const avWrap = document.getElementById('user-avatar-wrap');
+      avWrap.className = d.activeBorder ? `avatar-framed border-${d.activeBorder}` : '';
+      avWrap.style.flexShrink = '0';
+      const av = d.avatar;
+      if (av && isPhotoAvatar(av)) avatarEl.innerHTML = `<img src="${av}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+      else if (av) avatarEl.textContent = av;
+      else avatarEl.textContent = (d.displayName || 'J')[0].toUpperCase();
+      const xp = d.xp || 0, lvl = Math.floor(xp / 100);
+      document.getElementById('xp-val').textContent = `Niv. ${lvl} · ${xp} XP`;
+      document.getElementById('xp-bar-fill').style.width = (xp % 100) + '%';
+      document.getElementById('xp-wrap').style.display = 'flex';
+    }
+
+    function paintGuest() {
+      const btnEl = document.getElementById('btn-account');
+      btnEl.textContent = 'Connexion';
+      btnEl.onclick = () => window.location.href = '/login.html';
+      document.getElementById('user-name').textContent = 'Invité';
+      document.getElementById('user-title').textContent = '';
+      document.getElementById('user-badge').innerHTML = '';
+      document.getElementById('user-avatar-wrap').className = '';
+      document.getElementById('user-avatar').textContent = '👤';
+      document.getElementById('xp-wrap').style.display = 'none';
+      try { localStorage.removeItem('profileCache'); } catch (e) {}
+    }
+
+    async function renderUser(user) {
+      if (user && !user.isAnonymous) {
+        try {
+          const snap = await getDoc(doc(firestore, 'users', user.uid));
+          if (snap.exists()) {
+            const d = snap.data();
+            paintUser(d);
+            try { localStorage.setItem('profileCache', JSON.stringify({
+              displayName: d.displayName, avatar: d.avatar, activeTitle: d.activeTitle || null,
+              activeBadge: d.activeBadge || null, activeBorder: d.activeBorder || null, xp: d.xp || 0
+            })); } catch (e) {}
+          }
+        } catch (e) { /* réseau lent : on garde l'affichage optimiste */ }
+      } else {
+        paintGuest();
+      }
+    }
+
+    // Affichage optimiste : peindre le profil en cache IMMÉDIATEMENT (zéro flash au chargement)
+    try { const _c = JSON.parse(localStorage.getItem('profileCache')); if (_c) paintUser(_c); } catch (e) {}
+
+    onAuthStateChanged(auth, (user) => renderUser(user));
+    // Retour arrière (bfcache) : re-render pour refléter les modifs faites dans le profil
+    window.addEventListener('pageshow', (e) => { if (e.persisted) renderUser(auth.currentUser); });
+  </script>
+
+</body></html>

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#e74c3c">
+  <title>Pyramide — La Gitanerie</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&amp;family=Playfair+Display:wght@700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .avatar-circle {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: var(--bg-surface); border: 3px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.4rem; cursor: pointer; overflow: hidden;
+      transition: border-color var(--transition); flex-shrink: 0;
+    }
+    .avatar-circle:active { border-color: var(--red); }
+    .avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
+
+    .join-form { display: flex; flex-direction: column; gap: 16px; }
+
+    .section-tabs {
+      display: flex;
+      background: var(--bg-surface);
+      border-radius: var(--radius-sm);
+      padding: 4px;
+      gap: 4px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .tab-btn.active { background: var(--orange); color: #1a1a1a; }
+  </style>
+</head>
+<body>
+
+  <div class="screen">
+    <header class="app-header">
+      <button class="header-btn" onclick="window.location.href='/'"><i class="fas fa-arrow-left"></i></button>
+      <div class="header-brand"><i class="fas fa-guitar" style="color:var(--red);margin-right:6px;font-size:.9rem"></i>La <span class="brand-accent">Gitanerie</span></div>
+      <div style="width:36px"></div>
+    </header>
+
+    <div class="page-content">
+
+      <!-- Profil -->
+      <div class="card flex-col gap-16">
+        <h3>Ton profil</h3>
+
+        <div class="flex items-center gap-16">
+          <!-- Avatar cliquable -->
+          <div class="avatar-circle" id="avatar-display" onclick="document.getElementById('photo-input').click()">📸</div>
+          <div class="flex-col gap-8" style="flex:1">
+            <span class="text-sm text-muted">Appuie sur le cercle pour ajouter une photo</span>
+            <input type="file" id="photo-input" accept="image/*" style="display:none">
+          </div>
+        </div>
+
+        <!-- Nom -->
+        <div class="input-group">
+          <label>Nom de joueur</label>
+          <input type="text" id="input-name" class="input" placeholder="Ton pseudo" maxlength="15" autocomplete="off">
+        </div>
+      </div>
+
+      <!-- Tabs Créer / Rejoindre -->
+      <div class="section-tabs">
+        <button class="tab-btn active" id="tab-create" onclick="switchTab('create')">Créer</button>
+        <button class="tab-btn" id="tab-join" onclick="switchTab('join')">Rejoindre</button>
+      </div>
+
+      <!-- Panel Créer -->
+      <div id="panel-create" class="flex-col gap-12">
+        <p class="text-sm">Tu seras l'hôte de la partie. Partage le code avec tes amis.</p>
+        <button id="btn-create" class="btn btn-primary">
+          <i class="fas fa-plus-circle"></i> Créer la partie
+        </button>
+      </div>
+
+      <!-- Panel Rejoindre -->
+      <div id="panel-join" class="flex-col gap-12 hidden">
+        <div class="input-group">
+          <label>Code de la partie</label>
+          <input type="text" id="input-code" class="input input-code" placeholder="ABCD" maxlength="4" autocomplete="off" autocapitalize="characters" inputmode="text">
+          <div id="code-hint" class="text-sm" style="text-align:center;height:16px;transition:color .2s"></div>
+        </div>
+        <button id="btn-join" class="btn btn-gold">
+          <i class="fas fa-sign-in-alt"></i> Rejoindre
+        </button>
+      </div>
+
+      <div id="error-msg" class="hidden text-sm text-center" style="color:var(--red)"></div>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    import { auth, db, firestore, waitForAuth, withRetry, friendlyError } from '/js/firebase-config.js';
+    import { ref, push, set, get, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+    import { onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import {
+      getGuestName, setGuestName, getGuestAvatar, setGuestAvatar,
+      generateGameCode, setGameSession, showToast
+    } from '/js/game/utils.js';
+    import { compressAvatar } from '/js/game/avatar.js';
+
+    // ── Authentification au plus tôt ───────────────────────────────
+    // On s'authentifie (anonyme si besoin) DÈS le chargement, pour que toute
+    // lecture RTDB soit déjà authentifiée. Supprime les échecs intermittents
+    // "juste après le code" quand aucune session n'existait encore.
+    const authReady = (async () => {
+      try {
+        let user = await waitForAuth();
+        if (!user) user = (await signInAnonymously(auth)).user;
+        return user;
+      } catch (e) { console.warn('[auth] init échouée:', e); return null; }
+    })();
+
+    let selectedAvatar = getGuestAvatar() || '';
+    let _activeBadge   = null;
+    let _activeBorder  = null;
+
+    // --- Afficher l'avatar dans le cercle ---
+    function showAvatarPreview(avatar) {
+      const display = document.getElementById('avatar-display');
+      if (avatar && avatar.startsWith('data:')) {
+        display.innerHTML = `<img src="${avatar}">`;
+      } else {
+        display.textContent = '📸';
+      }
+    }
+    showAvatarPreview(selectedAvatar);
+
+    // --- Upload photo ---
+    document.getElementById('photo-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const base64 = await compressAvatar(file);
+        selectedAvatar = base64;
+        setGuestAvatar(base64);
+        showAvatarPreview(base64);
+      } catch {
+        showToast('Erreur chargement photo', 'error');
+      }
+      e.target.value = '';
+    });
+
+    // --- Validation code en temps réel (auth + petit retry) ---
+    let _codeCheckTimer = null;
+    document.getElementById('input-code').addEventListener('input', (e) => {
+      const code  = e.target.value.trim().toUpperCase();
+      const hint  = document.getElementById('code-hint');
+      clearTimeout(_codeCheckTimer);
+      if (code.length < 4) { hint.textContent = ''; return; }
+      hint.textContent = '…';
+      hint.style.color = 'var(--text-muted)';
+      _codeCheckTimer = setTimeout(async () => {
+        try {
+          await authReady;
+          const snap = await withRetry(() => get(ref(db, `gameCodes/${code}`)), { retries: 3, base: 400 });
+          if (snap.exists()) {
+            hint.textContent = 'Partie trouvée';
+            hint.style.color = 'var(--orange)';
+          } else {
+            hint.textContent = 'Code introuvable';
+            hint.style.color = 'var(--red)';
+          }
+        } catch { hint.textContent = 'Réseau instable, réessaie'; hint.style.color = 'var(--red)'; }
+      }, 400);
+    });
+
+    // --- Pré-remplir le nom ---
+    const nameInput = document.getElementById('input-name');
+    nameInput.value = getGuestName();
+
+    // --- Pré-remplir si connecté ---
+    onAuthStateChanged(auth, async (user) => {
+      if (user && !user.isAnonymous) {
+        try {
+          const snap = await withRetry(() => getDoc(doc(firestore, 'users', user.uid)), { retries: 3 });
+          if (snap.exists()) {
+            const data   = snap.data();
+            const avatar = data.avatar || '';
+            nameInput.value = data.displayName || user.displayName || '';
+            _activeBadge  = data.activeBadge  || null;
+            _activeBorder = data.activeBorder || null;
+            if (avatar) {
+              selectedAvatar = avatar;
+              showAvatarPreview(avatar);
+            }
+          }
+        } catch (e) { console.warn('[profil] chargement:', e); }
+      }
+    });
+
+    // --- Tabs ---
+    window.switchTab = (tab) => {
+      document.getElementById('panel-create').classList.toggle('hidden', tab !== 'create');
+      document.getElementById('panel-join').classList.toggle('hidden', tab !== 'join');
+      document.getElementById('tab-create').classList.toggle('active', tab === 'create');
+      document.getElementById('tab-join').classList.toggle('active', tab === 'join');
+    };
+
+    function getPlayerInfo() {
+      const name = nameInput.value.trim();
+      if (!name) { showError('Entre un pseudo !'); return null; }
+      if (name.length > 15) { showError('Pseudo trop long (15 caractères max)'); return null; }
+      setGuestName(name);
+      return { name, avatar: selectedAvatar || '🎴' };
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('error-msg');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    // --- Créer une partie ---
+    document.getElementById('btn-create').onclick = async () => {
+      const player = getPlayerInfo();
+      if (!player) return;
+
+      const btn = document.getElementById('btn-create');
+      btn.disabled = true;
+
+      try {
+        let user = await authReady;
+        if (!user) user = (await signInAnonymously(auth)).user;
+        const playerId = user.uid;
+        const gameCode = generateGameCode();
+        if (!gameCode || gameCode.length !== 4) throw new Error('Code de partie invalide, réessaie');
+
+        const gameRef = push(ref(db, 'games'));
+        const gameId  = gameRef.key;
+        const now     = Date.now();
+
+        // Écriture atomique en une seule opération → évite la race condition.
+        // gameId/gameCode sont fixés avant le retry → ré-essai idempotent.
+        await withRetry(() => update(ref(db), {
+          [`gameCodes/${gameCode}`]: { gameId, createdAt: now },
+          [`games/${gameId}`]: {
+            gameCode,
+            hostId: playerId,
+            status: 'waiting',
+            phase: null,
+            createdAt: now,
+            players: {
+              [playerId]: {
+                name: player.name,
+                avatar: player.avatar,
+                uid: user.uid,
+                ready: false,
+                online: true,
+                activeBadge:  _activeBadge  || null,
+                activeBorder: _activeBorder || null,
+              }
+            }
+          }
+        }));
+
+        setGameSession({ gameId, playerId, isHost: true });
+        window.location.href = `/join.html?gameId=${gameId}&playerId=${playerId}`;
+
+      } catch (e) {
+        showError(friendlyError(e));
+        btn.disabled = false;
+      }
+    };
+
+    // --- Rejoindre une partie ---
+    document.getElementById('btn-join').onclick = async () => {
+      const player = getPlayerInfo();
+      if (!player) return;
+
+      const code = document.getElementById('input-code').value.trim().toUpperCase();
+      if (code.length !== 4) return showError('Le code fait 4 caractères');
+
+      const btn = document.getElementById('btn-join');
+      btn.disabled = true;
+
+      try {
+        // S'assurer d'être authentifié AVANT toute lecture RTDB
+        await authReady;
+
+        const codeSnap = await withRetry(() => get(ref(db, `gameCodes/${code}`)));
+        if (!codeSnap.exists()) return (() => { showError('Code incorrect'); btn.disabled = false; })();
+
+        const gameId   = codeSnap.val().gameId;
+        const gameSnap = await withRetry(() => get(ref(db, `games/${gameId}`)));
+        if (!gameSnap.exists()) return (() => { showError('Partie introuvable'); btn.disabled = false; })();
+
+        const game = gameSnap.val();
+        if (game.status === 'abandoned') {
+          return (() => { showError("L'hôte a quitté cette partie"); btn.disabled = false; })();
+        }
+        if (game.status === 'started') {
+          const phaseMsg = {
+            distribution: 'Distribution des cartes en cours, réessaie dans 1-2 min.',
+            memorize:     'Phase de mémorisation en cours, réessaie dans 1 min.',
+            memoryReveal: 'Partie en fin de partie, rejoins la prochaine.',
+          };
+          if (game.phase !== 'pyramid') {
+            return (() => { showError(phaseMsg[game.phase] || 'Partie en cours'); btn.disabled = false; })();
+          }
+        }
+
+        let user = await authReady;
+        if (!user) user = (await signInAnonymously(auth)).user;
+        const playerId = user.uid;
+
+        // Rejoindre en cours (phase pyramide uniquement)
+        if (game.status === 'started' && game.phase === 'pyramid') {
+          const deck = game.deck || [];
+          if (deck.length < 4) return (() => { showError('Plus assez de cartes pour rejoindre'); btn.disabled = false; })();
+          const playerCards = deck.slice(0, 4).map(c => ({ ...c, revealed: false }));
+          await withRetry(() => update(ref(db, `games/${gameId}`), {
+            [`players/${playerId}`]: { name: player.name, avatar: player.avatar, uid: user.uid, online: true, cards: playerCards, sipsToDrink: 0, sipsGiven: 0, actedOnCard: null },
+            deck: deck.slice(4)
+          }));
+          setGameSession({ gameId, playerId, isHost: false });
+          window.location.href = `/game2.html?gameId=${gameId}&playerId=${playerId}`;
+          return;
+        }
+
+        await withRetry(() => set(ref(db, `games/${gameId}/players/${playerId}`), {
+          name: player.name,
+          avatar: player.avatar,
+          uid: user.uid,
+          ready: false,
+          online: true,
+          activeBadge:  _activeBadge  || null,
+          activeBorder: _activeBorder || null,
+        }));
+
+        setGameSession({ gameId, playerId, isHost: false });
+        window.location.href = `/join.html?gameId=${gameId}&playerId=${playerId}`;
+
+      } catch (e) {
+        showError(friendlyError(e));
+        btn.disabled = false;
+      }
+    };
+  </script>
+
+</body></html>

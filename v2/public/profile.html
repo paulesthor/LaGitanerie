@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#e74c3c">
+  <title>Profil — La Gitanerie</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&amp;family=Playfair+Display:wght@700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
+  <style>
+    .emoji-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:8px; }
+    .emoji-btn  {
+      font-size:1.6rem; background:var(--bg-surface);
+      border:2px solid transparent; border-radius:var(--radius-sm);
+      padding:8px 4px; cursor:pointer; text-align:center;
+      transition:border-color var(--transition);
+    }
+    .emoji-btn.selected { border-color:var(--red); }
+
+    .stat-row {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:12px 0; border-bottom:1px solid var(--border);
+    }
+    .stat-row:last-child { border-bottom:none; }
+
+    .level-badge {
+      display:inline-flex; align-items:center; gap:6px;
+      background:rgba(243,156,18,.15); border:1px solid var(--gold);
+      border-radius:20px; padding:6px 14px;
+      font-size:.85rem; font-weight:700; color:var(--gold);
+    }
+    .guest-banner {
+      background:rgba(243,156,18,.1); border:1px solid rgba(243,156,18,.3);
+      border-radius:var(--radius); padding:14px 16px;
+      display:flex; align-items:center; gap:12px;
+    }
+    .title-pill {
+      padding:8px 14px; border-radius:20px; border:1px solid var(--border);
+      background:var(--bg-surface); color:var(--text);
+      font-family:inherit; font-size:.85rem; font-weight:600; cursor:pointer;
+      transition:all var(--transition);
+    }
+    .title-pill.active { border-color:var(--gold); background:rgba(243,156,18,.15); color:var(--gold); }
+  </style>
+</head>
+<body>
+
+  <div class="screen">
+    <header class="app-header">
+      <button class="header-btn" onclick="history.back()"><i class="fas fa-arrow-left"></i></button>
+      <h1>Mon Profil</h1>
+      <div style="width:32px"></div>
+    </header>
+
+    <div class="page-content">
+
+      <!-- Bannière invité si non connecté (masquée par défaut, montrée seulement en invité) -->
+      <div id="guest-banner" class="guest-banner hidden">
+        <span style="font-size:1.5rem">👤</span>
+        <div class="flex-col gap-8" style="flex:1">
+          <span class="font-bold">Mode invité</span>
+          <span class="text-sm text-muted">Connecte-toi pour sauvegarder ton XP et tes stats.</span>
+        </div>
+        <a href="/login.html" class="btn btn-gold btn-sm" style="white-space:nowrap">Connexion</a>
+      </div>
+
+      <!-- Identité -->
+      <div class="card flex-col gap-16">
+        <div class="flex items-center gap-16">
+          <div id="profile-avatar-wrap" style="flex-shrink:0">
+            <div style="width: 64px; height: 64px; border-radius: 50%; background: var(--bg-surface); border: 1px solid rgba(255, 255, 255, 0.12); display: flex; align-items: center; justify-content: center; font-size: 2.2rem;" id="profile-avatar">🃏</div>
+          </div>
+          <div class="flex-col gap-8" style="flex:1">
+            <span id="profile-name" class="font-bold" style="font-size:1.2rem">Invité</span>
+            <span id="profile-title" class="text-sm" style="color:var(--gold);font-weight:600"></span>
+            <div id="level-badge" class="level-badge hidden">
+              <i class="fas fa-star"></i> Niveau <span id="level-num">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- XP bar -->
+        <div id="xp-section" class="flex-col gap-6 hidden">
+          <div class="flex justify-between text-sm text-muted">
+            <span>XP : <strong id="xp-val">0</strong></span>
+            <span><strong id="xp-progress">0/100</strong> pour Niv. <span id="xp-next-level">2</span></span>
+          </div>
+          <div class="xp-bar-wrap" style="height:8px">
+            <div class="xp-bar-fill" id="xp-fill" style="width:0%"></div>
+          </div>
+          <p class="text-sm text-muted" style="font-style:italic;font-size:.72rem">+10 XP par partie jouée · +1 XP par gorgée donnée · −1 XP par gorgée bue</p>
+        </div>
+      </div>
+
+      <!-- Éditer le profil -->
+      <div class="card flex-col gap-16">
+        <h3>Modifier</h3>
+
+        <div class="input-group">
+          <label>Nom de joueur</label>
+          <input type="text" id="edit-name" class="input" placeholder="Ton pseudo" maxlength="15">
+        </div>
+
+        <!-- Photo -->
+        <div class="flex-col gap-10">
+          <span class="text-sm text-muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Photo de profil</span>
+          <div class="flex items-center gap-14">
+            <div id="photo-preview" style="width:72px;height:72px;border-radius:50%;background:var(--bg-surface);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:2rem;overflow:hidden;flex-shrink:0">🃏</div>
+            <div class="flex-col gap-8" style="flex:1">
+              <button id="btn-photo" class="btn btn-secondary btn-sm">
+                <i class="fas fa-camera"></i> Prendre / Choisir
+              </button>
+              <button id="btn-remove-photo" class="btn btn-ghost btn-sm hidden" style="color:var(--red)">
+                <i class="fas fa-trash"></i> Supprimer la photo
+              </button>
+            </div>
+          </div>
+          <input type="file" id="photo-input" accept="image/*" style="display:none">
+        </div>
+
+        <!-- Emoji (si pas de photo) -->
+        <div id="emoji-section" class="flex-col gap-8">
+          <span class="text-sm text-muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Ou choisis un emoji</span>
+          <div id="emoji-grid" class="emoji-grid"></div>
+        </div>
+
+        <button id="btn-save" class="btn btn-primary">
+          <i class="fas fa-save"></i> Sauvegarder
+        </button>
+      </div>
+
+      <!-- Titres -->
+      <div id="titles-section" class="card flex-col gap-14 hidden">
+        <h3><i class="fas fa-award" style="color:var(--orange)"></i> Mes titres</h3>
+        <p class="text-sm text-muted">Le titre équipé s'affiche à côté de ton pseudo.</p>
+        <div id="titles-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+
+      <!-- Badges -->
+      <div id="badges-section" class="card flex-col gap-14 hidden">
+        <h3><i class="fas fa-medal" style="color:var(--orange)"></i> Mes badges</h3>
+        <div id="badges-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px"></div>
+
+        <div class="flex-col gap-8">
+          <span class="label-caps">Badge affiché en jeu</span>
+          <div id="active-badge-preview" class="flex items-center gap-12 card-sm">
+            <div id="active-badge-icon" class="badge-hex" style="width:40px;height:40px;background:var(--bg-raised)"></div>
+            <span id="active-badge-name" class="text-sm text-muted">Aucun</span>
+            <button id="btn-clear-badge" class="btn btn-ghost btn-sm hidden" style="width:auto;margin-left:auto">Retirer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cadres de profil -->
+      <div id="borders-section" class="card flex-col gap-14 hidden">
+        <h3><i class="fas fa-circle-half-stroke" style="color:var(--orange)"></i> Cadre de profil</h3>
+        <div id="borders-grid" class="flex gap-14 flex-wrap"></div>
+        <p class="text-sm text-muted">Les cadres se débloquent par niveau. Niv. 5 Bronze · Niv. 10 Argent · Niv. 20 Or · Niv. 30 Légende</p>
+      </div>
+
+      <!-- Stats globales -->
+      <div class="card flex-col gap-12 hidden" id="stats-section">
+        <h3><i class="fas fa-chart-bar" style="color:var(--orange)"></i> Statistiques</h3>
+        <div id="stats-rows" class="flex-col"></div>
+      </div>
+
+      <!-- Déconnexion -->
+      <div id="logout-section" class="hidden mt-auto">
+        <button id="btn-logout" class="btn btn-ghost">
+          <i class="fas fa-sign-out-alt"></i> Se déconnecter
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    import { auth, firestore } from '/js/firebase-config.js';
+    import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getGuestName, setGuestName, getGuestAvatar, setGuestAvatar, showToast } from '/js/game/utils.js';
+    import { BADGES, BORDERS, TITLES, availableBorders } from '/js/game/badges.js';
+    import { compressAvatar, isPhotoAvatar } from '/js/game/avatar.js';
+
+    const EMOJIS = ['🃏','🎴','🎰','🍺','🥃','🍻','🎭','👑','💀','🔥','⚡','🌙','🎯','🎲','🐍','🦁','🐺','🎸','🤠','🎪'];
+    let selectedAvatar = '';
+    let currentUser    = null;
+    let selectedBadge  = null;
+    let selectedBorder = null;
+    let selectedTitle  = null;
+    let ownedTitles    = [];
+
+    // Sauvegarde immédiate d'un cosmétique (badge/cadre/titre) — sans bouton
+    async function saveActive(patch) {
+      if (!currentUser || currentUser.isAnonymous) return;
+      try { await setDoc(doc(firestore, 'users', currentUser.uid), patch, { merge: true }); }
+      catch (e) { /* silencieux, on retentera à la prochaine action */ }
+    }
+
+    // ── Titres ──────────────────────────────────────────────
+    function renderTitles(owned = [], active = null) {
+      ownedTitles = owned;
+      const section = document.getElementById('titles-section');
+      const grid = document.getElementById('titles-grid');
+      if (!owned.length) { section.classList.add('hidden'); return; }
+      section.classList.remove('hidden');
+      grid.innerHTML = '';
+      const noneBtn = document.createElement('button');
+      noneBtn.className = 'title-pill' + (!selectedTitle ? ' active' : '');
+      noneBtn.textContent = 'Aucun';
+      noneBtn.onclick = () => { selectedTitle = null; renderTitles(owned, null); updateProfileTitle(); saveActive({ activeTitle: null }); };
+      grid.appendChild(noneBtn);
+      owned.forEach(id => {
+        const def = TITLES[id]; if (!def) return;
+        const pill = document.createElement('button');
+        pill.className = 'title-pill' + (id === selectedTitle ? ' active' : '');
+        pill.textContent = def.name;
+        pill.title = def.desc;
+        pill.onclick = () => { selectedTitle = id; renderTitles(owned, id); updateProfileTitle(); saveActive({ activeTitle: id }); };
+        grid.appendChild(pill);
+      });
+    }
+    function updateProfileTitle() {
+      const el = document.getElementById('profile-title');
+      el.textContent = (selectedTitle && TITLES[selectedTitle]) ? TITLES[selectedTitle].name : '';
+    }
+
+    // ── Badges ──────────────────────────────────────────────
+    function renderBadges(earnedIds = [], activeBadge = null) {
+      document.getElementById('badges-section').classList.remove('hidden');
+      const grid = document.getElementById('badges-grid');
+      grid.innerHTML = '';
+      Object.values(BADGES).forEach(def => {
+        const earned  = earnedIds.includes(def.id);
+        const isActive = def.id === activeBadge;
+        const wrap = document.createElement('div');
+        wrap.className = `badge-hex-wrap ${earned ? '' : 'locked'} ${isActive ? 'active-badge' : ''}`;
+        wrap.innerHTML = `
+          <div class="badge-hex" style="${earned ? `background:${def.bg};--badge-glow:${def.glow};box-shadow:0 4px 14px ${def.glow}` : 'background:var(--bg-raised)'}">
+            <i class="${def.icon}" style="color:${earned ? def.textColor : 'var(--text-muted)'}"></i>
+          </div>
+          <span class="badge-hex-label">${def.name}</span>`;
+        if (earned) {
+          wrap.title = def.desc;
+          wrap.onclick = () => selectBadge(def.id, earnedIds);
+        }
+        grid.appendChild(wrap);
+      });
+      updateActiveBadgePreview(activeBadge);
+    }
+
+    function selectBadge(id, earnedIds) {
+      selectedBadge = selectedBadge === id ? null : id;
+      renderBadges(earnedIds, selectedBadge);
+      saveActive({ activeBadge: selectedBadge || null });
+    }
+
+    function updateActiveBadgePreview(id) {
+      const icon = document.getElementById('active-badge-icon');
+      const name = document.getElementById('active-badge-name');
+      const clearBtn = document.getElementById('btn-clear-badge');
+      if (id && BADGES[id]) {
+        const def = BADGES[id];
+        icon.style.background = def.bg;
+        icon.style.boxShadow = `0 3px 10px ${def.glow}`;
+        icon.innerHTML = `<i class="${def.icon}" style="color:${def.textColor};font-size:.9rem"></i>`;
+        name.textContent = def.name;
+        clearBtn.classList.remove('hidden');
+        clearBtn.onclick = () => { selectedBadge = null; updateActiveBadgePreview(null); saveActive({ activeBadge: null }); };
+      } else {
+        icon.style.background = 'var(--bg-raised)';
+        icon.style.boxShadow = 'none';
+        icon.innerHTML = '';
+        name.textContent = 'Aucun badge sélectionné';
+        clearBtn.classList.add('hidden');
+      }
+    }
+
+    // ── Cadres ──────────────────────────────────────────────
+    function renderBorders(level, activeBorder = null) {
+      document.getElementById('borders-section').classList.remove('hidden');
+      const grid = document.getElementById('borders-grid');
+      grid.innerHTML = '';
+
+      const noneEl = document.createElement('div');
+      noneEl.className = `flex-col items-center gap-6 ${activeBorder === null ? 'active-badge' : ''}`;
+      noneEl.style.cssText = 'cursor:pointer;align-items:center;display:flex;flex-direction:column;gap:6px';
+      noneEl.innerHTML = `
+        <div class="border-option ${activeBorder === null ? 'selected' : ''}" style="background:var(--bg-card)">
+          <div class="border-option-inner" style="background:var(--bg-raised)"></div>
+        </div>
+        <span class="badge-hex-label">Aucun</span>`;
+      noneEl.onclick = () => { selectedBorder = null; renderBorders(level, null); applyProfileBorder(null); saveActive({ activeBorder: null }); };
+      grid.appendChild(noneEl);
+
+      Object.values(BORDERS).forEach(b => {
+        const isUnlocked = level >= b.minLevel;
+        const isActive   = b.id === activeBorder;
+        const el = document.createElement('div');
+        el.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer';
+        el.innerHTML = `
+          <div class="border-option ${isUnlocked ? '' : 'locked'} ${isActive ? 'selected' : ''}" style="background:${b.gradient || `conic-gradient(from var(--border-angle),#f39c12,#e74c3c,#9b59b6,#f39c12)`}${b.animated ? ';animation:border-spin 2.5s linear infinite' : ''}">
+            <div class="border-option-inner"></div>
+          </div>
+          <span class="badge-hex-label">${b.name}${!isUnlocked ? `<br>Niv.${b.minLevel}` : ''}</span>`;
+        if (isUnlocked) {
+          el.onclick = () => { selectedBorder = b.id; renderBorders(level, b.id); applyProfileBorder(b.id); saveActive({ activeBorder: b.id }); };
+        }
+        grid.appendChild(el);
+      });
+    }
+
+    // Grille emoji
+    const grid = document.getElementById('emoji-grid');
+    EMOJIS.forEach(e => {
+      const btn = document.createElement('button');
+      btn.className = 'emoji-btn';
+      btn.textContent = e;
+      btn.onclick = () => { setAvatar(e); };
+      grid.appendChild(btn);
+    });
+
+    function setAvatar(avatar) {
+      selectedAvatar = avatar;
+      const preview = document.getElementById('photo-preview');
+      const mainAvatar = document.getElementById('profile-avatar');
+
+      if (isPhotoAvatar(avatar)) {
+        preview.innerHTML = `<img src="${avatar}" style="width:100%;height:100%;object-fit:cover">`;
+        mainAvatar.innerHTML = `<img src="${avatar}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block">`;
+        document.getElementById('btn-remove-photo').classList.remove('hidden');
+        document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+      } else {
+        preview.textContent = avatar;
+        mainAvatar.textContent = avatar;
+        mainAvatar.style.cssText = 'width:64px;height:64px;border-radius:50%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:2.2rem';
+        document.getElementById('btn-remove-photo').classList.add('hidden');
+        document.querySelectorAll('.emoji-btn').forEach(b => {
+          b.classList.toggle('selected', b.textContent === avatar);
+        });
+      }
+    }
+
+    // Upload photo
+    document.getElementById('btn-photo').onclick = () => document.getElementById('photo-input').click();
+    document.getElementById('photo-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        document.getElementById('btn-photo').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Compression...';
+        const base64 = await compressAvatar(file);
+        setAvatar(base64);
+      } catch(err) {
+        showToast('Erreur lors du chargement de la photo', 'error');
+      } finally {
+        document.getElementById('btn-photo').innerHTML = '<i class="fas fa-camera"></i> Prendre / Choisir';
+        e.target.value = '';
+      }
+    });
+
+    document.getElementById('btn-remove-photo').onclick = () => setAvatar('🃏');
+
+    async function loadProfile(user) {
+      currentUser = user;
+
+      if (user && !user.isAnonymous) {
+        document.getElementById('guest-banner').classList.add('hidden');
+        document.getElementById('logout-section').classList.remove('hidden');
+        document.getElementById('xp-section').classList.remove('hidden');
+        document.getElementById('level-badge').classList.remove('hidden');
+
+        const snap = await getDoc(doc(firestore, 'users', user.uid));
+        const data = snap.exists() ? snap.data() : {};
+        const name   = data.displayName || user.displayName || 'Joueur';
+        const avatar = data.avatar || '🃏';
+        const xp     = data.xp || 0;
+        const level  = Math.floor(xp / 100);
+
+        document.getElementById('profile-name').textContent = name;
+        document.getElementById('edit-name').value          = name;
+        document.getElementById('level-num').textContent    = level;
+        document.getElementById('xp-val').textContent       = xp;
+        document.getElementById('xp-progress').textContent   = `${xp % 100}/100`;
+        document.getElementById('xp-next-level').textContent = level + 2;
+        document.getElementById('xp-fill').style.width      = (xp % 100) + '%';
+        setAvatar(avatar);
+        try { localStorage.setItem('lastProfileAvatar', avatar); } catch (e) {}
+
+        // Titres
+        selectedTitle = data.activeTitle || null;
+        renderTitles(data.titles || [], selectedTitle);
+        updateProfileTitle();
+
+        // Badges et cadres
+        const badges      = data.badges       || [];
+        const activeBadge  = data.activeBadge  || null;
+        const activeBorder = data.activeBorder || null;
+        selectedBadge  = activeBadge;
+        selectedBorder = activeBorder;
+        renderBadges(badges, activeBadge);
+        renderBorders(level, activeBorder);
+        applyProfileBorder(activeBorder);
+
+        renderStats([
+          ['Parties jouées',    data.totalGames      || 0],
+          ['Gorgées bues',      data.totalSipsDrunk  || 0],
+          ['Gorgées données',   data.totalSipsGiven  || 0],
+          ['Bluffs réussis',    data.bluffSuccess    || 0],
+          ['Titres débloqués',  (data.titles || []).length],
+          ['XP total',          xp],
+          ['Niveau',            level],
+        ]);
+      } else {
+        document.getElementById('guest-banner').classList.remove('hidden');
+        const name   = getGuestName();
+        const avatar = getGuestAvatar();
+        document.getElementById('profile-name').textContent = name;
+        document.getElementById('edit-name').value          = name;
+        setAvatar(avatar);
+        document.getElementById('stats-section').classList.add('hidden');
+      }
+    }
+
+    onAuthStateChanged(auth, (user) => loadProfile(user));
+    // Retour arrière (bfcache) : recharger le profil pour ne pas rester sur une ancienne photo figée
+    window.addEventListener('pageshow', (e) => { if (e.persisted) loadProfile(auth.currentUser); });
+
+    // Affichage optimiste : peindre la dernière photo connue immédiatement (évite le flash de la carte 🃏)
+    try { const _lastAv = localStorage.getItem('lastProfileAvatar'); if (_lastAv) setAvatar(_lastAv); } catch (e) {}
+
+    function renderStats(rows) {
+      const container = document.getElementById('stats-rows');
+      container.innerHTML = '';
+      document.getElementById('stats-section').classList.remove('hidden');
+      rows.forEach(([label, value]) => {
+        const row = document.createElement('div');
+        row.className = 'stat-row';
+        row.innerHTML = `<span class="text-muted">${label}</span><span class="font-bold">${value}</span>`;
+        container.appendChild(row);
+      });
+    }
+
+    function applyProfileBorder(borderId) {
+      const wrap = document.getElementById('profile-avatar-wrap');
+      if (!wrap) return;
+      wrap.className = wrap.className.replace(/border-\w+/g, '').trim();
+      if (borderId) {
+        wrap.classList.add('avatar-framed', `border-${borderId}`);
+      } else {
+        wrap.classList.remove('avatar-framed');
+      }
+    }
+
+    // Sauvegarder
+    document.getElementById('btn-save').onclick = async () => {
+      const name = document.getElementById('edit-name').value.trim();
+      if (!name) return showToast('Entre un pseudo !', 'error');
+
+      const btn = document.getElementById('btn-save');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sauvegarde…';
+
+      if (currentUser && !currentUser.isAnonymous) {
+        try {
+          await setDoc(doc(firestore, 'users', currentUser.uid), {
+            displayName:  name,
+            avatar:       selectedAvatar,
+            activeBadge:  selectedBadge  || null,
+            activeBorder: selectedBorder || null,
+            activeTitle:  selectedTitle  || null,
+          }, { merge: true });
+          document.getElementById('profile-name').textContent = name;
+          applyProfileBorder(selectedBorder);
+          updateProfileTitle();
+          try { localStorage.setItem('lastProfileAvatar', selectedAvatar); } catch (e) {}
+          showToast('Profil sauvegardé', 'success');
+        } catch(e) { showToast('Erreur : ' + e.message, 'error'); }
+      } else {
+        setGuestName(name);
+        setGuestAvatar(selectedAvatar);
+        document.getElementById('profile-name').textContent = name;
+        showToast('Profil mis à jour', 'success');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save"></i> Sauvegarder';
+    };
+
+    // Déconnexion
+    document.getElementById('btn-logout')?.addEventListener('click', async () => {
+      try { localStorage.removeItem('profileCache'); localStorage.removeItem('lastProfileAvatar'); } catch (e) {}
+      await signOut(auth);
+      window.location.href = '/';
+    });
+  </script>
+
+</body></html>

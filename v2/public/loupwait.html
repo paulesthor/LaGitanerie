@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#2c3e50">
+  <title>Salon Loup-Garou — La Gitanerie</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&amp;family=Playfair+Display:wght@700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .code-box { text-align:center; }
+    .code-big {
+      font-family: var(--font-brand); font-size:2.6rem; font-weight:700; letter-spacing:.35em;
+      color: var(--orange); padding-left:.35em;
+    }
+    .player-row { display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); }
+    .player-row:last-child { border-bottom:none; }
+    .dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+    .dot.on  { background:#27ae60; box-shadow:0 0 6px rgba(39,174,96,.6); }
+    .dot.off { background:#7f8c8d; }
+
+    .role-row { display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--border); }
+    .role-row:last-child { border-bottom:none; }
+    .role-emoji { font-size:1.4rem; width:30px; text-align:center; flex-shrink:0; }
+    .role-info { flex:1; min-width:0; }
+    .role-name { font-weight:600; font-size:.95rem; }
+    .role-desc { font-size:.68rem; color:var(--text-muted); line-height:1.35; }
+    .stepper { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+    .stepper button {
+      width:32px; height:32px; border-radius:8px; border:1px solid var(--border);
+      background:var(--bg-surface); color:var(--text); font-size:1.2rem; line-height:1; cursor:pointer;
+    }
+    .stepper button:disabled { opacity:.35; cursor:default; }
+    .stepper .cnt { min-width:22px; text-align:center; font-weight:700; font-size:1.05rem; }
+
+    .counter-card { display:flex; align-items:center; justify-content:space-between; }
+    .counter-num { font-family:var(--font-brand); font-size:1.6rem; font-weight:700; }
+    .counter-ok  { color:#27ae60; }
+    .counter-bad { color:var(--orange); }
+
+    .section-tabs { display:flex; background:var(--bg-surface); border-radius:var(--radius-sm); padding:4px; gap:4px; }
+    .seg-btn {
+      flex:1; padding:10px; border:none; border-radius:8px; background:transparent;
+      color:var(--text-muted); font-family:inherit; font-size:.85rem; font-weight:600; cursor:pointer;
+      transition:all var(--transition);
+    }
+    .seg-btn.active { background:var(--orange); color:#1a1a1a; }
+    .seg-btn:disabled { cursor:default; }
+  </style>
+</head>
+<body>
+
+  <div class="screen">
+    <header class="app-header">
+      <button class="header-btn" id="btn-leave"><i class="fas fa-arrow-left"></i></button>
+      <div class="header-brand">Salon</div>
+      <div style="width:36px"></div>
+    </header>
+
+    <div class="page-content">
+
+      <!-- Code -->
+      <div class="card code-box flex-col gap-6">
+        <span class="text-sm text-muted">Code de la partie — partage-le</span>
+        <div class="code-big" id="code-big">····</div>
+      </div>
+
+      <!-- Joueurs -->
+      <div class="card flex-col gap-8">
+        <h3>Joueurs (<span id="player-count">0</span>)</h3>
+        <div id="players-list" class="flex-col"></div>
+      </div>
+
+      <!-- Rôle de l'hôte (hôte uniquement) -->
+      <div id="host-mode-card" class="card flex-col gap-8 hidden">
+        <span class="text-sm text-muted">Ton rôle en tant qu'hôte</span>
+        <div class="section-tabs">
+          <button class="seg-btn" id="hp-play">Je joue aussi</button>
+          <button class="seg-btn" id="hp-narrate">Narrateur seul</button>
+        </div>
+        <p class="text-sm text-muted" id="host-mode-hint" style="font-size:.7rem"></p>
+      </div>
+
+      <!-- Rythme de la nuit (hôte uniquement) -->
+      <div id="pacing-card" class="card flex-col gap-8 hidden">
+        <span class="text-sm text-muted">Rythme de la nuit</span>
+        <div class="section-tabs">
+          <button class="seg-btn" id="pace-manual">Manuel</button>
+          <button class="seg-btn" id="pace-auto">Minuteur</button>
+        </div>
+        <p class="text-sm text-muted" style="font-size:.7rem">Manuel : tu passes chaque rôle toi-même. Minuteur : chaque étape s'enchaîne automatiquement.</p>
+      </div>
+
+      <!-- Compteur de cartes -->
+      <div class="card counter-card">
+        <div class="flex-col gap-4">
+          <span class="text-sm text-muted">Cartes sélectionnées</span>
+          <span class="text-sm text-muted" id="target-hint">objectif : joueurs + 3</span>
+        </div>
+        <div class="counter-num" id="counter-num">0 / 0</div>
+      </div>
+
+      <!-- Rôles -->
+      <div class="card flex-col gap-4">
+        <h3><i class="fas fa-scroll" style="color:var(--orange)"></i> Rôles</h3>
+        <p class="text-sm text-muted" id="roles-subtitle">Configuration…</p>
+        <div id="roles-list"></div>
+      </div>
+
+      <!-- Lancer -->
+      <div id="host-controls" class="hidden">
+        <button id="btn-launch" class="btn btn-primary" disabled><i class="fas fa-moon"></i> Lancer la partie</button>
+        <p class="text-sm text-muted text-center" id="launch-hint" style="margin-top:8px"></p>
+      </div>
+      <div id="guest-note" class="hidden text-sm text-center text-muted">En attente que l'hôte lance la partie…</div>
+
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    import { auth, db, withRetry, friendlyError } from '/js/firebase-config.js';
+    import { ref, onValue, update, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+    import { getGameSession, clearGameSession, showToast } from '/js/game/utils.js';
+    import { avatarHTML } from '/js/game/avatar.js';
+    import { LOUP_ROLES, ROLE_BY_ID, totalCards, targetCards } from '/js/game/loup.js';
+
+    // --- Session (loup uniquement) ---
+    const session = getGameSession();
+    if (!session || !session.gameId || !session.playerId || session.ns !== 'loupGames') {
+      window.location.href = '/loupgarou.html';
+    }
+    const { gameId, playerId } = session;
+    const gameRef = ref(db, `loupGames/${gameId}`);
+
+    document.getElementById('code-big').textContent = '····';
+
+    let currentRoles = {};
+    let isHost = false;
+    let numPlayers = 0;
+    let hostPlays = true;   // l'hôte joue-t-il, ou est-il narrateur seul ?
+    let hostId = null;
+    let pacing = 'manual';  // 'manual' | 'auto'
+    let currentPlayers = {};
+
+    // Nombre de joueurs qui reçoivent une carte (exclut l'hôte s'il est narrateur seul)
+    function playingCount() { return numPlayers - (hostPlays ? 0 : 1); }
+
+    // --- Construire la liste des rôles (une seule fois) ---
+    const rolesList = document.getElementById('roles-list');
+    for (const r of LOUP_ROLES) {
+      const row = document.createElement('div');
+      row.className = 'role-row';
+      row.innerHTML = `
+        <div class="role-info">
+          <div class="role-name">${r.name}</div>
+          <div class="role-desc">${r.desc}</div>
+        </div>
+        <div class="stepper">
+          <button data-act="dec" data-role="${r.id}">−</button>
+          <span class="cnt" id="cnt-${r.id}">0</span>
+          <button data-act="inc" data-role="${r.id}">+</button>
+        </div>`;
+      rolesList.appendChild(row);
+    }
+
+    // --- Clics steppers (hôte uniquement) ---
+    rolesList.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button'); if (!btn || !isHost) return;
+      const id = btn.dataset.role;
+      const def = ROLE_BY_ID[id]; if (!def) return;
+      let n = Number(currentRoles[id] || 0);
+      n += (btn.dataset.act === 'inc' ? 1 : -1);
+      n = Math.max(0, Math.min(def.max, n));
+      if (n === Number(currentRoles[id] || 0)) return;
+      currentRoles = { ...currentRoles, [id]: n };
+      document.getElementById('cnt-' + id).textContent = n;   // maj optimiste
+      refreshCounter();
+      try { await withRetry(() => update(ref(db, `loupGames/${gameId}/config/roles`), { [id]: n })); }
+      catch (err) { showToast(friendlyError(err), 'error'); }
+    });
+
+    function refreshCounter() {
+      const total = totalCards(currentRoles);
+      const play = playingCount();
+      const target = play + 3;                       // cartes = joueurs (hors narrateur) + 3
+      const el = document.getElementById('counter-num');
+      el.textContent = `${total} / ${target}`;
+      const ok = total === target && play >= 3;
+      el.className = 'counter-num ' + (ok ? 'counter-ok' : 'counter-bad');
+      document.getElementById('target-hint').textContent =
+        hostPlays ? 'objectif : joueurs + 3' : 'objectif : joueurs (hors narrateur) + 3';
+      // Bouton lancer
+      const launchBtn = document.getElementById('btn-launch');
+      const hint = document.getElementById('launch-hint');
+      if (isHost && launchBtn) {
+        launchBtn.disabled = !ok;
+        hint.textContent = play < 3 ? `Il faut au moins 3 joueurs${hostPlays ? '' : ' (hors narrateur)'}.`
+          : total !== target ? `Ajuste les rôles : ${total} carte(s) pour ${target} attendues.`
+          : 'Prêt à lancer !';
+      }
+    }
+
+    // --- Rendu joueurs ---
+    function renderPlayers(players, hostId) {
+      const list = document.getElementById('players-list');
+      const ids = Object.keys(players || {});
+      document.getElementById('player-count').textContent = ids.length;
+      list.innerHTML = '';
+      for (const id of ids) {
+        const p = players[id];
+        const row = document.createElement('div');
+        row.className = 'player-row';
+        row.innerHTML = `
+          <span class="dot ${p.online ? 'on' : 'off'}"></span>
+          ${avatarHTML(p.avatar, 34)}
+          <span class="font-bold" style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name || 'Joueur'}</span>
+          ${id === hostId ? `<span class="badge" style="background:rgba(243,156,18,.15);color:var(--orange)">${hostPlays ? 'Hôte' : 'Narrateur'}</span>` : ''}
+          ${id === playerId ? '<span class="text-sm text-muted">toi</span>' : ''}`;
+        list.appendChild(row);
+      }
+    }
+
+    // --- Écoute temps réel ---
+    onValue(gameRef, (snap) => {
+      const game = snap.val();
+      if (!game) { showToast('Partie fermée'); clearGameSession(); window.location.href = '/loupgarou.html'; return; }
+
+      document.getElementById('code-big').textContent = game.gameCode || '····';
+      hostId = game.hostId;
+      isHost = game.hostId === playerId;
+      const players = game.players || {};
+      currentPlayers = players;
+      numPlayers = Object.keys(players).length;
+      currentRoles = (game.config && game.config.roles) || {};
+      hostPlays = !(game.config && game.config.hostPlays === false);   // défaut : l'hôte joue
+      pacing = (game.config && game.config.pacing) || 'manual';
+
+      // Si la nuit a démarré → tout le monde va sur la page de nuit
+      if (game.status === 'night') { window.location.href = `/loupnight.html?gameId=${gameId}&playerId=${playerId}`; return; }
+      if (game.status === 'abandoned') { showToast("L'hôte a quitté"); clearGameSession(); window.location.href = '/loupgarou.html'; return; }
+
+      // Cartes "rôle de l'hôte" + "rythme" (hôte uniquement)
+      document.getElementById('host-mode-card').classList.toggle('hidden', !isHost);
+      document.getElementById('hp-play').classList.toggle('active', hostPlays);
+      document.getElementById('hp-narrate').classList.toggle('active', !hostPlays);
+      document.getElementById('host-mode-hint').textContent = hostPlays
+        ? "Tu reçois une carte et tu joues normalement."
+        : "Tu diriges la nuit sans recevoir de carte — l'arbitre idéal (aucune triche possible).";
+      document.getElementById('pacing-card').classList.toggle('hidden', !isHost);
+      document.getElementById('pace-manual').classList.toggle('active', pacing === 'manual');
+      document.getElementById('pace-auto').classList.toggle('active', pacing === 'auto');
+
+      renderPlayers(players, game.hostId);
+
+      // maj des compteurs de rôles + activation steppers
+      for (const r of LOUP_ROLES) {
+        document.getElementById('cnt-' + r.id).textContent = Number(currentRoles[r.id] || 0);
+      }
+      rolesList.querySelectorAll('button').forEach(b => b.disabled = !isHost);
+
+      document.getElementById('roles-subtitle').textContent = isHost
+        ? 'Choisis les rôles. Total = nombre de joueurs + 3.'
+        : "Rôles choisis par l'hôte.";
+      document.getElementById('host-controls').classList.toggle('hidden', !isHost);
+      document.getElementById('guest-note').classList.toggle('hidden', isHost);
+
+      refreshCounter();
+    }, (err) => { showToast(friendlyError(err), 'error'); });
+
+    // --- Rythme (hôte) ---
+    async function setPacing(v) {
+      if (!isHost || v === pacing) return;
+      pacing = v;
+      document.getElementById('pace-manual').classList.toggle('active', v === 'manual');
+      document.getElementById('pace-auto').classList.toggle('active', v === 'auto');
+      try { await withRetry(() => update(ref(db, `loupGames/${gameId}/config`), { pacing: v })); }
+      catch (err) { showToast(friendlyError(err), 'error'); }
+    }
+    document.getElementById('pace-manual').onclick = () => setPacing('manual');
+    document.getElementById('pace-auto').onclick   = () => setPacing('auto');
+
+    // --- Toggle rôle de l'hôte (joueur / narrateur seul) ---
+    async function setHostPlays(v) {
+      if (!isHost || v === hostPlays) return;
+      hostPlays = v;
+      document.getElementById('hp-play').classList.toggle('active', v);
+      document.getElementById('hp-narrate').classList.toggle('active', !v);
+      refreshCounter();
+      try { await withRetry(() => update(ref(db, `loupGames/${gameId}/config`), { hostPlays: v })); }
+      catch (err) { showToast(friendlyError(err), 'error'); }
+    }
+    document.getElementById('hp-play').onclick    = () => setHostPlays(true);
+    document.getElementById('hp-narrate').onclick = () => setHostPlays(false);
+
+    // --- Lancer : distribution des rôles + démarrage de la nuit ---
+    function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+    document.getElementById('btn-launch').onclick = async () => {
+      if (!isHost) return;
+      const btn = document.getElementById('btn-launch'); btn.disabled = true;
+      try {
+        // Joueurs qui reçoivent une carte (exclut le narrateur seul)
+        const ids = Object.keys(currentPlayers).filter(id => hostPlays || id !== hostId);
+        // Construire le paquet à partir des rôles choisis
+        const deck = [];
+        for (const r of LOUP_ROLES) { const n = Number(currentRoles[r.id] || 0); for (let i = 0; i < n; i++) deck.push(r.id); }
+        if (deck.length !== ids.length + 3) { showToast(`Il faut ${ids.length + 3} cartes (actuel : ${deck.length}).`, 'error'); btn.disabled = false; return; }
+        shuffle(deck);
+
+        const assignments = {};
+        ids.forEach((id, i) => { assignments[id] = deck[i]; });
+        const center = deck.slice(ids.length);   // 3 dernières = centre
+
+        // Écriture SECRÈTE (nœud loupSecret) : layout complet + carte privée de chacun
+        const secret = {};
+        secret[`loupSecret/${gameId}/setup`] = { assignments, center };
+        for (const id of ids) secret[`loupSecret/${gameId}/private/${id}`] = { role: assignments[id] };
+        await withRetry(() => update(ref(db), secret));
+
+        // État public : on passe en nuit (déclenche la navigation de tous via onValue)
+        await withRetry(() => update(ref(db, `loupGames/${gameId}`), {
+          status: 'night',
+          narration: { idx: -1, at: Date.now() },
+        }));
+      } catch (e) {
+        showToast(friendlyError(e), 'error');
+        document.getElementById('btn-launch').disabled = false;
+      }
+    };
+
+    // --- Quitter ---
+    document.getElementById('btn-leave').onclick = async () => {
+      try {
+        if (isHost) { await withRetry(() => update(gameRef, { status: 'abandoned' })); }
+        else { await withRetry(() => set(ref(db, `loupGames/${gameId}/players/${playerId}`), null)); }
+      } catch (_) {}
+      clearGameSession();
+      window.location.href = '/loupgarou.html';
+    };
+  </script>
+
+</body></html>

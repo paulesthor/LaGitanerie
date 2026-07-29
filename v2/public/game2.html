@@ -1,0 +1,1343 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#e74c3c">
+  <title>La Pyramide — La Gitanerie</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    /* Pyramide — taille adaptative via CSS variables */
+    :root { --py-w:56px; --py-h:78px; --py-gap:6px; --py-fs:.65rem; --py-fsc:1.1rem; --py-fbk:1rem; }
+    .pyramid-area { display:flex; flex-direction:column; align-items:center; gap:var(--py-gap); }
+    .pyramid-row  { display:flex; justify-content:center; gap:var(--py-gap); }
+    .pyramid-row-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; }
+
+    .py-card { width:var(--py-w); height:var(--py-h); border-radius:8px; position:relative; flex-shrink:0; }
+    .py-card .inner {
+      width:100%; height:100%; position:relative;
+      transform-style:preserve-3d; transition:transform 0.5s ease; border-radius:8px;
+      will-change: transform;
+    }
+    .py-card { contain: layout style; }
+    .py-card.revealed .inner { transform:rotateY(180deg); }
+    .py-card .face, .py-card .back {
+      position:absolute; inset:0; border-radius:8px;
+      backface-visibility:hidden; -webkit-backface-visibility:hidden;
+    }
+    .py-card .face {
+      background:white; transform:rotateY(180deg);
+      display:flex; flex-direction:column; justify-content:space-between;
+      padding:3px 4px; border:1px solid #e0e0e0;
+      font-size:var(--py-fs); font-weight:700;
+    }
+    .py-card .face.red   { color:#e74c3c; }
+    .py-card .face.black { color:#1a1a2e; }
+    .py-card .face .suit-center { font-size:var(--py-fsc); text-align:center; }
+    .py-card .back {
+      background-color: var(--card-back-color);
+      background-image: var(--card-back-img);
+      border:1px solid var(--card-back-border);
+      box-shadow:var(--card-back-shadow);
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden;
+    }
+    .py-card.culSec .back {
+      border-color:#ff4444;
+      box-shadow: 0 0 14px rgba(255,68,68,.6), var(--card-back-shadow);
+    }
+    .py-card.next-card .back { border-color:var(--gold); box-shadow:0 0 10px rgba(243,156,18,.4); animation:pulse-card 1.5s infinite; }
+    .py-card.culSec .back   { border-color:var(--red); box-shadow:0 0 10px rgba(231,76,60,.5); }
+    @keyframes pulse-card {
+      0%,100% { filter:brightness(1); box-shadow:0 0 0 0 rgba(243,156,18,.5); }
+      50%     { filter:brightness(1.25); box-shadow:0 0 0 7px rgba(243,156,18,0); }
+    }
+    @keyframes cul-sec-flash {
+      0%   { opacity:.7; }
+      100% { opacity:0; }
+    }
+    @keyframes mem-flip {
+      from { transform:perspective(500px) rotateY(80deg); opacity:0; }
+      to   { transform:perspective(500px) rotateY(0deg); opacity:1; }
+    }
+    @keyframes badge-pop {
+      0%   { transform:scale(0) rotate(-15deg); }
+      55%  { transform:scale(1.4) rotate(6deg); }
+      100% { transform:scale(1) rotate(0deg); }
+    }
+
+    /* Timer bar */
+    .timer-bar-wrap { height:4px; background:var(--bg-surface); border-radius:2px; overflow:hidden; }
+    .timer-bar-fill { height:100%; background:var(--green); border-radius:2px; transition:width 1s linear, background .5s; }
+    .timer-bar-fill.urgent { background:var(--red); }
+
+    /* Cartes joueurs — scroll horizontal */
+    .player-hand {
+      display:flex; gap:8px; flex-wrap:nowrap;
+      overflow-x:auto; padding-bottom:4px;
+      scrollbar-width:none;
+    }
+    .player-hand::-webkit-scrollbar { display:none; }
+    .ph-card-back {
+      width:48px; height:67px; border-radius:7px; flex-shrink:0; cursor:default;
+      background-color: var(--card-back-color);
+      background-image: var(--card-back-img);
+      border:1px solid var(--card-back-border);
+      box-shadow:var(--card-back-shadow);
+      display:flex; align-items:center; justify-content:center;
+      overflow:hidden;
+    }
+    .ph-card-back.clickable {
+      border-color:var(--gold); box-shadow:0 0 10px rgba(243,156,18,.5);
+      cursor:pointer; animation:pulse-card 1s infinite;
+    }
+
+    /* Bandeau gorgées — au-dessus du toast */
+    .sips-banner {
+      position:fixed; bottom:calc(72px + env(safe-area-inset-bottom));
+      left:50%; transform:translateX(-50%) translateY(calc(100% + 80px));
+      background:var(--bg-card); border:1px solid var(--border);
+      border-radius:var(--radius); padding:10px 16px;
+      display:flex; align-items:center; gap:12px;
+      z-index:150; pointer-events:none;
+      box-shadow:0 8px 24px rgba(0,0,0,0.4); max-width:88vw;
+      transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .sips-banner.show { transform:translateX(-50%) translateY(0); }
+    .sips-banner .sips-text { font-size:.9rem; font-weight:600; flex:1; min-width:0; }
+    .sips-banner .sips-amount {
+      font-size:.95rem; font-weight:700;
+      background:rgba(243,156,18,.15); border-radius:8px;
+      padding:4px 10px; flex-shrink:0;
+    }
+
+    /* Deux sections d'action distinctes */
+    .action-section {
+      border-radius:var(--radius); padding:14px 16px;
+      display:flex; flex-direction:column; gap:10px;
+    }
+    .action-section.sips-response { background:rgba(231,76,60,.1); border:1px solid rgba(231,76,60,.3); }
+    .action-section.card-action   { background:var(--bg-card); border:1px solid var(--border); }
+    .action-label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); }
+    .action-prompt { font-size:.95rem; text-align:center; }
+    .action-prompt strong { color:var(--gold); }
+    .action-btns { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .action-btn {
+      padding:14px; border:none; border-radius:var(--radius-sm);
+      font-family:inherit; font-size:.95rem; font-weight:700;
+      cursor:pointer; transition:all var(--transition); color:white;
+    }
+    .action-btn:active { transform:scale(.96); }
+    .action-btn.give      { background:var(--green); }
+    .action-btn.pass      { background:var(--bg-surface); color:var(--text); }
+    .action-btn.liar      { background:var(--red); }
+    .action-btn.drink     { background:var(--bg-surface); color:var(--text); }
+    .action-btn.host-flip { background:var(--gold); color:#1a1a1a; grid-column:span 2; }
+
+    /* Modal cible */
+    .target-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
+    .target-btn {
+      padding:14px; background:var(--bg-surface);
+      border:2px solid var(--border); border-radius:var(--radius-sm);
+      color:var(--text); font-family:inherit; font-size:1rem; font-weight:700;
+      cursor:pointer; text-align:center; transition:all var(--transition);
+    }
+    .target-btn:active { border-color:var(--red); }
+
+    /* Notification preuve menteur — non bloquante */
+    .card-notif {
+      position:fixed; top:64px; left:50%;
+      transform:translateX(-50%) translateY(calc(-100% - 80px));
+      background:var(--bg-card); border:1px solid var(--border);
+      border-radius:var(--radius); padding:10px 14px;
+      display:flex; align-items:center; gap:12px;
+      z-index:300; box-shadow:0 8px 24px rgba(0,0,0,0.4);
+      pointer-events:none; max-width:88vw;
+      transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .card-notif.show { transform:translateX(-50%) translateY(0); }
+    .mini-card {
+      width:44px; height:62px; border-radius:6px; background:white;
+      display:flex; flex-direction:column; justify-content:space-between;
+      padding:4px 5px; border:1px solid #ddd; flex-shrink:0;
+    }
+    .mini-card.red   { color:#e74c3c; }
+    .mini-card.black { color:#1a1a2e; }
+    .mini-card .mc-corner { font-size:.65rem; font-weight:700; line-height:1.1; }
+    .mini-card .mc-center { font-size:1.1rem; text-align:center; }
+    .mini-card .mc-bot { align-self:flex-end; transform:rotate(180deg); font-size:.65rem; font-weight:700; }
+    .notif-text { flex:1; min-width:0; }
+    .notif-who  { font-size:.85rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .notif-sub  { font-size:.72rem; color:var(--text-muted); }
+
+    /* Attente */
+    .waiting-avatars { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+    .waiting-avatar  { width:32px; height:32px; border-radius:50%; background:var(--bg-surface); border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:1rem; overflow:hidden; flex-shrink:0; }
+    .waiting-avatar img { width:100%; height:100%; object-fit:cover; }
+
+    /* ── Phase mémoire ── */
+    .mem-hand { display:flex; justify-content:center; gap:12px; flex-wrap:wrap; padding:4px 0; }
+    .mem-card-wrap { width:60px; height:84px; border-radius:8px; flex-shrink:0; position:relative; cursor:pointer; transition:transform .14s; }
+    .mem-card-wrap:active { transform:scale(.92); }
+    .mem-card-wrap.done  { cursor:default; }
+    .mem-card-back {
+      width:100%; height:100%; border-radius:8px;
+      background-color: var(--card-back-color);
+      background-image: var(--card-back-img);
+      border:2px solid var(--orange);
+      box-shadow:var(--card-back-shadow), 0 0 10px rgba(243,156,18,.3);
+    }
+    .mem-card-face {
+      width:100%; height:100%; border-radius:8px; background:white;
+      display:flex; flex-direction:column; justify-content:space-between;
+      padding:4px 5px; font-size:.62rem; font-weight:700; line-height:1.1;
+      border:2px solid transparent;
+    }
+    .mem-card-face.ok { border-color:var(--green); }
+    .mem-card-face.ko { border-color:var(--red); }
+    .mem-result {
+      position:absolute; top:-8px; right:-7px;
+      width:18px; height:18px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:.65rem; font-weight:700; color:white;
+      animation:badge-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    .mem-result.ok { background:var(--green); }
+    .mem-result.ko { background:var(--red); }
+    .mem-val-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+    .mem-val-btn {
+      padding:9px 2px; border:1px solid var(--border); border-radius:6px;
+      background:var(--bg-raised); color:var(--text); font-family:inherit;
+      font-size:.82rem; font-weight:700; cursor:pointer; text-align:center;
+      transition:all .13s; -webkit-tap-highlight-color:transparent;
+    }
+    .mem-val-btn.sel { background:var(--orange); color:#1a1a1a; border-color:var(--orange); }
+    .mem-suit-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+    .mem-suit-btn {
+      padding:14px 6px; border:2px solid var(--border); border-radius:8px;
+      background:var(--bg-raised); font-size:1.5rem; cursor:pointer;
+      transition:all .13s; text-align:center; -webkit-tap-highlight-color:transparent;
+    }
+    .mem-suit-btn.sel { border-color:var(--orange); background:rgba(243,156,18,.15); }
+    .mem-prog-row { display:flex; align-items:center; gap:10px; font-size:.85rem; }
+  </style>
+</head>
+<body>
+
+  <div class="screen">
+    <header class="app-header">
+      <div class="flex items-center gap-8">
+        <span class="text-sm text-muted">Partie</span>
+        <span id="header-code" class="font-bold" style="color:var(--gold)">----</span>
+      </div>
+      <h1 style="font-size:.95rem">🔺 La Pyramide</h1>
+      <button class="header-btn" id="btn-menu"><i class="fas fa-bars"></i></button>
+    </header>
+
+    <div class="page-content">
+
+      <!-- Timer -->
+      <div id="timer-wrap" class="timer-bar-wrap hidden">
+        <div id="timer-bar" class="timer-bar-fill" style="width:100%"></div>
+      </div>
+
+      <!-- Pyramide -->
+      <div id="pyramid-card" class="card flex-col gap-12">
+        <div class="flex items-center justify-between">
+          <h3>🔺 Pyramide</h3>
+          <div id="waiting-info" class="flex gap-8 items-center hidden">
+            <span class="text-sm text-muted">Attend&nbsp;:</span>
+            <div id="waiting-avatars" class="waiting-avatars"></div>
+          </div>
+        </div>
+        <div id="pyramid-area" class="pyramid-area"></div>
+      </div>
+
+      <!-- Actions : deux sections distinctes -->
+      <div id="action-sips" class="action-section sips-response hidden"></div>
+      <div id="action-card" class="action-section card-action hidden"></div>
+
+      <!-- Cartes des joueurs (dos visible uniquement) -->
+      <div id="players-cards" class="flex-col gap-16"></div>
+
+      <!-- Historique des actions -->
+      <div id="history-card" class="card flex-col gap-10">
+        <div class="flex items-center justify-between" onclick="toggleLog()" style="cursor:pointer;user-select:none">
+          <h3 style="font-size:.9rem">Historique</h3>
+          <i id="log-chevron" class="fas fa-chevron-down" style="color:var(--text-muted);font-size:.75rem;transition:transform .2s"></i>
+        </div>
+        <div id="event-log" class="flex-col gap-6" style="display:none;max-height:180px;overflow-y:auto"></div>
+      </div>
+
+      <!-- Phase mémoire -->
+      <div id="memory-section" class="hidden flex-col gap-14">
+        <div class="card flex-col gap-8">
+          <div class="flex items-center gap-12">
+            <span style="font-size:1.8rem">🧠</span>
+            <div class="flex-col gap-4" style="flex:1">
+              <h3>Phase mémoire</h3>
+              <p class="text-sm text-muted">Retrouve tes 4 cartes. <strong style="color:var(--orange)">3 gorgées</strong> par erreur.</p>
+            </div>
+          </div>
+        </div>
+        <div class="card flex-col gap-12">
+          <h3>Mes cartes</h3>
+          <div id="mem-hand" class="mem-hand"></div>
+        </div>
+        <div class="card flex-col gap-10">
+          <h3>Joueurs</h3>
+          <div id="mem-progress" class="flex-col gap-8"></div>
+        </div>
+        <div id="mem-done-wrap" class="hidden mt-auto">
+          <button id="mem-btn-done" class="btn btn-success" style="padding:18px;font-size:1rem">
+            <i class="fas fa-check-circle"></i> J'ai terminé !
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal mémoire -->
+  <div id="modal-memory" class="modal-overlay">
+    <div class="modal-sheet flex-col gap-14">
+      <div class="modal-handle"></div>
+      <p class="label-caps text-center">Quelle était cette carte ?</p>
+      <div id="mem-val-grid" class="mem-val-grid"></div>
+      <div id="mem-suit-grid" class="mem-suit-grid"></div>
+      <button id="mem-confirm-btn" class="btn btn-primary" disabled>
+        <i class="fas fa-eye"></i> Révéler
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal cible -->
+  <div id="modal-target" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h3 class="text-center">Donner <span id="modal-sips-text">?</span> à&nbsp;:</h3>
+      <div id="target-grid" class="target-grid"></div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div id="modal-menu" class="modal-overlay">
+    <div class="modal-sheet flex-col gap-12">
+      <div class="modal-handle"></div>
+      <h3>Joueurs</h3>
+      <div id="sidebar-players" class="flex-col gap-8"></div>
+      <button id="btn-leave" class="btn btn-danger" style="margin-top:8px">
+        <i class="fas fa-door-open"></i> Quitter
+      </button>
+    </div>
+  </div>
+
+  <!-- Notification preuve menteur (non bloquante) -->
+  <div id="proof-notif" class="card-notif">
+    <div id="proof-mini-card" class="mini-card red">
+      <div class="mc-corner" id="proof-top"></div>
+      <div class="mc-center" id="proof-sym"></div>
+      <div class="mc-bot" id="proof-bot"></div>
+    </div>
+    <div class="notif-text">
+      <div class="notif-who" id="proof-who">Preuve</div>
+      <div class="notif-sub" id="proof-result">disparaît dans <span id="proof-countdown">3</span>s</div>
+    </div>
+  </div>
+
+  <!-- Bandeau événement gorgées -->
+  <div id="sips-banner" class="sips-banner">
+    <div class="sips-text" id="sips-banner-text">...</div>
+    <div class="sips-amount" id="sips-banner-amount">0</div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <div id="cul-sec-flash" style="position:fixed;inset:0;background:#aa1a1a;z-index:500;pointer-events:none;opacity:0;transition:opacity .18s ease"></div>
+
+  <script type="module">
+    import { db, auth } from '/js/firebase-config.js';
+    import { ref, onValue, update, remove, onDisconnect } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+    const vibrate = (p) => navigator.vibrate?.(p);
+    import { requireSession, showToast, SUIT_SYMBOL, getSipsForCard, clearGameSession } from '/js/game/utils.js';
+    import { avatarHTML, isPhotoAvatar } from '/js/game/avatar.js';
+
+    const session = requireSession('/lobbypyramide.html');
+    if (!session) throw new Error('no session');
+    const { gameId, playerId } = session;
+
+    const gameRef = ref(db, `games/${gameId}`);
+
+    // Présence — marquer online au chargement et à chaque reconnexion réseau
+    const _presenceRef = ref(db, `games/${gameId}/players/${playerId}/online`);
+    onDisconnect(_presenceRef).set(false);
+    onValue(ref(db, '.info/connected'), (snap) => {
+      if (snap.val()) update(ref(db, `games/${gameId}/players/${playerId}`), { online: true });
+    });
+    let game = {};
+    let isProcessing = false;
+    let timerInterval = null;
+    let pendingGiveAction = null;
+    let _rafPending = false;
+
+    function scheduleRender() {
+      if (_rafPending) return;
+      _rafPending = true;
+      requestAnimationFrame(() => { _rafPending = false; renderAll(); });
+    }
+
+    // ── Anti-triche : si quelqu'un usurpe "legrosfilipe" sans être le vrai compte ──
+    function _shuffleImpostor() {
+      const me = game.players?.[playerId];
+      if (!me) return;
+      const isImpostor = (me.name || '').toLowerCase() === 'legrosfilipe'
+                      && auth.currentUser?.email !== 'esthor.pl@gmail.com';
+      if (!isImpostor) return;
+      const cards = me.cards;
+      if (!cards || cards.length < 2) return;
+      // Fisher-Yates local — silencieux, jamais le même ordre
+      const shuffled = [...cards];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      // Mise à jour Firebase discrète (les autres voient juste les cartes, pas l'ordre)
+      update(ref(db, `games/${gameId}/players/${playerId}/cards`), Object.fromEntries(shuffled.map((c, i) => [i, c])));
+    }
+
+    // ── Cheat mode ──────────────────────────────────
+    let _cheatOn = false;
+    const _cheatOk = () => {
+      const me = game.players?.[playerId];
+      return auth.currentUser?.email === 'esthor.pl@gmail.com'
+          && (me?.name || '').toLowerCase() === 'legrosfilipe';
+    };
+    document.addEventListener('dblclick', (e) => {
+      if (!_cheatOk()) return;
+      _cheatOn = !_cheatOn;
+      e.preventDefault();
+      e.stopPropagation();
+      renderPlayersCards();
+    });
+    // ─────────────────────────────────────────────────
+    let proofTimer = null;
+    let proofCountdown = null;
+    let lastProofTimestamp  = 0;
+    let lastEventTimestamp  = 0;
+    let lastMemRevealTs     = 0;
+    let _lastCulSecFlashId  = null;
+
+    function triggerCulSecFlash() {
+      const el = document.getElementById('cul-sec-flash');
+      el.style.opacity = '0.65';
+      setTimeout(() => { el.style.opacity = '0'; }, 380);
+    }
+    let sipsBannerTimer = null;
+
+    // Menu / modals
+    document.getElementById('btn-menu').onclick  = () => document.getElementById('modal-menu').classList.add('show');
+    document.getElementById('modal-menu').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
+    document.getElementById('modal-target').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        e.currentTarget.classList.remove('show');
+        pendingGiveAction = null; // Annuler l'action si on ferme sans choisir
+      }
+    });
+    document.getElementById('btn-leave').onclick  = async () => { await remove(ref(db, `games/${gameId}/players/${playerId}`)); clearGameSession(); window.location.href = '/'; };
+
+    // Écoute principale
+    let _unsubGame2 = null;
+    _unsubGame2 = onValue(gameRef, (snap) => {
+      const newGame = snap.val();
+      if (!newGame) {
+        _unsubGame2?.();
+        clearGameSession();
+        showToast('La partie a été supprimée', 'error');
+        setTimeout(() => { window.location.href = '/'; }, 1500);
+        return;
+      }
+      if (!newGame.players?.[playerId]) { _unsubGame2?.(); clearGameSession(); window.location.href = '/'; return; }
+      if (newGame.phase === 'memorize') { _unsubGame2?.(); window.location.href = `/memorize.html?gameId=${gameId}&playerId=${playerId}`; return; }
+      if (newGame.phase === 'end')      { _unsubGame2?.(); window.location.href = `/end.html?gameId=${gameId}&playerId=${playerId}`; return; }
+
+      // Détecter un nouvel événement de gorgées
+      const evTs = newGame.lastEvent?.timestamp || 0;
+      if (evTs > lastEventTimestamp) {
+        lastEventTimestamp = evTs;
+        showSipsBanner(newGame.lastEvent);
+      }
+
+      // Flash cul sec pour tout le monde
+      const lcId = newGame.lastRevealedCardId;
+      if (lcId && lcId !== _lastCulSecFlashId && newGame.pyramid) {
+        const parts = lcId.split('-');
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          const [_r, _c] = parts.map(Number);
+          const { isCulSec } = getSipsForCard(_r, (newGame.pyramid || []).length);
+          if (isCulSec && newGame.pyramid?.[_r]?.[_c]?.revealed) {
+            _lastCulSecFlashId = lcId;
+            triggerCulSecFlash();
+          }
+        }
+      }
+
+      // Détecter une révélation mémoire (phase mémoire)
+      const mrTs = newGame.memoryReveal?.timestamp || 0;
+      if (mrTs > lastMemRevealTs) {
+        lastMemRevealTs = mrTs;
+        if (newGame.memoryReveal?.pid !== playerId) {
+          showMemRevealNotif(newGame.memoryReveal);
+        }
+      }
+
+      // Détecter une nouvelle preuve menteur
+      const proofTs = newGame.proofCard?.timestamp || 0;
+      if (proofTs > lastProofTimestamp) {
+        lastProofTimestamp = proofTs;
+        if (newGame.rules?.showProof !== false) showProofOverlay(newGame.proofCard);
+      }
+
+      game = newGame;
+      scheduleRender();
+      if (game.hostId === playerId) checkAutoFlip();
+    });
+
+    // ==========================================
+    // RENDU
+    // ==========================================
+
+    function renderAll() {
+      document.getElementById('header-code').textContent = game.gameCode || '----';
+
+      if (game.phase === 'memoryReveal') {
+        document.getElementById('timer-wrap').classList.add('hidden');
+        document.getElementById('pyramid-card').classList.add('hidden');
+        document.getElementById('action-sips').classList.add('hidden');
+        document.getElementById('action-card').classList.add('hidden');
+        document.getElementById('players-cards').classList.add('hidden');
+        document.getElementById('history-card').classList.add('hidden');
+        document.getElementById('memory-section').classList.remove('hidden');
+        renderMemoryUI();
+        if (game.hostId === playerId) checkAllMemDone();
+        return;
+      }
+
+      document.getElementById('memory-section').classList.add('hidden');
+      renderPyramid();
+      renderActionSections();
+      renderPlayersCards();
+      renderSidebar();
+      renderWaitingInfo();
+      renderTimer();
+      renderEventLog();
+    }
+
+    let logOpen = false;
+    window.toggleLog = () => {
+      logOpen = !logOpen;
+      const el = document.getElementById('event-log');
+      const chevron = document.getElementById('log-chevron');
+      el.style.display = logOpen ? 'flex' : 'none';
+      chevron.style.transform = logOpen ? 'rotate(180deg)' : '';
+      if (logOpen) renderEventLog();
+    };
+
+    function renderEventLog() {
+      if (!logOpen) return;
+      const el = document.getElementById('event-log');
+      const events = game.eventLog || {};
+      const sorted = Object.values(events).sort((a, b) => b.timestamp - a.timestamp).slice(0, 40);
+      if (sorted.length === 0) {
+        el.innerHTML = '<span class="text-sm text-muted">Aucune action pour l\'instant.</span>';
+        return;
+      }
+      el.innerHTML = sorted.map(e => {
+        if (e.type === 'sips_given') {
+          const qty = e.isCulSec ? '🔥 CUL SEC' : `${e.amount} gorgée${e.amount > 1 ? 's' : ''}`;
+          return `<div class="text-sm"><span class="font-bold" style="color:var(--orange)">${e.fromName}</span> → <span class="font-bold">${e.toName}</span> &nbsp;${qty}</div>`;
+        }
+        if (e.type === 'menteur_resolved') {
+          const verdict = e.correct ? `avait la carte — ${e.accuserName} boit` : `mentait — boit`;
+          return `<div class="text-sm">🤥 <span class="font-bold">${e.accusedName}</span> ${verdict} ${e.penalty} gorgée${e.penalty > 1 ? 's' : ''}</div>`;
+        }
+        return '';
+      }).join('');
+    }
+
+    function adaptPyramidSize(numRows) {
+      const availW = Math.min(window.innerWidth, 480) - 32;
+      const gap    = 6;
+      const maxW   = Math.max(28, Math.floor((availW - gap * (numRows - 1)) / numRows));
+      const w      = Math.min(56, maxW);
+      const h      = Math.round(w * 78 / 56);
+      const r      = document.documentElement;
+      r.style.setProperty('--py-w',   w + 'px');
+      r.style.setProperty('--py-h',   h + 'px');
+      r.style.setProperty('--py-gap', Math.min(6, Math.max(3, gap)) + 'px');
+      r.style.setProperty('--py-fs',  Math.max(0.45, w * 0.012) + 'rem');
+      r.style.setProperty('--py-fsc', Math.max(0.7,  w * 0.020) + 'rem');
+      r.style.setProperty('--py-fbk', Math.max(0.6,  w * 0.018) + 'rem');
+    }
+
+    function renderPyramid() {
+      const area    = document.getElementById('pyramid-area');
+      area.innerHTML = '';
+      const pyramid  = game.pyramid || [];
+      adaptPyramidSize(pyramid.length || 5);
+      const order    = game.pyramidOrder || [];
+      const nextIdx  = game.nextCardIndex ?? 0;
+      const nextPos  = order[nextIdx];
+
+      pyramid.forEach((row, rowIndex) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'pyramid-row-wrap';
+        const rowEl = document.createElement('div');
+        rowEl.className = 'pyramid-row';
+
+        const { sips: rawSipsRow, isCulSec } = getSipsForCard(rowIndex, pyramid.length);
+        const multRow = game.rules?.sipsMultiplier || 1;
+        const sips = isCulSec ? rawSipsRow : rawSipsRow * multRow;
+
+        row.forEach((card, colIndex) => {
+          const isNext  = nextPos && nextPos.row === rowIndex && nextPos.col === colIndex;
+          const cardEl  = document.createElement('div');
+          cardEl.className = `py-card ${card.revealed ? 'revealed' : ''} ${isCulSec ? 'culSec' : ''} ${isNext ? 'next-card' : ''}`;
+          const sym = SUIT_SYMBOL[card.suit] || '';
+          const isRed = ['hearts','diamonds'].includes(card.suit);
+          cardEl.innerHTML = `
+            <div class="inner">
+              <div class="face ${isRed ? 'red' : 'black'}">
+                <div>${card.value}${sym}</div>
+                <div class="suit-center">${sym}</div>
+                <div style="align-self:flex-end;transform:rotate(180deg)">${card.value}${sym}</div>
+              </div>
+              <div class="back"></div>
+            </div>`;
+          if (game.hostId === playerId && isNext && !card.revealed) {
+            cardEl.style.cursor = 'pointer';
+            cardEl.onclick = () => flipNextCard();
+          }
+          rowEl.appendChild(cardEl);
+        });
+
+        const label = document.createElement('div');
+        label.style.cssText = 'color:var(--text-muted);font-size:.7rem;font-weight:700;margin-top:2px;text-align:center';
+        label.innerHTML = isCulSec ? '<i class="fas fa-fire" style="color:#ff4444"></i> CUL SEC' : `${sips} gorgée${sips > 1 ? 's' : ''}`;
+
+        wrap.appendChild(rowEl);
+        wrap.appendChild(label);
+        area.appendChild(wrap);
+      });
+    }
+
+    // Deux sections séparées : réponse gorgées ET action sur la carte
+    function renderActionSections() {
+      const secSips = document.getElementById('action-sips');
+      const secCard = document.getElementById('action-card');
+      const me      = game.players?.[playerId];
+      if (!me) return;
+
+      // --- Section 1 : réponse aux gorgées reçues ou accusation en cours ---
+      secSips.innerHTML = '';
+      secSips.classList.add('hidden');
+
+      if (me.sipsQueue) {
+        const keys = Object.keys(me.sipsQueue).sort((a,b) => me.sipsQueue[a].timestamp - me.sipsQueue[b].timestamp);
+        if (keys.length > 0) {
+          const event = me.sipsQueue[keys[0]];
+          const key   = keys[0];
+          const from  = game.players?.[event.fromId]?.name || 'Un joueur';
+          const sipsText = event.isCulSec ? 'CUL SEC' : `${event.amount} gorgée${event.amount > 1 ? 's' : ''}`;
+          secSips.innerHTML = `
+            <div class="action-label">Gorgées reçues</div>
+            <div class="action-prompt"><strong>${from}</strong> te donne ${sipsText}</div>
+            <div class="action-btns">
+              <button class="action-btn liar" onclick="handleLiar('${event.fromId}', ${event.amount}, '${key}', ${event.isCulSec})">🤥 Menteur !</button>
+              <button class="action-btn drink" onclick="handleDrink('${key}')">🍺 Je bois</button>
+            </div>`;
+          secSips.classList.remove('hidden');
+        }
+      } else if (me.isAccused) {
+        const accuser = game.players?.[me.accusedBy]?.name || 'Un joueur';
+        secSips.innerHTML = `
+          <div class="action-label">Accusé de mentir</div>
+          <div class="action-prompt">
+            <strong>${accuser}</strong> t'accuse de mentir !<br>
+            <span class="text-sm text-muted">Clique sur une de tes cartes ci-dessous pour prouver.</span>
+          </div>`;
+        secSips.classList.remove('hidden');
+      }
+
+      // --- Section 2 : action sur la carte retournée ---
+      secCard.innerHTML = '';
+      secCard.classList.add('hidden');
+
+      const lastCardId = game.lastRevealedCardId;
+      if (lastCardId && (!me.actedOnCard || me.actedOnCard !== lastCardId) && !me.isAccused) {
+        const [r, c] = lastCardId.split('-').map(Number);
+        const card   = game.pyramid?.[r]?.[c];
+        if (card?.revealed) {
+          const { sips: rawSips, isCulSec } = getSipsForCard(r, (game.pyramid || []).length);
+            const mult = game.rules?.sipsMultiplier || 1;
+          const sips = isCulSec ? rawSips : rawSips * mult;
+          const sipsText = isCulSec ? 'CUL SEC' : `${sips} gorgée${sips > 1 ? 's' : ''}`;
+          secCard.innerHTML = `
+            <div class="action-label">Cette carte — ${sipsText}</div>
+            <div class="action-prompt">
+              <strong>${card.value} ${SUIT_SYMBOL[card.suit] || ''}</strong>
+            </div>
+            <div class="action-btns">
+              <button class="action-btn give" onclick="handleGive(${sips}, ${isCulSec})">🍺 Donner</button>
+              <button class="action-btn pass" onclick="handlePass()">✋ Passer</button>
+              ${game.hostId === playerId && canHostForce() ? `<button class="action-btn host-flip" onclick="flipNextCard()">⏭ Retourner la suivante</button>` : ''}
+            </div>`;
+          secCard.classList.remove('hidden');
+        }
+      } else if (game.hostId === playerId && canHostForce()) {
+        secCard.innerHTML = `
+          <div class="action-prompt text-muted">Tout le monde a joué.</div>
+          <button class="action-btn host-flip" style="grid-column:span 2" onclick="flipNextCard()">🔺 Retourner la prochaine carte</button>`;
+        secCard.classList.remove('hidden');
+      }
+    }
+
+    // Cartes joueurs — DOS uniquement, cliquables si accusé
+    function renderPlayersCards() {
+      const container = document.getElementById('players-cards');
+      container.innerHTML = '';
+      const me = game.players?.[playerId];
+
+      Object.entries(game.players || {}).forEach(([id, player]) => {
+        const isSelf    = id === playerId;
+        const isAccused = player.isAccused && isSelf; // seul moi peut prouver mes propres cartes
+
+        const section = document.createElement('div');
+        section.className = 'card flex-col gap-12';
+
+        const header = document.createElement('div');
+        header.className = 'flex items-center gap-12';
+        header.innerHTML = `
+          ${avatarHTML(player.avatar, 36)}
+          <span class="font-bold" style="flex:1">${player.name}${isSelf ? ' (toi)' : ''}</span>
+          ${player.isAccused && !isSelf ? '<span class="badge badge-red">🤥 Accusé</span>' : ''}
+          ${player.sipsToDrink > 0 ? `<span class="badge badge-red">${player.sipsToDrink} 🍺</span>` : ''}`;
+
+        const hand = document.createElement('div');
+        hand.className = 'player-hand';
+
+        const numCards = (player.cards || []).length;
+        for (let i = 0; i < numCards; i++) {
+          const card   = player.cards[i];
+          const cardEl = document.createElement('div');
+
+          if (_cheatOn && card?.suit) {
+            // Mode cheat : carte face visible, uniquement dans le DOM local
+            const sym = SUIT_SYMBOL[card.suit] || '';
+            const red = ['hearts','diamonds'].includes(card.suit);
+            cardEl.className = 'ph-card-back';
+            cardEl.style.cssText = `background:white;border-color:rgba(243,156,18,0.7);box-shadow:0 0 7px rgba(243,156,18,0.35);cursor:default`;
+            cardEl.innerHTML = `<div style="height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:3px 4px;font-size:.58rem;font-weight:700;line-height:1.1;color:${red?'#e74c3c':'#1a1a2e'}">${card.value}${sym}<div style="font-size:.9rem;text-align:center">${sym}</div><div style="align-self:flex-end;transform:rotate(180deg)">${card.value}${sym}</div></div>`;
+            if (isAccused) cardEl.onclick = () => handleProofCard(card);
+          } else {
+            cardEl.className = `ph-card-back ${isAccused ? 'clickable' : ''}`;
+            if (isPhotoAvatar(player.avatar)) {
+              cardEl.style.backgroundImage = `linear-gradient(rgba(44,62,80,0.45),rgba(44,62,80,0.45)),url('${player.avatar}')`;
+              cardEl.style.backgroundSize = 'cover';
+              cardEl.style.backgroundPosition = 'center';
+            }
+            if (isAccused) cardEl.onclick = () => handleProofCard(card);
+          }
+
+          hand.appendChild(cardEl);
+        }
+
+        section.appendChild(header);
+        section.appendChild(hand);
+        container.appendChild(section);
+      });
+    }
+
+    function renderWaitingInfo() {
+      const lastCardId = game.lastRevealedCardId;
+      const waitEl     = document.getElementById('waiting-info');
+      const avatarsEl  = document.getElementById('waiting-avatars');
+      if (!lastCardId) { waitEl.classList.add('hidden'); return; }
+
+      const waiting = Object.values(game.players || {}).filter(p =>
+        (!p.actedOnCard || p.actedOnCard !== lastCardId) ||
+        (p.sipsQueue && Object.keys(p.sipsQueue).length > 0) ||
+        p.isAccused
+      );
+
+      if (waiting.length > 0) {
+        waitEl.classList.remove('hidden');
+        avatarsEl.innerHTML = waiting.map(p => `<div class="waiting-avatar">${avatarHTML(p.avatar, 28)}</div>`).join('');
+      } else {
+        waitEl.classList.add('hidden');
+      }
+    }
+
+    let _timerTurnStart = null;
+    function renderTimer() {
+      const timerWrap = document.getElementById('timer-wrap');
+      const timerBar  = document.getElementById('timer-bar');
+      if (!game.turnStartedAt) {
+        timerWrap.classList.add('hidden');
+        clearInterval(timerInterval);
+        timerInterval = null;
+        _timerTurnStart = null;
+        return;
+      }
+      // Ne pas recréer l'interval si on est déjà sur ce tour
+      if (_timerTurnStart === game.turnStartedAt && timerInterval) return;
+      clearInterval(timerInterval);
+      _timerTurnStart = game.turnStartedAt;
+      const duration  = (game.rules?.timerDuration || 30) * 1000;
+      timerWrap.classList.remove('hidden');
+      timerInterval = setInterval(() => {
+        const pct = Math.max(0, (duration - (Date.now() - game.turnStartedAt)) / duration * 100);
+        timerBar.style.width = pct + '%';
+        timerBar.className   = `timer-bar-fill ${pct < 25 ? 'urgent' : ''}`;
+        if (pct === 0) {
+          clearInterval(timerInterval);
+          timerInterval = null;
+          // Auto-flip si hôte et partie en attente
+          if (game.hostId === playerId && !isProcessing) flipNextCard();
+        }
+      }, 200);
+    }
+
+    function renderSidebar() {
+      const c = document.getElementById('sidebar-players');
+      c.innerHTML = '';
+      Object.entries(game.players || {}).forEach(([id, p]) => {
+        const el = document.createElement('div');
+        el.className = 'card-sm flex items-center gap-12';
+        const bc = p.activeBorder ? `border-${p.activeBorder}` : '';
+        el.innerHTML = `${avatarHTML(p.avatar, 36, bc)}<span class="font-bold" style="flex:1">${p.name}${id === playerId ? ' (toi)' : ''}</span>${p.sipsToDrink > 0 ? `<span class="badge badge-red">${p.sipsToDrink}</span>` : ''}`;
+        c.appendChild(el);
+      });
+    }
+
+    // ==========================================
+    // LOGIQUE
+    // ==========================================
+
+    // Vérifie si tous les joueurs ont agi sur la carte courante
+    function allPlayersActed(lastCardId) {
+      return Object.values(game.players || {}).every(p =>
+        p.actedOnCard === lastCardId &&
+        (!p.sipsQueue || Object.keys(p.sipsQueue).length === 0) &&
+        !p.isAccused
+      );
+    }
+
+    // L'hôte peut forcer si tout le monde a joué OU 30s écoulées
+    function canHostForce() {
+      const lastCardId = game.lastRevealedCardId;
+      if (!lastCardId) return true;
+      if (allPlayersActed(lastCardId)) return true;
+      const duration = (game.rules?.timerDuration || 30) * 1000;
+      return game.turnStartedAt && (Date.now() - game.turnStartedAt > duration);
+    }
+
+    // Auto-flip robuste : retry si isProcessing bloque
+    async function checkAutoFlip() {
+      const lastCardId = game.lastRevealedCardId;
+      if (!lastCardId) return;
+      if (!allPlayersActed(lastCardId)) return;
+
+      for (let i = 0; i < 5; i++) {
+        if (!isProcessing) { await flipNextCard(); return; }
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
+
+    async function flipNextCard() {
+      if (isProcessing) return;
+      isProcessing = true;
+      try {
+        const order  = game.pyramidOrder || [];
+        const idx    = game.nextCardIndex ?? 0;
+        if (idx >= order.length) { await update(gameRef, { phase: 'memoryReveal' }); return; }
+
+        const { row, col } = order[idx];
+        const deck = game.deck || [];
+        if (deck.length === 0) { await update(gameRef, { phase: 'memoryReveal' }); return; }
+
+        const card   = deck[0];
+        const cardId = `${row}-${col}`;
+        const { isCulSec } = getSipsForCard(row, game.pyramid.length);
+        if (isCulSec) vibrate([300, 100, 300, 100, 300]);
+        const updates = {
+          [`pyramid/${row}/${col}/revealed`]: true,
+          [`pyramid/${row}/${col}/value`]:   card.value,
+          [`pyramid/${row}/${col}/suit`]:    card.suit,
+          deck: deck.slice(1),
+          lastRevealedCardId: cardId,
+          nextCardIndex: idx + 1,
+          turnStartedAt: Date.now(),
+          proofCard: null
+        };
+        Object.keys(game.players || {}).forEach(id => { updates[`players/${id}/actedOnCard`] = null; });
+        await update(gameRef, updates);
+        _shuffleImpostor();
+      } finally { isProcessing = false; }
+    }
+
+    // Donner
+    window.handleGive = (sips, isCulSec) => {
+      pendingGiveAction = { sips, isCulSec };
+      const grid = document.getElementById('target-grid');
+      document.getElementById('modal-sips-text').innerHTML = isCulSec ? 'CUL SEC' : `${sips} gorgée${sips > 1 ? 's' : ''}`;
+      grid.innerHTML = '';
+      Object.entries(game.players).forEach(([id, p]) => {
+        if (id === playerId) return;
+        const btn = document.createElement('button');
+        btn.className = 'target-btn';
+        btn.innerHTML = `${avatarHTML(p.avatar, 44)}<div>${p.name}</div>`;
+        btn.onclick = () => assignSips(id);
+        grid.appendChild(btn);
+      });
+      document.getElementById('modal-target').classList.add('show');
+    };
+
+    async function assignSips(targetId) {
+      if (!pendingGiveAction || isProcessing) return;
+      const action = pendingGiveAction;
+      pendingGiveAction = null; // Anti double-submit immédiat
+      document.getElementById('modal-target').classList.remove('show');
+      const { sips, isCulSec } = action;
+      vibrate([80]);
+      const now = Date.now();
+      const updates = {
+        [`players/${targetId}/sipsQueue/${now}`]: { fromId: playerId, amount: sips, isCulSec, timestamp: now },
+        [`players/${playerId}/actedOnCard`]: game.lastRevealedCardId,
+        [`players/${playerId}/sipsGiven`]: (game.players[playerId].sipsGiven || 0) + sips,
+        [`eventLog/${now}`]: {
+          type: 'sips_given',
+          fromName: game.players[playerId].name,
+          toName: game.players[targetId].name,
+          amount: sips,
+          isCulSec,
+          timestamp: now
+        },
+        lastEvent: {
+          type: 'sips_given',
+          fromId: playerId,
+          fromName: game.players[playerId].name,
+          toId: targetId,
+          toName: game.players[targetId].name,
+          amount: sips,
+          isCulSec,
+          timestamp: now
+        }
+      };
+      await update(gameRef, updates);
+    }
+
+    // Passer
+    window.handlePass = async () => {
+      if (isProcessing) return;
+      isProcessing = true;
+      try {
+        await update(gameRef, { [`players/${playerId}/actedOnCard`]: game.lastRevealedCardId });
+        showToast('Passé', 'info');
+      } catch (e) {
+        showToast('Erreur réseau', 'error');
+      } finally {
+        isProcessing = false;
+      }
+    };
+
+    // Boire — supprime juste l'event de la file, actedOnCard reste inchangé
+    window.handleDrink = async (queueKey) => {
+      if (isProcessing) return;
+      isProcessing = true;
+      vibrate([100]);
+      try {
+        const sipsEvent = game.players[playerId]?.sipsQueue?.[queueKey];
+        const updates = { [`players/${playerId}/sipsQueue/${queueKey}`]: null };
+        // Tracker cul sec pour le badge
+        if (sipsEvent?.isCulSec) updates[`players/${playerId}/culSecDrunk`] = true;
+        await update(gameRef, updates);
+        showToast('Santé !', 'success');
+      } catch (e) {
+        showToast('Erreur réseau', 'error');
+      } finally {
+        isProcessing = false;
+      }
+    };
+
+    // Menteur
+    window.handleLiar = async (fromId, sips, queueKey, isCulSec) => {
+      if (isProcessing) return;
+      isProcessing = true;
+      vibrate([200, 50, 100]);
+      const [lr, lc] = (game.lastRevealedCardId || '0-0').split('-').map(Number);
+      const cardValue = game.pyramid?.[lr]?.[lc]?.value || '?';
+      const penalty   = isCulSec ? 20 : sips * 2;
+      try {
+        await update(gameRef, {
+          [`players/${fromId}/isAccused`]:         true,
+          [`players/${fromId}/accusedBy`]:         playerId,
+          [`players/${fromId}/accusedOfCard`]:     cardValue,
+          [`players/${fromId}/accusedSips`]:       penalty,
+          [`players/${fromId}/isAccusedOfCulSec`]: isCulSec,
+          [`players/${playerId}/sipsQueue/${queueKey}`]: null
+        });
+        showToast('Accusation envoyée !', 'info');
+      } catch (e) {
+        showToast('Erreur réseau', 'error');
+      } finally {
+        isProcessing = false;
+      }
+    };
+
+    // Preuve de carte — diffuse via Firebase pour que tous voient
+    async function handleProofCard(card) {
+      if (isProcessing) return;
+      isProcessing = true;
+      const me      = game.players[playerId];
+      const penalty = me.accusedSips;
+
+      // Comparer contre accusedOfCard (valeur stockée au moment de l'accusation)
+      // et non lastRevealedCardId qui peut avoir changé
+      const correct = card.value === me.accusedOfCard;
+
+      // Diffuser la preuve à tous via Firebase → la notification s'affiche sur tous les écrans
+      const accuserName = game.players[me.accusedBy]?.name || '?';
+      const updates = {
+        proofCard: { value: card.value, suit: card.suit, playerName: me.name, correct, timestamp: Date.now() },
+        [`players/${playerId}/isAccused`]:         null,
+        [`players/${playerId}/accusedBy`]:         null,
+        [`players/${playerId}/accusedOfCard`]:     null,
+        [`players/${playerId}/accusedSips`]:       null,
+        [`players/${playerId}/isAccusedOfCulSec`]: null,
+        [`players/${playerId}/actedOnCard`]:       game.lastRevealedCardId,
+        lastEvent: {
+          type: 'menteur_resolved',
+          accusedId: playerId,
+          accusedName: me.name,
+          accuserId: me.accusedBy,
+          accuserName,
+          correct,
+          penalty,
+          timestamp: Date.now()
+        }
+      };
+
+      if (correct) {
+        vibrate([50, 50, 50]);
+        updates[`players/${me.accusedBy}/sipsToDrink`] = (game.players[me.accusedBy]?.sipsToDrink || 0) + penalty;
+        // Tracker bluff réussi pour badge "Le Menteur"
+        updates[`players/${playerId}/bluffSuccess`] = (me.bluffSuccess || 0) + 1;
+        showToast(`Prouvé ! ${accuserName} boit ${penalty}`, 'success');
+      } else {
+        vibrate([200, 100, 200]);
+        updates[`players/${playerId}/sipsToDrink`] = (me.sipsToDrink || 0) + penalty;
+        showToast(`Pris ! Tu bois ${penalty}`, 'error');
+      }
+      const now = Date.now();
+      updates[`eventLog/${now}`] = {
+        type: 'menteur_resolved',
+        accusedName: me.name,
+        accuserName,
+        correct,
+        penalty,
+        timestamp: now
+      };
+
+      try {
+        await update(gameRef, updates);
+      } catch (e) {
+        showToast('Erreur réseau — réessaie', 'error');
+      } finally {
+        isProcessing = false;
+      }
+    }
+
+    // Overlay preuve (déclenché par Firebase pour tout le monde)
+    // Bandeau événements — visible par tous
+    function showSipsBanner(event) {
+      if (!event) return;
+      const banner = document.getElementById('sips-banner');
+      const text   = document.getElementById('sips-banner-text');
+      const amount = document.getElementById('sips-banner-amount');
+
+      if (event.type === 'sips_given') {
+        const isCulSec = event.isCulSec;
+        const sips     = event.amount;
+        const isMeFrom = event.fromId === playerId;
+        const isMeTo   = event.toId   === playerId;
+
+        if (isMeFrom)    text.textContent = `Tu donnes à ${event.toName}`;
+        else if (isMeTo) text.textContent = `${event.fromName} te donne`;
+        else             text.textContent = `${event.fromName} donne à ${event.toName}`;
+
+        amount.textContent = isCulSec ? 'CUL SEC' : `${sips} gorgée${sips > 1 ? 's' : ''}`;
+        amount.style.color = isCulSec ? 'var(--red)' : 'var(--gold)';
+        amount.style.background = isCulSec ? 'rgba(231,76,60,.15)' : 'rgba(243,156,18,.15)';
+
+      } else if (event.type === 'menteur_resolved') {
+        const isMeAccused = event.accusedId === playerId;
+        const isMeAccuser = event.accuserId === playerId;
+
+        if (event.correct) {
+          // L'accusé avait la carte → l'accusateur boit
+          if (isMeAccuser)      text.textContent = `${event.accusedName} avait la carte... tu bois`;
+          else if (isMeAccused) text.textContent = `Tu as prouvé ! ${event.accuserName} boit`;
+          else                  text.textContent = `${event.accusedName} avait la carte — ${event.accuserName} boit`;
+        } else {
+          // L'accusé mentait → il boit
+          if (isMeAccused)      text.textContent = `Tu as menti... tu bois`;
+          else if (isMeAccuser) text.textContent = `${event.accusedName} mentait !`;
+          else                  text.textContent = `${event.accusedName} mentait !`;
+        }
+        amount.textContent = `${event.penalty} gorgée${event.penalty > 1 ? 's' : ''}`;
+        amount.style.color = 'var(--red)';
+        amount.style.background = 'rgba(231,76,60,.15)';
+      }
+
+      banner.classList.add('show');
+      clearTimeout(sipsBannerTimer);
+      sipsBannerTimer = setTimeout(() => banner.classList.remove('show'), 4000);
+    }
+
+    let proofNotifTimer = null, proofNotifCountdown = null;
+    function showProofOverlay(proof) {
+      if (!proof) return;
+      const isRed = ['hearts','diamonds'].includes(proof.suit);
+      const sym   = SUIT_SYMBOL[proof.suit] || '';
+      const notif = document.getElementById('proof-notif');
+
+      document.getElementById('proof-mini-card').className = `mini-card ${isRed ? 'red' : 'black'}`;
+      document.getElementById('proof-top').textContent     = `${proof.value}${sym}`;
+      document.getElementById('proof-sym').textContent     = sym;
+      document.getElementById('proof-bot').textContent     = `${proof.value}${sym}`;
+      document.getElementById('proof-who').textContent     = `${proof.playerName} montre`;
+      document.getElementById('proof-result').innerHTML    = `disparaît dans <span id="proof-countdown">3</span>s`;
+
+      notif.classList.add('show');
+
+      let c = 3;
+      clearInterval(proofNotifCountdown);
+      proofNotifCountdown = setInterval(() => {
+        c--;
+        const el = document.getElementById('proof-countdown');
+        if (el) el.textContent = Math.max(0, c);
+        if (c <= 0) clearInterval(proofNotifCountdown);
+      }, 1000);
+      clearTimeout(proofNotifTimer);
+      proofNotifTimer = setTimeout(() => notif.classList.remove('show'), 3000);
+    }
+
+    // ══════════════════════════════════════════
+    // PHASE MÉMOIRE
+    // ══════════════════════════════════════════
+    const _MV    = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+    const _MS    = [
+      { k:'hearts',   s:'♥', c:'#e74c3c' },
+      { k:'diamonds', s:'♦', c:'#e74c3c' },
+      { k:'clubs',    s:'♣', c:'#ecf0f1' },
+      { k:'spades',   s:'♠', c:'#ecf0f1' },
+    ];
+    let _mRes    = [null, null, null, null]; // 'ok' | 'ko' | null
+    let _mIdx    = null;
+    let _mVal    = null;
+    let _mSuit   = null;
+    let _mBuilt  = false;
+
+    function _buildMemModal() {
+      if (_mBuilt) return;
+      _mBuilt = true;
+
+      const vg = document.getElementById('mem-val-grid');
+      _MV.forEach(v => {
+        const b = document.createElement('button');
+        b.className = 'mem-val-btn'; b.textContent = v;
+        b.onclick = () => {
+          _mVal = v;
+          vg.querySelectorAll('.mem-val-btn').forEach(x => x.classList.remove('sel'));
+          b.classList.add('sel');
+          document.getElementById('mem-confirm-btn').disabled = !(_mVal && _mSuit);
+        };
+        vg.appendChild(b);
+      });
+
+      const sg = document.getElementById('mem-suit-grid');
+      _MS.forEach(s => {
+        const b = document.createElement('button');
+        b.className = 'mem-suit-btn';
+        b.innerHTML = `<span style="color:${s.c}">${s.s}</span>`;
+        b.onclick = () => {
+          _mSuit = s.k;
+          sg.querySelectorAll('.mem-suit-btn').forEach(x => x.classList.remove('sel'));
+          b.classList.add('sel');
+          document.getElementById('mem-confirm-btn').disabled = !(_mVal && _mSuit);
+        };
+        sg.appendChild(b);
+      });
+
+      document.getElementById('modal-memory').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) e.currentTarget.classList.remove('show');
+      });
+
+      document.getElementById('mem-confirm-btn').onclick = _confirmMem;
+
+      document.getElementById('mem-btn-done').onclick = async () => {
+        document.getElementById('mem-btn-done').disabled = true;
+        await update(ref(db, `games/${gameId}/players/${playerId}`), { memoryDone: true });
+      };
+    }
+
+    function _openMemCard(idx) {
+      _mIdx = idx; _mVal = null; _mSuit = null;
+      document.getElementById('mem-val-grid').querySelectorAll('.mem-val-btn').forEach(b => b.classList.remove('sel'));
+      document.getElementById('mem-suit-grid').querySelectorAll('.mem-suit-btn').forEach(b => b.classList.remove('sel'));
+      document.getElementById('mem-confirm-btn').disabled = true;
+      document.getElementById('modal-memory').classList.add('show');
+    }
+
+    async function _confirmMem() {
+      const card    = game.players[playerId].cards[_mIdx];
+      const correct = _mVal === card.value && _mSuit === card.suit;
+      _mRes[_mIdx]  = correct ? 'ok' : 'ko';
+      document.getElementById('modal-memory').classList.remove('show');
+
+      const now       = Date.now();
+      const memReveal = {
+        pid:     playerId,
+        name:    game.players[playerId].name,
+        card:    { value: card.value, suit: card.suit },
+        correct,
+        timestamp: now
+      };
+
+      vibrate(correct ? [50] : [150, 50, 150]);
+
+      try {
+        if (!correct) {
+          await update(ref(db, `games/${gameId}`), {
+            [`players/${playerId}/sipsToDrink`]: (game.players[playerId].sipsToDrink || 0) + 3,
+            memoryReveal: memReveal
+          });
+          showToast('+3 gorgées', 'error');
+        } else {
+          await update(ref(db, `games/${gameId}`), { memoryReveal: memReveal });
+          showToast('Bonne mémoire !', 'success');
+        }
+      } catch (e) {
+        showToast('Erreur réseau — réessaie', 'error');
+        _mRes[_mIdx] = null; // Annuler pour permettre un re-essai
+      }
+
+      _renderMemHand();
+      const allDone = _mRes.every(r => r !== null);
+      // Tracker mémoire parfaite pour le badge
+      if (allDone && _mRes.every(r => r === 'ok')) {
+        update(ref(db, `games/${gameId}/players/${playerId}`), { memoryPerfect: true }).catch(() => {});
+      }
+      document.getElementById('mem-done-wrap').classList.toggle('hidden', !allDone);
+    }
+
+    function _renderMemHand() {
+      const el  = document.getElementById('mem-hand');
+      const cards = game.players[playerId]?.cards || [];
+      el.innerHTML = '';
+      cards.forEach((card, i) => {
+        const wrap = document.createElement('div');
+        wrap.className = `mem-card-wrap ${_mRes[i] !== null ? 'done' : ''}`;
+
+        if (_mRes[i] !== null) {
+          const isRed = ['hearts','diamonds'].includes(card.suit);
+          const sym   = SUIT_SYMBOL[card.suit] || '';
+          const col   = isRed ? '#e74c3c' : '#1a1a2e';
+          wrap.innerHTML = `
+            <div class="mem-card-face ${_mRes[i]}" style="color:${col};animation:mem-flip .35s ease both">
+              <div>${card.value}${sym}</div>
+              <div style="font-size:.95rem;text-align:center">${sym}</div>
+              <div style="align-self:flex-end;transform:rotate(180deg)">${card.value}${sym}</div>
+            </div>
+            <div class="mem-result ${_mRes[i]}"><i class="fas fa-${_mRes[i]==='ok'?'check':'times'}"></i></div>`;
+        } else {
+          wrap.innerHTML = `<div class="mem-card-back"></div>`;
+          wrap.onclick = () => _openMemCard(i);
+        }
+        el.appendChild(wrap);
+      });
+    }
+
+    function _renderMemProgress() {
+      const el = document.getElementById('mem-progress');
+      el.innerHTML = '';
+      Object.entries(game.players || {}).forEach(([id, p]) => {
+        const status = p.memoryDone
+          ? '<span style="color:var(--green);font-weight:700">✅ Terminé</span>'
+          : (id === playerId
+              ? `<span class="text-muted">${_mRes.filter(r=>r!==null).length} / 4</span>`
+              : '<span class="text-muted">En cours…</span>');
+        const row = document.createElement('div');
+        row.className = 'mem-prog-row';
+        row.innerHTML = `${avatarHTML(p.avatar, 30)}<span class="font-bold" style="flex:1">${p.name}${id===playerId?' (toi)':''}</span>${status}`;
+        el.appendChild(row);
+      });
+    }
+
+    function renderMemoryUI() {
+      _buildMemModal();
+      if (game.players[playerId]?.memoryDone) {
+        document.getElementById('mem-hand').innerHTML = '<p class="text-muted text-sm text-center" style="padding:8px">En attente des autres joueurs…</p>';
+        document.getElementById('mem-done-wrap').classList.add('hidden');
+      } else {
+        _renderMemHand();
+        const allDone = _mRes.every(r => r !== null);
+        document.getElementById('mem-done-wrap').classList.toggle('hidden', !allDone);
+      }
+      _renderMemProgress();
+    }
+
+    let _memNotifTimer = null, _memNotifCd = null;
+    function showMemRevealNotif({ name, card, correct }) {
+      const isRed = ['hearts','diamonds'].includes(card.suit);
+      const sym   = SUIT_SYMBOL[card.suit] || '';
+      const notif = document.getElementById('proof-notif');
+
+      document.getElementById('proof-mini-card').className = `mini-card ${isRed ? 'red' : 'black'}`;
+      document.getElementById('proof-top').textContent = `${card.value}${sym}`;
+      document.getElementById('proof-sym').textContent = sym;
+      document.getElementById('proof-bot').textContent = `${card.value}${sym}`;
+      document.getElementById('proof-who').textContent = `${name} : ${correct ? '✅ correct' : '❌ raté +3🍺'}`;
+      document.getElementById('proof-result').innerHTML = `disparaît dans <span id="proof-countdown">4</span>s`;
+
+      notif.classList.add('show');
+      let c = 4;
+      clearInterval(_memNotifCd);
+      _memNotifCd = setInterval(() => {
+        c--;
+        const el = document.getElementById('proof-countdown');
+        if (el) el.textContent = Math.max(0, c);
+        if (c <= 0) clearInterval(_memNotifCd);
+      }, 1000);
+      clearTimeout(_memNotifTimer);
+      _memNotifTimer = setTimeout(() => notif.classList.remove('show'), 4000);
+    }
+
+    async function checkAllMemDone() {
+      const all = Object.values(game.players || {}).every(p => p.memoryDone);
+      if (all) await update(gameRef, { phase: 'end' });
+    }
+  </script>
+
+</body>
+</html>

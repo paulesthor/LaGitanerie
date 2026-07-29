@@ -1,0 +1,726 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#e74c3c">
+  <title>Distribution — La Gitanerie</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .phase-label {
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--text-muted);
+    }
+    .turn-banner {
+      background: var(--red);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .turn-banner .avatar-wrap {
+      width: 44px; height: 44px; border-radius: 50%;
+      overflow: hidden; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem; background: rgba(0,0,0,0.2);
+    }
+    .turn-banner .avatar-wrap img { width: 100%; height: 100%; object-fit: cover; }
+    .hand-container {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 4px 0;
+    }
+
+    /* Carte de jeu */
+    .p-card {
+      width: 72px;
+      height: 100px;
+      border-radius: 10px;
+      position: relative;
+      cursor: default;
+      flex-shrink: 0;
+    }
+    .p-card .inner {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.5s ease;
+      border-radius: 10px;
+      will-change: transform;
+    }
+    .p-card { contain: layout style; }
+    .p-card.revealed .inner { transform: rotateY(180deg); }
+    .p-card .face, .p-card .back {
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+    .p-card .face {
+      background: white;
+      transform: rotateY(180deg);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 5px 6px;
+      border: 1px solid #e0e0e0;
+    }
+    .p-card .face.red  { color: #e74c3c; }
+    .p-card .face.black { color: #1a1a2e; }
+    .p-card .back {
+      background-color: var(--card-back-color);
+      background-image: var(--card-back-img);
+      border: 1px solid var(--card-back-border);
+      box-shadow: var(--card-back-shadow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .p-card .back img { width: 100%; height: 100%; object-fit: cover; }
+    .card-corner { font-size: 0.7rem; font-weight: 700; line-height: 1.1; }
+    .card-corner.bot { align-self: flex-end; transform: rotate(180deg); }
+    .card-suit-center { font-size: 1.5rem; text-align: center; }
+
+    /* Actions de prédiction */
+    .prediction-area {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .prediction-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      text-align: center;
+      color: var(--gold);
+    }
+    .prediction-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .pred-btn {
+      padding: 16px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--transition);
+      text-align: center;
+    }
+    .pred-btn:active { transform: scale(0.96); }
+    .pred-btn.red-opt   { border-color: #e74c3c; color: #e74c3c; }
+    .pred-btn.black-opt { border-color: #95a5a6; color: #ecf0f1; }
+    .pred-btn.higher    { border-color: var(--green); color: var(--green); }
+    .pred-btn.lower     { border-color: var(--red); color: var(--red); }
+    .pred-btn.inside    { border-color: #3498db; color: #3498db; }
+    .pred-btn.outside   { border-color: var(--gold); color: var(--gold); }
+    .pred-btn.hearts, .pred-btn.diamonds { border-color: #e74c3c; color: #e74c3c; font-size: 1.4rem; }
+    .pred-btn.clubs, .pred-btn.spades   { border-color: #ecf0f1; color: #ecf0f1; font-size: 1.4rem; }
+    .pred-btn.suit { grid-column: span 1; }
+
+    .waiting-msg {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 12px;
+      font-size: 0.9rem;
+    }
+
+    @keyframes turn-pulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(231,76,60,0.55); }
+      55%     { box-shadow: 0 0 0 10px rgba(231,76,60,0); }
+    }
+    .turn-banner.mine { animation: turn-pulse 1.4s ease-out infinite; }
+
+    @keyframes pred-up {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .prediction-area { animation: pred-up 0.22s ease-out both; }
+
+    @keyframes card-land {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.06); }
+      100% { transform: scale(1); }
+    }
+    .p-card.revealed { animation: card-land 0.3s 0.5s ease-out both; }
+
+    /* Cible modale */
+    .target-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .target-btn {
+      padding: 14px;
+      background: var(--bg-surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      transition: all var(--transition);
+    }
+    .target-btn:active { border-color: var(--red); }
+
+    /* Bandeau gorgées phase 1 */
+    .sips-banner {
+      position:fixed; bottom:calc(72px + env(safe-area-inset-bottom));
+      left:50%; transform:translateX(-50%) translateY(calc(100% + 80px));
+      background:var(--bg-card); border:1px solid var(--border);
+      border-radius:var(--radius); padding:10px 16px;
+      display:flex; align-items:center; gap:12px;
+      z-index:150; pointer-events:none;
+      box-shadow:0 8px 24px rgba(0,0,0,0.4); max-width:88vw;
+      transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .sips-banner.show { transform:translateX(-50%) translateY(0); }
+    .sips-banner .sips-text { font-size:.9rem; font-weight:600; flex:1; min-width:0; }
+    .sips-banner .sips-amount {
+      font-size:.95rem; font-weight:700; border-radius:8px;
+      padding:4px 10px; flex-shrink:0; background:rgba(243,156,18,.15); color:var(--gold);
+    }
+
+    /* Notification révélation — non bloquante */
+    .card-notif {
+      position: fixed;
+      top: 64px;
+      left: 50%;
+      transform: translateX(-50%) translateY(calc(-100% - 80px));
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 300;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      pointer-events: none;
+      transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+      max-width: 88vw;
+    }
+    .card-notif.show { transform: translateX(-50%) translateY(0); }
+    .mini-card {
+      width: 44px; height: 62px; border-radius: 6px; background: white;
+      display: flex; flex-direction: column; justify-content: space-between;
+      padding: 4px 5px; border: 1px solid #ddd; flex-shrink: 0;
+    }
+    .mini-card.red   { color: #e74c3c; }
+    .mini-card.black { color: #1a1a2e; }
+    .mini-card .mc-corner { font-size: 0.65rem; font-weight: 700; line-height: 1.1; }
+    .mini-card .mc-center { font-size: 1.1rem; text-align: center; }
+    .mini-card .mc-bot { align-self: flex-end; transform: rotate(180deg); font-size: 0.65rem; font-weight: 700; }
+    .notif-text { flex: 1; min-width: 0; }
+    .notif-who  { font-size: 0.85rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .notif-sub  { font-size: 0.72rem; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+
+  <div class="screen">
+    <header class="app-header">
+      <div class="flex items-center gap-8">
+        <span class="text-sm text-muted">Partie</span>
+        <span id="header-code" class="font-bold" style="color:var(--gold)">----</span>
+      </div>
+      <h1 style="font-size:0.95rem">Phase 1 — Distribution</h1>
+      <button class="header-btn" id="btn-menu"><i class="fas fa-bars"></i></button>
+    </header>
+
+    <div class="page-content">
+
+      <!-- Tour actuel -->
+      <div id="turn-banner" class="turn-banner hidden">
+        <div class="avatar-wrap" id="turn-avatar">🃏</div>
+        <div class="flex-col gap-8" style="flex:1">
+          <span id="turn-name" class="font-bold">...</span>
+          <span class="text-sm" style="opacity:.8">C'est son tour</span>
+        </div>
+      </div>
+
+      <!-- Mes cartes -->
+      <div class="card flex-col gap-12">
+        <h3>Mes cartes</h3>
+        <div id="hand-container" class="hand-container"></div>
+      </div>
+
+      <!-- Zone de prédiction ou message d'attente -->
+      <div id="action-area"></div>
+
+    </div>
+  </div>
+
+  <!-- Modal cible -->
+  <div id="modal-target" class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <h3 class="text-center">Donner <span id="modal-sips">0</span> gorgée(s) à&nbsp;:</h3>
+      <div id="target-grid" class="target-grid"></div>
+    </div>
+  </div>
+
+  <!-- Notification révélation carte (non bloquante) -->
+  <div id="reveal-notif" class="card-notif">
+    <div id="reveal-mini-card" class="mini-card red">
+      <div class="mc-corner" id="reveal-corner-top"></div>
+      <div class="mc-center" id="reveal-center"></div>
+      <div class="mc-bot" id="reveal-corner-bot"></div>
+    </div>
+    <div class="notif-text">
+      <div class="notif-who" id="reveal-who">Joueur révèle</div>
+      <div class="notif-sub">disparaît dans <span id="reveal-countdown">3</span>s</div>
+    </div>
+  </div>
+
+  <!-- Bandeau gorgées phase 1 -->
+  <div id="sips-banner" class="sips-banner">
+    <div class="sips-text" id="sips-banner-text">...</div>
+    <div class="sips-amount" id="sips-banner-amount">0</div>
+  </div>
+
+  <!-- Sidebar menu -->
+  <div id="modal-menu" class="modal-overlay">
+    <div class="modal-sheet flex-col gap-12">
+      <div class="modal-handle"></div>
+      <h3>Menu</h3>
+      <div id="sidebar-players" class="flex-col gap-8"></div>
+      <button id="btn-leave" class="btn btn-danger" style="margin-top:8px">
+        <i class="fas fa-door-open"></i> Quitter la partie
+      </button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    import { db } from '/js/firebase-config.js';
+    import { ref, onValue, update, remove, onDisconnect } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+
+    const vibrate = (p) => navigator.vibrate?.(p);
+    import {
+      requireSession, showToast, SUIT_SYMBOL,
+      cardNumericValue, checkPrediction, clearGameSession
+    } from '/js/game/utils.js';
+    import { avatarHTML, isPhotoAvatar } from '/js/game/avatar.js';
+
+    const session = requireSession('/lobbypyramide.html');
+    if (!session) throw new Error('no session');
+    const { gameId, playerId } = session;
+
+    const gameRef = ref(db, `games/${gameId}`);
+
+    // Présence — marquer online au chargement et à chaque reconnexion réseau
+    onDisconnect(ref(db, `games/${gameId}/players/${playerId}/online`)).set(false);
+    onValue(ref(db, '.info/connected'), (snap) => {
+      if (snap.val()) update(ref(db, `games/${gameId}/players/${playerId}`), { online: true });
+    });
+    let game = {};
+    let isProcessing = false;
+    let isAnimating  = false;
+    let _rafPending  = false;
+
+    function scheduleRender() {
+      if (_rafPending) return;
+      _rafPending = true;
+      requestAnimationFrame(() => { _rafPending = false; renderUI(); });
+    }
+    let lastEventTs = 0;
+    let sipsBannerTimer = null;
+    let lastRevealedCardKey = null;
+
+    // Menu
+    document.getElementById('btn-menu').onclick = () =>
+      document.getElementById('modal-menu').classList.add('show');
+    document.getElementById('modal-menu').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('show');
+    });
+    document.getElementById('btn-leave').onclick = async () => {
+      await remove(ref(db, `games/${gameId}/players/${playerId}`));
+      clearGameSession();
+      window.location.href = '/';
+    };
+
+    // Écoute principale
+    let _unsubGame = null;
+    _unsubGame = onValue(gameRef, (snap) => {
+      const newGame = snap.val();
+      if (!newGame || !newGame.players?.[playerId]) {
+        _unsubGame?.();
+        clearGameSession();
+        window.location.href = '/';
+        return;
+      }
+
+      // Redirection vers mémorisation ou phase 2
+      if (newGame.phase === 'memorize') {
+        _unsubGame?.();
+        window.location.href = `/memorize.html?gameId=${gameId}&playerId=${playerId}`;
+        return;
+      }
+      if (newGame.phase === 'pyramid') {
+        _unsubGame?.();
+        window.location.href = `/game2.html?gameId=${gameId}&playerId=${playerId}`;
+        return;
+      }
+
+      detectCardReveal(game, newGame);
+
+      // Détecter un événement de gorgées
+      const evTs = newGame.lastEvent?.timestamp || 0;
+      if (evTs > lastEventTs) {
+        lastEventTs = evTs;
+        showSipsBanner(newGame.lastEvent);
+      }
+
+      game = newGame;
+      scheduleRender();
+    });
+
+    // --- Détection révélation carte (pour afficher l'overlay aux autres joueurs) ---
+    function detectCardReveal(oldGame, newGame) {
+      if (!oldGame.players) return;
+      if (newGame.rules?.showPhase1 === false) return; // règle désactivée
+
+      for (const [pid, player] of Object.entries(newGame.players || {})) {
+        if (pid === playerId) continue;
+        const oldCards = oldGame.players?.[pid]?.cards || [];
+        const newCards = player.cards || [];
+
+        for (let i = 0; i < newCards.length; i++) {
+          if (newCards[i].revealed && !oldCards[i]?.revealed) {
+            const revealKey = `${pid}-${i}`;
+            if (revealKey !== lastRevealedCardKey) {
+              lastRevealedCardKey = revealKey;
+              showRevealOverlay(newCards[i], player.name);
+            }
+          }
+        }
+      }
+    }
+
+    let notifTimer = null;
+    let notifCountdown = null;
+    function showRevealOverlay(card, playerName) {
+      const notif   = document.getElementById('reveal-notif');
+      const colorCls = ['hearts','diamonds'].includes(card.suit) ? 'red' : 'black';
+      const sym      = SUIT_SYMBOL[card.suit];
+
+      document.getElementById('reveal-who').textContent = `${playerName} révèle`;
+      document.getElementById('reveal-mini-card').className = `mini-card ${colorCls}`;
+      document.getElementById('reveal-corner-top').textContent = `${card.value}${sym}`;
+      document.getElementById('reveal-center').textContent = sym;
+      document.getElementById('reveal-corner-bot').textContent = `${card.value}${sym}`;
+
+      notif.classList.add('show');
+      let countdown = 3;
+      document.getElementById('reveal-countdown').textContent = countdown;
+
+      clearInterval(notifCountdown);
+      clearTimeout(notifTimer);
+      notifCountdown = setInterval(() => {
+        countdown--;
+        document.getElementById('reveal-countdown').textContent = Math.max(0, countdown);
+        if (countdown <= 0) clearInterval(notifCountdown);
+      }, 1000);
+      notifTimer = setTimeout(() => {
+        notif.classList.remove('show');
+        lastRevealedCardKey = null; // Réinitialiser pour permettre la même carte deux fois
+      }, 3000);
+    }
+
+    // --- Rendu UI ---
+    function renderUI() {
+      document.getElementById('header-code').textContent = game.gameCode || '----';
+      renderTurnBanner();
+      renderMyCards();
+      renderActionArea();
+      renderSidebarPlayers();
+    }
+
+    function renderTurnBanner() {
+      const banner   = document.getElementById('turn-banner');
+      const currentP = game.players?.[game.currentTurn];
+      if (!currentP) return;
+      banner.classList.remove('hidden');
+      document.getElementById('turn-avatar').innerHTML = avatarHTML(currentP.avatar, 44);
+      const isMyTurn_ = game.currentTurn === playerId;
+      document.getElementById('turn-name').textContent = isMyTurn_ ? 'Ton tour !' : currentP.name;
+      banner.style.background = isMyTurn_ ? 'var(--red)' : 'var(--bg-surface)';
+      banner.classList.toggle('mine', isMyTurn_);
+    }
+
+    function renderMyCards() {
+      const container = document.getElementById('hand-container');
+      const myCards   = game.players?.[playerId]?.cards || [];
+      container.innerHTML = '';
+
+      myCards.forEach((card) => {
+        const el     = document.createElement('div');
+        el.className = `p-card ${card.revealed ? 'revealed' : ''}`;
+        const isRed  = ['hearts','diamonds'].includes(card.suit);
+        const sym    = SUIT_SYMBOL[card.suit] || '';
+        const myAvatar = game.players?.[playerId]?.avatar || '';
+        const backStyle = isPhotoAvatar(myAvatar)
+          ? `style="background-image:linear-gradient(rgba(44,62,80,0.45),rgba(44,62,80,0.45)),url('${myAvatar}');background-size:cover;background-position:center"`
+          : '';
+        el.innerHTML = `
+          <div class="inner">
+            <div class="face ${isRed ? 'red' : 'black'}">
+              <div class="card-corner">${card.value}<br>${sym}</div>
+              <div class="card-suit-center">${sym}</div>
+              <div class="card-corner bot">${card.value}<br>${sym}</div>
+            </div>
+            <div class="back" ${backStyle}></div>
+          </div>`;
+        container.appendChild(el);
+      });
+    }
+
+    function renderActionArea() {
+      const area = document.getElementById('action-area');
+      // Bloquer pendant l'animation de flip (évite le flash du prochain tour)
+      if (isAnimating) { area.innerHTML = ''; return; }
+
+      const isMyTurn = game.currentTurn === playerId;
+      const myCards  = game.players?.[playerId]?.cards || [];
+      const nextIdx  = myCards.findIndex(c => !c.revealed);
+
+      if (isMyTurn && nextIdx !== -1) {
+        renderPrediction(area, nextIdx, myCards);
+      } else if (isMyTurn && nextIdx === -1) {
+        area.innerHTML = `<div class="waiting-msg">✅ Tu as révélé toutes tes cartes !</div>`;
+      } else {
+        const cur = game.players?.[game.currentTurn];
+        area.innerHTML = `<div class="waiting-msg">En attente de <strong>${cur?.name || '...'}</strong>...</div>`;
+      }
+    }
+
+    function renderPrediction(area, stepIdx, cards) {
+      const titles   = ['Rouge ou Noir ?', 'Plus ou Moins ?', 'Intérieur ou Extérieur ?', 'Quelle famille ?'];
+      const sipsText = `${stepIdx + 1} gorgée${stepIdx + 1 > 1 ? 's' : ''}`;
+
+      let btnsHTML = '';
+      if (stepIdx === 0) {
+        btnsHTML = `
+          <button class="pred-btn red-opt" onclick="predict('red')">♥ Rouge</button>
+          <button class="pred-btn black-opt" onclick="predict('black')">♠ Noir</button>`;
+      } else if (stepIdx === 1) {
+        btnsHTML = `
+          <button class="pred-btn higher" onclick="predict('higher')">⬆ Plus</button>
+          <button class="pred-btn lower" onclick="predict('lower')">⬇ Moins</button>`;
+      } else if (stepIdx === 2) {
+        btnsHTML = `
+          <button class="pred-btn inside" onclick="predict('inside')">↔ Intérieur</button>
+          <button class="pred-btn outside" onclick="predict('outside')">↕ Extérieur</button>`;
+      } else {
+        btnsHTML = `
+          <button class="pred-btn hearts suit" onclick="predict('hearts')">♥</button>
+          <button class="pred-btn diamonds suit" onclick="predict('diamonds')">♦</button>
+          <button class="pred-btn clubs suit" onclick="predict('clubs')">♣</button>
+          <button class="pred-btn spades suit" onclick="predict('spades')">♠</button>`;
+      }
+
+      area.innerHTML = `
+        <div class="prediction-area">
+          <p class="phase-label">Carte ${stepIdx + 1} / 4 — ${sipsText} en jeu</p>
+          <div class="prediction-title">${titles[stepIdx]}</div>
+          <div class="prediction-btns">${btnsHTML}</div>
+        </div>`;
+    }
+
+    function renderSidebarPlayers() {
+      const container = document.getElementById('sidebar-players');
+      container.innerHTML = '';
+      Object.entries(game.players || {}).forEach(([id, p]) => {
+        const revealed = (p.cards || []).filter(c => c.revealed).length;
+        const el = document.createElement('div');
+        el.className = 'player-row flex items-center gap-12 card-sm';
+        el.innerHTML = `
+          ${avatarHTML(p.avatar, 36)}
+          <span class="font-bold" style="flex:1">${p.name}${id === playerId ? ' (toi)' : ''}</span>
+          <span class="badge badge-muted">${revealed}/4</span>`;
+        container.appendChild(el);
+      });
+    }
+
+    // --- Prédiction ---
+    window.predict = async (choice) => {
+      if (isProcessing) return;
+      isProcessing = true;
+      isAnimating  = true;
+
+      const myCards = game.players[playerId].cards;
+      const stepIdx = myCards.findIndex(c => !c.revealed);
+      const card    = myCards[stepIdx];
+      const correct = checkPrediction(choice, card, stepIdx, myCards);
+      const sips    = stepIdx + 1;
+
+      // Vibrer ICI — contexte de geste utilisateur direct (avant tout async/setTimeout)
+      vibrate(correct ? [50] : [150, 50, 150]);
+
+      // Révéler la carte — déclenche l'animation CSS (500ms)
+      await update(ref(db, `games/${gameId}`), {
+        [`players/${playerId}/cards/${stepIdx}/revealed`]: true,
+        lastRevealedCard: { value: card.value, suit: card.suit, playerName: game.players[playerId].name }
+      });
+
+      // Attendre la fin de l'animation avant d'afficher le résultat
+      setTimeout(async () => {
+        isAnimating = false;
+
+        if (correct) {
+          showToast(`Bonne réponse — donne ${sips} gorgée(s)`, 'success');
+          showTargetModal(sips);
+        } else {
+          showToast(`Raté — tu bois ${sips} gorgée(s)`, 'error');
+          const current = game.players[playerId].sipsToDrink || 0;
+          await passTurn({ [`players/${playerId}/sipsToDrink`]: current + sips });
+        }
+
+        isProcessing = false;
+      }, 550);
+    };
+
+    // --- Modal cible ---
+    function showTargetModal(sips) {
+      const grid = document.getElementById('target-grid');
+      document.getElementById('modal-sips').textContent = sips;
+      grid.innerHTML = '';
+      Object.entries(game.players).forEach(([id, p]) => {
+        if (id === playerId) return;
+        const btn = document.createElement('button');
+        btn.className = 'target-btn';
+        btn.innerHTML = `${avatarHTML(p.avatar, 44)}<div>${p.name}</div>`;
+        btn.onclick = () => assignSips(id, sips);
+        grid.appendChild(btn);
+      });
+      document.getElementById('modal-target').classList.add('show');
+    }
+
+    async function assignSips(targetId, sips) {
+      document.getElementById('modal-target').classList.remove('show');
+      vibrate([80]);
+      const current = game.players[targetId].sipsToDrink || 0;
+      const now = Date.now();
+      await passTurn({
+        [`players/${targetId}/sipsToDrink`]: current + sips,
+        [`eventLog/${now}`]: {
+          type: 'sips_given',
+          fromName: game.players[playerId].name,
+          toName: game.players[targetId].name,
+          amount: sips,
+          isCulSec: false,
+          timestamp: now
+        },
+        lastEvent: {
+          type: 'sips_given',
+          fromId: playerId,
+          fromName: game.players[playerId].name,
+          toId: targetId,
+          toName: game.players[targetId].name,
+          amount: sips,
+          isCulSec: false,
+          timestamp: now
+        }
+      });
+    }
+
+    function showSipsBanner(event) {
+      if (!event) return;
+      const banner = document.getElementById('sips-banner');
+      const text   = document.getElementById('sips-banner-text');
+      const amount = document.getElementById('sips-banner-amount');
+      const isMeFrom = event.fromId === playerId;
+      const isMeTo   = event.toId   === playerId;
+
+      if (event.type === 'sips_given') {
+        if (isMeFrom)      text.textContent = `Tu donnes à ${event.toName}`;
+        else if (isMeTo)   text.textContent = `${event.fromName} te donne`;
+        else               text.textContent = `${event.fromName} donne à ${event.toName}`;
+        amount.textContent = `${event.amount} gorgée${event.amount > 1 ? 's' : ''}`;
+        amount.style.color = 'var(--gold)';
+        amount.style.background = 'rgba(243,156,18,.15)';
+      }
+
+      banner.classList.add('show');
+      clearTimeout(sipsBannerTimer);
+      sipsBannerTimer = setTimeout(() => banner.classList.remove('show'), 3500);
+    }
+
+    // --- Passer le tour ---
+    async function passTurn(extra = {}) {
+      const ids      = Object.keys(game.players).sort();
+      const myCards  = game.players[playerId].cards;
+      const allDone  = myCards.every(c => c.revealed);
+
+      // Si j'ai fini toutes mes cartes, check si tout le monde a terminé
+      if (allDone) {
+        const everyoneDone = Object.values(game.players).every(p =>
+          (p.cards || []).every(c => c.revealed)
+        );
+        if (everyoneDone) {
+          // Passer par la phase mémorisation avant la pyramide
+          await update(ref(db, `games/${gameId}`), {
+            ...extra,
+            phase: 'memorize',
+            memorizeStartedAt: Date.now()
+          });
+          return;
+        }
+      }
+
+      // Passer au joueur suivant qui a encore des cartes à révéler
+      const currentIdx = ids.indexOf(game.currentTurn);
+      let nextIdx = (currentIdx + 1) % ids.length;
+      let tries = 0;
+      while (
+        game.players[ids[nextIdx]].cards?.every(c => c.revealed) &&
+        tries < ids.length
+      ) {
+        nextIdx = (nextIdx + 1) % ids.length;
+        tries++;
+      }
+
+      await update(ref(db, `games/${gameId}`), { ...extra, currentTurn: ids[nextIdx] });
+    }
+
+    // Fermer modal cible en cliquant dehors
+    document.getElementById('modal-target').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('show');
+    });
+  </script>
+
+</body>
+</html>

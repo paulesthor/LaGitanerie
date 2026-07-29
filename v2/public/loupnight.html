@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0e151c">
+  <title>Nuit — Loup-Garou</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&amp;family=Playfair+Display:wght@700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    .night-bg { background:#0b1119; min-height:100vh; }
+    /* Carte joueur */
+    .pcard-wrap { padding:20px 16px; }
+    .pcard {
+      border-radius:18px; padding:30px 22px; text-align:center;
+      background:linear-gradient(160deg,#1b2634,#111820);
+      border:1px solid rgba(243,156,18,.25); box-shadow:0 10px 30px rgba(0,0,0,.4);
+      min-height:230px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px;
+      cursor:pointer; user-select:none;
+    }
+    .pcard .emoji { font-size:4.6rem; line-height:1; }
+    .pcard .rname { font-family:var(--font-brand); font-size:2rem; font-weight:700; }
+    .pcard .rdesc { font-size:.82rem; color:var(--text-muted); line-height:1.4; max-width:280px; }
+    .pcard.hidden-card { background:linear-gradient(160deg,#141c26,#0d131b); border-style:dashed; }
+    .pcard .team { font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; padding:3px 10px; border-radius:20px; }
+    .team-loup    { background:rgba(192,57,43,.2); color:#e74c3c; }
+    .team-village { background:rgba(39,174,96,.18); color:#2ecc71; }
+    .team-solo    { background:rgba(243,156,18,.18); color:var(--orange); }
+
+    /* Bandeau narration */
+    .narr-banner { text-align:center; padding:18px 16px; }
+    .narr-title { font-family:var(--font-brand); font-size:1.5rem; font-weight:700; }
+    .narr-sub   { color:var(--text-muted); font-size:.9rem; margin-top:6px; line-height:1.45; }
+
+    /* Console maître */
+    .master { padding:0 16px 30px; }
+    .master h3 { margin-bottom:6px; }
+    .step-pill { display:inline-block; font-size:.7rem; font-weight:700; color:var(--orange); letter-spacing:.1em; text-transform:uppercase; }
+    .ctrl-row { display:flex; gap:10px; margin-top:14px; }
+    .ctrl-row .btn { flex:1; }
+    .layout-row { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); }
+    .layout-row:last-child { border-bottom:none; }
+    .role-chip { margin-left:auto; font-weight:700; font-size:.85rem; white-space:nowrap; }
+    .center-cards { display:flex; gap:10px; margin-top:8px; }
+    .center-card { flex:1; text-align:center; padding:12px 6px; border-radius:10px; background:var(--bg-surface); border:1px solid var(--border); }
+    .center-card .ce { font-size:1.6rem; } .center-card .cn { font-size:.72rem; margin-top:4px; }
+    .audio-btn { width:44px; flex:0 0 auto !important; }
+  </style>
+</head>
+<body class="night-bg">
+  <div class="screen">
+
+    <!-- Bandeau narration (tous) -->
+    <div class="narr-banner">
+      <div class="narr-title" id="narr-title">🌙 La nuit tombe…</div>
+      <div class="narr-sub" id="narr-sub">Distribution des cartes…</div>
+    </div>
+
+    <!-- Révélation finale (tous) -->
+    <div class="pcard-wrap" id="reveal-section" style="display:none">
+      <div class="card flex-col gap-10">
+        <h3 id="reveal-winner" style="text-align:center"></h3>
+        <div id="reveal-list"></div>
+      </div>
+    </div>
+
+    <!-- Carte joueur -->
+    <div class="pcard-wrap" id="card-section" style="display:none">
+      <div class="pcard hidden-card" id="pcard">
+        <div class="emoji">🂠</div>
+        <div class="rname">Ta carte</div>
+        <div class="rdesc">Touche pour la voir — garde-la secrète 🤫</div>
+      </div>
+    </div>
+
+    <!-- Console maître -->
+    <div class="master" id="master-section" style="display:none">
+      <div class="card flex-col gap-10">
+        <div class="flex items-center gap-8">
+          <h3 style="flex:1">🎙️ Console du maître</h3>
+          <span class="step-pill" id="step-pill"></span>
+        </div>
+        <div class="ctrl-row">
+          <button class="btn btn-ghost audio-btn" id="btn-audio" title="Voix">🔊</button>
+          <button class="btn btn-secondary" id="btn-prev"><i class="fas fa-chevron-left"></i></button>
+          <button class="btn btn-primary" id="btn-next">Suivant <i class="fas fa-chevron-right"></i></button>
+        </div>
+        <p class="text-sm text-muted" id="pacing-note" style="text-align:center"></p>
+      </div>
+
+      <div class="card flex-col gap-6" style="margin-top:12px">
+        <h3><i class="fas fa-eye" style="color:var(--orange)"></i> Disposition secrète</h3>
+        <p class="text-sm text-muted">Touche <b>deux cartes</b> pour les échanger (Voleur, Fauteur, Soûlard).</p>
+        <div id="layout-list"></div>
+        <span class="text-sm text-muted" style="margin-top:8px">Cartes du centre</span>
+        <div class="center-cards" id="center-cards"></div>
+      </div>
+
+      <!-- Vote & résultat -->
+      <div class="card flex-col gap-10" id="resolve-card" style="display:none;margin-top:12px">
+        <h3>☀️ Vote &amp; résultat</h3>
+        <p class="text-sm text-muted">Fais voter à l'oral, puis marque qui est éliminé (le plus de voix). Égalité = plusieurs morts.</p>
+        <div id="death-list"></div>
+        <button class="btn btn-primary" id="btn-reveal"><i class="fas fa-trophy"></i> Révéler &amp; résultat</button>
+      </div>
+
+      <button class="btn btn-ghost" id="btn-back" style="margin-top:14px"><i class="fas fa-arrow-left"></i> Nouvelle manche</button>
+    </div>
+
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    import { auth, db, withRetry, friendlyError } from '/js/firebase-config.js';
+    import { ref, onValue, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+    import { getGameSession, clearGameSession, showToast } from '/js/game/utils.js';
+    import { avatarHTML } from '/js/game/avatar.js';
+    import { ROLE_BY_ID, NIGHT_ORDER } from '/js/game/loup.js';
+
+    const STEP_SECONDS = 8;
+
+    const session = getGameSession();
+    if (!session || !session.gameId || !session.playerId || session.ns !== 'loupGames') {
+      window.location.href = '/loupgarou.html';
+    }
+    const { gameId, playerId } = session;
+
+    let order = [];
+    let isHost = false, hostPlays = true, hostId = null;
+    let players = {};
+    let curIdx = -1;
+    let audioOn = true;
+    let autoTimer = null;
+    let curSetup = null;     // disposition secrète (mutable par le maître) — arbitre
+    let selSlot = null;      // emplacement sélectionné pour un échange
+    const deadSel = new Set(); // joueurs marqués éliminés (résolution)
+
+    function computeOrder(roles) { return NIGHT_ORDER.filter(id => Number((roles || {})[id] || 0) > 0); }
+
+    function speak(text) {
+      if (!audioOn || !('speechSynthesis' in window)) return;
+      try { const u = new SpeechSynthesisUtterance(text); u.lang = 'fr-FR'; u.rate = .95; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (_) {}
+    }
+
+    function narrFor(idx) {
+      if (idx < 0) return { t: '🌙 La nuit tombe…', s: 'Tout le monde ferme les yeux.', say: 'La nuit tombe. Tout le monde ferme les yeux.' };
+      if (idx >= order.length) return { t: '☀️ Le jour se lève', s: 'Réveillez-vous ! Débattez, puis votez à l’oral.', say: 'Le jour se lève. Tout le monde se réveille.' };
+      const r = ROLE_BY_ID[order[idx]];
+      return { t: `${r.emoji} ${r.name}`, s: r.desc, say: `${r.name}, réveille-toi.` };
+    }
+
+    function renderNarration() {
+      const n = narrFor(curIdx);
+      document.getElementById('narr-title').textContent = n.t;
+      document.getElementById('narr-sub').textContent = n.s;
+      if (isHost) {
+        document.getElementById('step-pill').textContent =
+          curIdx < 0 ? 'Intro' : curIdx >= order.length ? 'Fin' : `Étape ${curIdx + 1}/${order.length}`;
+        document.getElementById('btn-next').innerHTML = curIdx >= order.length
+          ? 'Terminer <i class="fas fa-flag-checkered"></i>'
+          : 'Suivant <i class="fas fa-chevron-right"></i>';
+        document.getElementById('btn-prev').disabled = curIdx <= -1;
+      }
+    }
+
+    // Le maître pilote l'avancement (écrit l'index public) ; sa voix annonce l'étape.
+    async function goTo(idx) {
+      if (!isHost) return;
+      idx = Math.max(-1, Math.min(order.length, idx));
+      speak(narrFor(idx).say);
+      try { await withRetry(() => update(ref(db, `loupGames/${gameId}`), { narration: { idx, at: Date.now() } })); }
+      catch (e) { showToast(friendlyError(e), 'error'); }
+    }
+
+    function scheduleAuto(pacing) {
+      if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+      if (isHost && pacing === 'auto' && curIdx < order.length) {
+        autoTimer = setTimeout(() => goTo(curIdx + 1), STEP_SECONDS * 1000);
+      }
+    }
+
+    // ---- Écoute publique de la partie ----
+    onValue(ref(db, `loupGames/${gameId}`), (snap) => {
+      const game = snap.val();
+      if (!game) { clearGameSession(); window.location.href = '/loupgarou.html'; return; }
+      if (game.status === 'waiting') { window.location.href = `/loupwait.html?gameId=${gameId}&playerId=${playerId}`; return; }
+      if (game.status === 'abandoned') { clearGameSession(); window.location.href = '/loupgarou.html'; return; }
+
+      hostId = game.hostId; isHost = game.hostId === playerId;
+      hostPlays = !(game.config && game.config.hostPlays === false);
+      players = game.players || {};
+      order = computeOrder(game.config && game.config.roles);
+      const pacing = (game.config && game.config.pacing) || 'manual';
+
+      document.getElementById('master-section').style.display = isHost ? 'block' : 'none';
+      if (isHost) {
+        document.getElementById('pacing-note').textContent = pacing === 'auto'
+          ? `⏱️ Minuteur : ${STEP_SECONDS}s / étape (tu peux forcer avec Suivant).`
+          : '✋ Manuel : appuie sur Suivant pour chaque rôle.';
+      }
+
+      const prevIdx = curIdx;
+      curIdx = (game.narration && typeof game.narration.idx === 'number') ? game.narration.idx : -1;
+      renderNarration();
+
+      // Voix : seul l'appareil du maître parle (table commune).
+      scheduleAuto(pacing);
+
+      const isDay = game.status === 'day';
+      if (isDay) {
+        document.getElementById('narr-title').textContent = game.reveal ? '🏁 Partie terminée' : '☀️ Débat & vote';
+        document.getElementById('narr-sub').textContent = game.reveal ? '' : 'Débattez, votez à l’oral, puis le maître marque les éliminés.';
+      }
+      // Panneau résolution (maître, en journée, tant que pas révélé)
+      const resolveCard = document.getElementById('resolve-card');
+      if (resolveCard) {
+        const show = isHost && isDay && !game.reveal;
+        resolveCard.style.display = show ? 'flex' : 'none';
+        if (show) renderDeathList();
+      }
+      // Révélation finale (tous)
+      renderReveal(game.reveal || null);
+    }, (err) => showToast(friendlyError(err), 'error'));
+
+    // ---- Carte privée du joueur ----
+    let cardRevealed = false, myRole = null;
+    onValue(ref(db, `loupSecret/${gameId}/private/${playerId}`), (snap) => {
+      const v = snap.val();
+      if (!v || !v.role) { document.getElementById('card-section').style.display = 'none'; return; }
+      myRole = v.role;
+      document.getElementById('card-section').style.display = 'block';
+      paintCard();
+    }, () => {}); // erreur silencieuse (narrateur seul n'a pas de carte)
+
+    function paintCard() {
+      const r = ROLE_BY_ID[myRole]; if (!r) return;
+      const el = document.getElementById('pcard');
+      if (!cardRevealed) {
+        el.className = 'pcard hidden-card';
+        el.innerHTML = `<div class="emoji">🂠</div><div class="rname">Ta carte</div><div class="rdesc">Touche pour la voir — garde-la secrète 🤫</div>`;
+      } else {
+        el.className = 'pcard';
+        const teamCls = r.team === 'loup' ? 'team-loup' : r.team === 'solo' ? 'team-solo' : 'team-village';
+        const teamLbl = r.team === 'loup' ? 'Loups' : r.team === 'solo' ? 'Solo' : 'Village';
+        el.innerHTML = `<div class="emoji">${r.emoji}</div><div class="rname">${r.name}</div>
+          <span class="team ${teamCls}">${teamLbl}</span>
+          <div class="rdesc">${r.desc}</div>`;
+      }
+    }
+    document.getElementById('pcard').onclick = () => { if (!myRole) return; cardRevealed = !cardRevealed; paintCard(); };
+
+    // ---- Console maître : disposition secrète (arbitre) ----
+    onValue(ref(db, `loupSecret/${gameId}/setup`), (snap) => {
+      const s = snap.val(); if (!s) return;   // (refusé si pas hôte → ignoré)
+      curSetup = s;
+      renderLayout();
+    }, () => {}); // non-hôte : lecture refusée → ignorée
+
+    function slotKey(sl) { return sl.type === 'player' ? 'p:' + sl.id : 'c:' + sl.idx; }
+    function roleAt(s, sl) { return sl.type === 'player' ? (s.assignments || {})[sl.id] : (s.center || [])[sl.idx]; }
+
+    function renderLayout() {
+      const s = curSetup; if (!s) return;
+      const list = document.getElementById('layout-list'); list.innerHTML = '';
+      for (const id of Object.keys(s.assignments || {})) {
+        const p = players[id] || {}; const r = ROLE_BY_ID[s.assignments[id]] || {};
+        const sel = selSlot && selSlot.type === 'player' && selSlot.id === id;
+        const row = document.createElement('div'); row.className = 'layout-row'; row.style.cursor = 'pointer';
+        if (sel) row.style.background = 'rgba(243,156,18,.14)';
+        row.innerHTML = `${avatarHTML(p.avatar, 30)}
+          <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name || 'Joueur'}</span>
+          <span class="role-chip">${r.emoji || ''} ${r.name || s.assignments[id]}</span>`;
+        row.onclick = () => pickSlot({ type: 'player', id });
+        list.appendChild(row);
+      }
+      const cc = document.getElementById('center-cards'); cc.innerHTML = '';
+      (s.center || []).forEach((rid, idx) => {
+        const r = ROLE_BY_ID[rid] || {};
+        const sel = selSlot && selSlot.type === 'center' && selSlot.idx === idx;
+        const d = document.createElement('div'); d.className = 'center-card'; d.style.cursor = 'pointer';
+        if (sel) d.style.outline = '2px solid var(--orange)';
+        d.innerHTML = `<div class="ce">${r.emoji || '🂠'}</div><div class="cn">${r.name || rid}</div>`;
+        d.onclick = () => pickSlot({ type: 'center', idx });
+        cc.appendChild(d);
+      });
+    }
+
+    // Sélectionne un emplacement ; au 2ᵉ, échange les rôles des deux (Voleur/Fauteur/Soûlard)
+    async function pickSlot(slot) {
+      if (!selSlot) { selSlot = slot; renderLayout(); return; }
+      if (slotKey(selSlot) === slotKey(slot)) { selSlot = null; renderLayout(); return; }
+      const a = selSlot, b = slot; selSlot = null;
+      const ra = roleAt(curSetup, a), rb = roleAt(curSetup, b);
+      const base = `loupSecret/${gameId}/setup`; const upd = {};
+      upd[a.type === 'player' ? `${base}/assignments/${a.id}` : `${base}/center/${a.idx}`] = rb;
+      upd[b.type === 'player' ? `${base}/assignments/${b.id}` : `${base}/center/${b.idx}`] = ra;
+      try { await withRetry(() => update(ref(db), upd)); showToast('Échange effectué ↔'); }
+      catch (e) { showToast(friendlyError(e), 'error'); }
+    }
+
+    // ---- Résolution : marquer les morts + calculer le camp gagnant ----
+    function renderDeathList() {
+      const el = document.getElementById('death-list'); if (!el) return;
+      const ids = curSetup ? Object.keys(curSetup.assignments || {}) : [];
+      el.innerHTML = '';
+      for (const id of ids) {
+        const p = players[id] || {}; const dead = deadSel.has(id);
+        const row = document.createElement('div'); row.className = 'layout-row'; row.style.cursor = 'pointer';
+        if (dead) row.style.background = 'rgba(192,57,43,.15)';
+        row.innerHTML = `<span style="flex:1;min-width:0">${p.name || 'Joueur'}</span><span>${dead ? '☠️ éliminé' : 'toucher pour éliminer'}</span>`;
+        row.onclick = () => { dead ? deadSel.delete(id) : deadSel.add(id); renderDeathList(); };
+        el.appendChild(row);
+      }
+    }
+
+    // Règles de victoire du Loup-Garou pour une nuit
+    function resolve(assignments, center, dead) {
+      const ids = Object.keys(assignments || {});
+      const roleOf = id => assignments[id];
+      const wwInPlay = ids.some(id => roleOf(id) === 'loup');
+      const wwDied = dead.some(id => roleOf(id) === 'loup');
+      const tannerDied = dead.some(id => roleOf(id) === 'tanneur');
+      const minionInPlay = ids.some(id => roleOf(id) === 'sbire');
+      const teams = new Set();
+      if (tannerDied) teams.add('tanneur');
+      if (wwInPlay) {
+        if (wwDied) teams.add('village');
+        else if (!tannerDied) teams.add('loups');
+      } else {
+        if (dead.length === 0) teams.add('village');
+        else if (!tannerDied && minionInPlay) teams.add('loups');
+      }
+      return [...teams];
+    }
+
+    function renderReveal(reveal) {
+      const sec = document.getElementById('reveal-section');
+      if (!reveal) { sec.style.display = 'none'; return; }
+      sec.style.display = 'block';
+      const teams = reveal.teams || [];
+      const label = t => ({ loups: 'les Loups 🐺', village: 'le Village 🧑‍🌾', tanneur: 'le Tanneur 💀' })[t] || t;
+      document.getElementById('reveal-winner').textContent =
+        teams.length ? `🏆 Victoire : ${teams.map(label).join(' + ')}` : '🤝 Personne ne gagne';
+      const list = document.getElementById('reveal-list'); list.innerHTML = '';
+      for (const id of Object.keys(reveal.assignments || {})) {
+        const p = players[id] || {}; const r = ROLE_BY_ID[reveal.assignments[id]] || {};
+        const dead = (reveal.dead || []).includes(id);
+        const row = document.createElement('div'); row.className = 'layout-row';
+        row.innerHTML = `<span style="flex:1;min-width:0">${p.name || 'Joueur'} ${dead ? '☠️' : ''}</span>
+          <span class="role-chip">${r.emoji || ''} ${r.name || ''}</span>`;
+        list.appendChild(row);
+      }
+      const cen = (reveal.center || []).map(rid => { const r = ROLE_BY_ID[rid] || {}; return `${r.emoji || ''}${r.name || rid}`; }).join(' · ');
+      const crow = document.createElement('div'); crow.className = 'layout-row';
+      crow.innerHTML = `<span style="flex:1" class="text-muted">Centre</span><span class="role-chip">${cen}</span>`;
+      list.appendChild(crow);
+    }
+
+    // ---- Contrôles maître ----
+    document.getElementById('btn-next').onclick = async () => {
+      if (curIdx >= order.length) {   // fin de la nuit → phase de jour (vote)
+        try { await withRetry(() => update(ref(db, `loupGames/${gameId}`), { status: 'day' })); }
+        catch (e) { showToast(friendlyError(e), 'error'); }
+      } else { goTo(curIdx + 1); }
+    };
+    document.getElementById('btn-prev').onclick = () => goTo(curIdx - 1);
+    document.getElementById('btn-reveal').onclick = async () => {
+      if (!curSetup) return;
+      const dead = [...deadSel];
+      const teams = resolve(curSetup.assignments || {}, curSetup.center || [], dead);
+      const reveal = { assignments: curSetup.assignments || {}, center: curSetup.center || [], dead, teams, at: Date.now() };
+      try { await withRetry(() => update(ref(db, `loupGames/${gameId}`), { reveal, status: 'day' })); }
+      catch (e) { showToast(friendlyError(e), 'error'); }
+    };
+    document.getElementById('btn-audio').onclick = () => {
+      audioOn = !audioOn;
+      document.getElementById('btn-audio').textContent = audioOn ? '🔊' : '🔇';
+      if (!audioOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+    };
+    document.getElementById('btn-back').onclick = async () => {
+      if (!isHost) return;
+      deadSel.clear();
+      try {
+        await withRetry(() => remove(ref(db, `loupSecret/${gameId}`)));
+        await withRetry(() => update(ref(db, `loupGames/${gameId}`), { status: 'waiting', narration: null, reveal: null }));
+      } catch (e) { showToast(friendlyError(e), 'error'); }
+    };
+  </script>
+
+</body></html>
