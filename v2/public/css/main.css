@@ -51,6 +51,7 @@ html {
   -webkit-text-size-adjust: 100%;
   background: var(--bg);          /* évite un fond différent lors du rebond iOS */
   overscroll-behavior: none;      /* coupe le rubber-band au niveau du document */
+  scrollbar-gutter: stable;       /* réserve la place de la scrollbar → pas de décalage entre pages */
 }
 body {
   font-family: var(--font-body);

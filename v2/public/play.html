@@ -259,8 +259,12 @@
       if ((current && current.name === name) || _mountingName === name) return;
       _mountingName = name;
       try {
-        if (current) { try { current.ctrl.unmount?.(); } catch (e) {} root.innerHTML = ''; current = null; }
+        // Importer le module AVANT de démonter l'actuel → pas d'instant « vide »
+        // qui ferait sauter la mise en page.
         const mod = await import(PHASE_SRC[name]);
+        if (current) { try { current.ctrl.unmount?.(); } catch (e) {} }
+        root.innerHTML = '';
+        current = null;
         const ctrl = mod.mount(root, api);
         current = { name, ctrl };
         document.getElementById('spa-loading').style.display = 'none';
