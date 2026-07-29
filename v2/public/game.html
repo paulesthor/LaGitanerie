@@ -191,6 +191,11 @@
       cursor: pointer;
       text-align: center;
       transition: all var(--transition);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
     .target-btn:active { border-color: var(--red); }
 
@@ -266,7 +271,7 @@
         <div class="avatar-wrap" id="turn-avatar">🃏</div>
         <div class="flex-col gap-8" style="flex:1">
           <span id="turn-name" class="font-bold">...</span>
-          <span class="text-sm" style="opacity:.8">C'est son tour</span>
+          <span id="turn-sub" class="text-sm" style="opacity:.8">C'est son tour</span>
         </div>
       </div>
 
@@ -477,6 +482,8 @@
       document.getElementById('turn-avatar').innerHTML = avatarHTML(currentP.avatar, 44);
       const isMyTurn_ = game.currentTurn === playerId;
       document.getElementById('turn-name').textContent = isMyTurn_ ? 'Ton tour !' : currentP.name;
+      // « C'est son tour » n'a de sens que pour les autres joueurs
+      document.getElementById('turn-sub').style.display = isMyTurn_ ? 'none' : '';
       banner.style.background = isMyTurn_ ? 'var(--red)' : 'var(--bg-surface)';
       banner.classList.toggle('mine', isMyTurn_);
     }
