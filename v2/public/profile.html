@@ -472,59 +472,64 @@
       };
     }
 
+    // Peint TOUT le profil (entête, XP, titres, badges, cadres, stats) à partir d'un
+    // objet de données — utilisé en optimiste (cache) ET après la lecture Firestore.
+    // → l'affichage arrive d'un bloc, plus en deux temps.
+    function paintProfile(data) {
+      document.getElementById('guest-banner').classList.add('hidden');
+      document.getElementById('logout-section').classList.remove('hidden');
+      document.getElementById('xp-section').classList.remove('hidden');
+      document.getElementById('level-badge').classList.remove('hidden');
+
+      const name   = data.displayName || 'Joueur';
+      const avatar = data.avatar || '🃏';
+      const xp     = data.xp || 0;
+      const level  = Math.floor(xp / 100);
+
+      document.getElementById('profile-name').textContent = name;
+      document.getElementById('edit-name').value          = name;
+      document.getElementById('level-num').textContent    = level;
+      document.getElementById('xp-val').textContent       = xp;
+      document.getElementById('xp-progress').textContent   = `${xp % 100}/100`;
+      document.getElementById('xp-next-level').textContent = level + 2;
+      document.getElementById('xp-fill').style.width      = (xp % 100) + '%';
+      setAvatar(avatar);
+      try { localStorage.setItem('lastProfileAvatar', avatar); } catch (e) {}
+
+      selectedTitle = data.activeTitle || null;
+      renderTitles(data.titles || [], selectedTitle);
+      updateProfileTitle();
+
+      const activeBadge  = data.activeBadge  || null;
+      const activeBorder = data.activeBorder || null;
+      selectedBadge  = activeBadge;
+      selectedBorder = activeBorder;
+      renderBadges(data.badges || [], activeBadge);
+      renderBorders(level, activeBorder);
+      applyProfileBorder(activeBorder);
+
+      renderStats([
+        ['Parties jouées',    data.totalGames      || 0],
+        ['Gorgées bues',      data.totalSipsDrunk  || 0],
+        ['Gorgées données',   data.totalSipsGiven  || 0],
+        ['Bluffs réussis',    data.bluffSuccess    || 0],
+        ['Titres débloqués',  (data.titles || []).length],
+        ['XP total',          xp],
+        ['Niveau',            level],
+      ]);
+    }
+
     async function loadProfile(user) {
       currentUser = user;
       setupDevTools(user);
 
       if (user && !user.isAnonymous) {
-        document.getElementById('guest-banner').classList.add('hidden');
-        document.getElementById('logout-section').classList.remove('hidden');
-        document.getElementById('xp-section').classList.remove('hidden');
-        document.getElementById('level-badge').classList.remove('hidden');
-
         const firestore = await getFirestore();
         const snap = await getDoc(doc(firestore, 'users', user.uid));
         const data = snap.exists() ? snap.data() : {};
-        const name   = data.displayName || user.displayName || 'Joueur';
-        const avatar = data.avatar || '🃏';
-        const xp     = data.xp || 0;
-        const level  = Math.floor(xp / 100);
-
-        document.getElementById('profile-name').textContent = name;
-        document.getElementById('edit-name').value          = name;
-        document.getElementById('level-num').textContent    = level;
-        document.getElementById('xp-val').textContent       = xp;
-        document.getElementById('xp-progress').textContent   = `${xp % 100}/100`;
-        document.getElementById('xp-next-level').textContent = level + 2;
-        document.getElementById('xp-fill').style.width      = (xp % 100) + '%';
-        setAvatar(avatar);
-        try { localStorage.setItem('lastProfileAvatar', avatar); } catch (e) {}
-
-        // Titres
-        selectedTitle = data.activeTitle || null;
-        renderTitles(data.titles || [], selectedTitle);
-        updateProfileTitle();
-        unlockPseudoTitles(name);   // titres cachés selon le pseudo (rétroactif)
-
-        // Badges et cadres
-        const badges      = data.badges       || [];
-        const activeBadge  = data.activeBadge  || null;
-        const activeBorder = data.activeBorder || null;
-        selectedBadge  = activeBadge;
-        selectedBorder = activeBorder;
-        renderBadges(badges, activeBadge);
-        renderBorders(level, activeBorder);
-        applyProfileBorder(activeBorder);
-
-        renderStats([
-          ['Parties jouées',    data.totalGames      || 0],
-          ['Gorgées bues',      data.totalSipsDrunk  || 0],
-          ['Gorgées données',   data.totalSipsGiven  || 0],
-          ['Bluffs réussis',    data.bluffSuccess    || 0],
-          ['Titres débloqués',  (data.titles || []).length],
-          ['XP total',          xp],
-          ['Niveau',            level],
-        ]);
+        paintProfile(data);
+        try { localStorage.setItem('profileFullCache', JSON.stringify(data)); } catch (e) {}
+        unlockPseudoTitles(data.displayName || user.displayName || 'Joueur');
       } else {
         document.getElementById('guest-banner').classList.remove('hidden');
         const name   = getGuestName();
@@ -540,8 +545,13 @@
     // Retour arrière (bfcache) : recharger le profil pour ne pas rester sur une ancienne photo figée
     window.addEventListener('pageshow', (e) => { if (e.persisted) loadProfile(auth.currentUser); });
 
-    // Affichage optimiste : peindre la dernière photo connue immédiatement (évite le flash de la carte 🃏)
-    try { const _lastAv = localStorage.getItem('lastProfileAvatar'); if (_lastAv) setAvatar(_lastAv); } catch (e) {}
+    // Affichage optimiste : peindre TOUT le profil depuis le cache immédiatement
+    // → plus d'affichage en deux temps ; Firestore réconcilie juste après.
+    try {
+      const _c = JSON.parse(localStorage.getItem('profileFullCache'));
+      if (_c) paintProfile(_c);
+      else { const _lastAv = localStorage.getItem('lastProfileAvatar'); if (_lastAv) setAvatar(_lastAv); }
+    } catch (e) {}
 
     function renderStats(rows) {
       const container = document.getElementById('stats-rows');
@@ -604,7 +614,7 @@
 
     // Déconnexion
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
-      try { localStorage.removeItem('profileCache'); localStorage.removeItem('lastProfileAvatar'); } catch (e) {}
+      try { localStorage.removeItem('profileCache'); localStorage.removeItem('lastProfileAvatar'); localStorage.removeItem('profileFullCache'); } catch (e) {}
       await signOut(auth);
       window.location.href = '/';
     });
