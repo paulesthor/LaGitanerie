@@ -59,6 +59,16 @@
         <div class="input-group">
           <label>Nom de joueur</label>
           <input type="text" id="input-name" class="input" placeholder="Ton pseudo" maxlength="15" autocomplete="off">
+          <script>
+            (function(){try{
+              var pc={};try{pc=JSON.parse(localStorage.getItem('profileCache'))||{};}catch(e){}
+              var ni=document.getElementById('input-name');
+              var nm=pc.displayName||localStorage.getItem('guestName')||'';
+              if(ni&&nm&&!ni.value)ni.value=nm;
+              var av=localStorage.getItem('lastProfileAvatar')||localStorage.getItem('guestAvatar')||'';
+              if(av&&av.indexOf('data:')===0){var d=document.getElementById('avatar-display');if(d)d.innerHTML='<img src="'+av+'">';}
+            }catch(e){}})();
+          </script>
         </div>
       </div>
 
@@ -143,7 +153,7 @@
     });
 
     const nameInput = document.getElementById('input-name');
-    nameInput.value = getGuestName();
+    if (!nameInput.value) nameInput.value = getGuestName();
 
     onAuthStateChanged(auth, async (user) => {
       if (user && !user.isAnonymous) {
