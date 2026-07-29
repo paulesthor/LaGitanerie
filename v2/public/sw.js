@@ -1,4 +1,4 @@
-const CACHE = 'gitanerie-v47';
+const CACHE = 'gitanerie-v48';
 
 // Assets à pré-cacher à l'installation
 const PRECACHE = [
@@ -9,6 +9,7 @@ const PRECACHE = [
   '/loupwait.html',
   '/loupnight.html',
   '/join.html',
+  '/play.html',
   '/game.html',
   '/game2.html',
   '/memorize.html',
