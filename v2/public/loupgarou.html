@@ -104,7 +104,12 @@
       catch (e) { console.warn('[auth]', e); return null; }
     })();
 
-    let selectedAvatar = getGuestAvatar() || '';
+    // Paint optimiste : privilégier le vrai avatar du compte (frais, effacé à la
+    // déconnexion) plutôt que l'avatar invité qui peut être périmé → évite le flash
+    // de l'ancienne photo avant le retour de Firestore.
+    let selectedAvatar = '';
+    try { selectedAvatar = localStorage.getItem('lastProfileAvatar') || ''; } catch (e) {}
+    if (!selectedAvatar) selectedAvatar = getGuestAvatar() || '';
 
     function showAvatarPreview(avatar) {
       const d = document.getElementById('avatar-display');
@@ -148,7 +153,13 @@
           if (snap.exists()) {
             const data = snap.data();
             nameInput.value = data.displayName || user.displayName || '';
-            if (data.avatar) { selectedAvatar = data.avatar; showAvatarPreview(data.avatar); }
+            if (data.avatar) {
+              selectedAvatar = data.avatar;
+              showAvatarPreview(data.avatar);
+              // Rafraîchir les caches pour un affichage instantané la prochaine fois
+              try { localStorage.setItem('lastProfileAvatar', data.avatar); } catch (e) {}
+              setGuestAvatar(data.avatar);
+            }
           }
         } catch (e) { console.warn('[profil]', e); }
       }
