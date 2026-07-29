@@ -259,14 +259,27 @@
         const isTopDrinker = bigDrinker && bigDrinker.id === playerId;
         const isTopGiver   = bigGiver   && bigGiver.id   === playerId;
         const isLuckiest   = luckiest   && luckiest.id   === playerId;
+        const culSec       = !!me?.culSecDrunk;
+        const topMenteur   = [...players].sort((a, b) => (b.menteurCaught || 0) - (a.menteurCaught || 0))[0];
+        const isTopMenteur = topMenteur && topMenteur.id === playerId && (topMenteur.menteurCaught || 0) > 0;
+
+        // Compteurs cumulés / séries (persistés pour les titres débiles)
+        const newTotalCulSec     = (userData.totalCulSec || 0) + (culSec ? 1 : 0);
+        const newTopDrinkerStreak = isTopDrinker ? ((userData.topDrinkerStreak || 0) + 1) : 0;
+        const newSoberStreak      = (sipsThisGame === 0) ? ((userData.soberStreak || 0) + 1) : 0;
 
         const ctx = {
           totalGames: newTotalGames, totalSipsDrunk: newTotalDrunk, totalSipsGiven: newTotalGiven,
           bluffSuccess: newBluff, level: newLevel,
           sipsThisGame, givenThisGame, bluffThisGame,
-          culSec: !!me?.culSecDrunk, memoryPerfect: !!me?.memoryPerfect,
+          culSec, memoryPerfect: !!me?.memoryPerfect,
           isTopDrinker, isTopGiver, isSober: sipsThisGame === 0, isLuckiest,
           numPlayers: players.length,
+          totalCulSec: newTotalCulSec, topDrinkerStreak: newTopDrinkerStreak, soberStreak: newSoberStreak,
+          maxBluffFailStreak: me?.maxBluffFailStreak || 0,
+          maxBluffSuccessStreak: me?.maxBluffSuccessStreak || 0,
+          menteurCaught: me?.menteurCaught || 0, isTopMenteur,
+          memoryFail: !!me?.memoryFail,
         };
 
         const { newBadges, newTitles, bonusXp } = evaluateGameRewards({ badges: prevBadges, titles: prevTitles }, ctx);
@@ -334,6 +347,9 @@
           totalSipsDrunk: increment(sipsThisGame),
           totalSipsGiven: increment(givenThisGame),
           bluffSuccess:   increment(bluffThisGame),
+          totalCulSec:      newTotalCulSec,
+          topDrinkerStreak: newTopDrinkerStreak,
+          soberStreak:      newSoberStreak,
         };
         if (newBadges.length > 0) updateData.badges = [...new Set([...prevBadges, ...newBadges])];
         if (newTitles.length > 0) {

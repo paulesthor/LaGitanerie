@@ -1042,10 +1042,21 @@
         updates[`players/${me.accusedBy}/sipsToDrink`] = (game.players[me.accusedBy]?.sipsToDrink || 0) + penalty;
         // Tracker bluff réussi pour badge "Le Menteur"
         updates[`players/${playerId}/bluffSuccess`] = (me.bluffSuccess || 0) + 1;
+        // Suivi titres : série d'"accusé mais honnête" (max sur la partie)
+        const _s = (me.bluffSuccessStreak || 0) + 1;
+        updates[`players/${playerId}/bluffSuccessStreak`] = _s;
+        updates[`players/${playerId}/maxBluffSuccessStreak`] = Math.max(me.maxBluffSuccessStreak || 0, _s);
+        updates[`players/${playerId}/bluffFailStreak`] = 0;
         showToast(`Prouvé ! ${accuserName} boit ${penalty}`, 'success');
       } else {
         vibrate([200, 100, 200]);
         updates[`players/${playerId}/sipsToDrink`] = (me.sipsToDrink || 0) + penalty;
+        // Suivi titres : série de "pris à mentir" + compteur d'accusations perdues
+        const _f = (me.bluffFailStreak || 0) + 1;
+        updates[`players/${playerId}/bluffFailStreak`] = _f;
+        updates[`players/${playerId}/maxBluffFailStreak`] = Math.max(me.maxBluffFailStreak || 0, _f);
+        updates[`players/${playerId}/bluffSuccessStreak`] = 0;
+        updates[`players/${playerId}/menteurCaught`] = (me.menteurCaught || 0) + 1;
         showToast(`Pris ! Tu bois ${penalty}`, 'error');
       }
       const now = Date.now();
@@ -1244,9 +1255,13 @@
 
       _renderMemHand();
       const allDone = _mRes.every(r => r !== null);
-      // Tracker mémoire parfaite pour le badge
-      if (allDone && _mRes.every(r => r === 'ok')) {
-        update(ref(db, `games/${gameId}/players/${playerId}`), { memoryPerfect: true }).catch(() => {});
+      // Tracker mémoire pour badges/titres (parfaite = 4/4, boulet = 0/4)
+      if (allDone) {
+        const okCount = _mRes.filter(r => r === 'ok').length;
+        const upd = {};
+        if (okCount === _mRes.length) upd.memoryPerfect = true;
+        if (okCount === 0)            upd.memoryFail = true;
+        if (Object.keys(upd).length) update(ref(db, `games/${gameId}/players/${playerId}`), upd).catch(() => {});
       }
       document.getElementById('mem-done-wrap').classList.toggle('hidden', !allDone);
     }

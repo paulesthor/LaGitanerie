@@ -82,6 +82,19 @@ export const TITLES = {
   // Paliers gorgées
   descente: { id: 'descente', name: 'Grosse descente',      desc: '10 gorgées bues en une partie',  check: c => c.sipsThisGame >= 10 },
   machine:  { id: 'machine',  name: 'Machine à boire',      desc: '200 gorgées bues au total',      check: c => c.totalSipsDrunk >= 200 },
+  // ── Titres débiles ──
+  clebard:    { id: 'clebard',    name: 'Le clébard',            desc: 'Cul sec ET finir dernier de la table',      check: c => c.culSec && c.isTopDrinker },
+  trou_noir:  { id: 'trou_noir',  name: 'Le trou noir',          desc: '15 gorgées bues en une seule partie',       check: c => c.sipsThisGame >= 15 },
+  pls:        { id: 'pls',        name: 'Le PLS',                desc: '25 gorgées bues en une partie (à quatre pattes)', check: c => c.sipsThisGame >= 25 },
+  bras_casse: { id: 'bras_casse', name: 'Bras cassé',            desc: 'Boire sans distribuer une seule gorgée',    check: c => c.sipsThisGame > 0 && c.givenThisGame === 0 },
+  emmerdeur:  { id: 'emmerdeur',  name: "L'emmerdeur",           desc: 'Distribuer 15 gorgées en une partie',       check: c => c.givenThisGame >= 15 },
+  pochtron:   { id: 'pochtron',   name: 'Le pochtron',           desc: '5 culs secs cumulés',                       check: c => (c.totalCulSec || 0) >= 5 },
+  victime:    { id: 'victime',    name: 'La victime',            desc: 'Plus gros buveur 2 parties de suite',       check: c => (c.topDrinkerStreak || 0) >= 2 },
+  chameau:    { id: 'chameau',    name: 'Sobre comme un chameau', desc: '3 parties de suite sans boire une gorgée', check: c => (c.soberStreak || 0) >= 3 },
+  idiot_village:  { id: 'idiot_village',  name: "L'idiot du village", desc: 'Se faire prendre à mentir 3 fois de suite', check: c => (c.maxBluffFailStreak || 0) >= 3 },
+  mytho:          { id: 'mytho',          name: 'Le mytho',           desc: 'Accusé à tort 3 fois de suite dans une partie', check: c => (c.maxBluffSuccessStreak || 0) >= 3 },
+  tete_a_claques: { id: 'tete_a_claques', name: 'Tête à claques',     desc: 'Le plus accusé de menteur de la partie', check: c => c.isTopMenteur && (c.menteurCaught || 0) >= 2 },
+  boulet:         { id: 'boulet',         name: 'Le boulet',          desc: 'Rater ses 4 cartes en phase mémoire (0/4)', check: c => !!c.memoryFail },
   // ── Titres cachés (easter-eggs) — débloqués par le pseudo, invisibles tant que non obtenus ──
   oss117:   { id: 'oss117',   name: 'OSS 117',              desc: '« Hubert, tu permets ? »',       hidden: true, pseudo: ['hubert', 'oss 117', 'oss117', 'bonisseur', 'bonnisseur', 'la bath'] },
 };
