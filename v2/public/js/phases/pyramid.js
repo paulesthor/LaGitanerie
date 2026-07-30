@@ -110,6 +110,7 @@ const VIEW = `
   </div>
 
   <div id="sips-banner" class="sips-banner">
+    <div class="sips-icon" id="sips-banner-icon"><i class="fas fa-beer-mug-empty"></i></div>
     <div class="sips-text" id="sips-banner-text">...</div>
     <div class="sips-amount" id="sips-banner-amount">0</div>
   </div>
@@ -710,33 +711,38 @@ export function mount(root, api) {
     const banner = $('sips-banner');
     const text   = $('sips-banner-text');
     const amount = $('sips-banner-amount');
+    const iconEl = $('sips-banner-icon');
+    let accent = 'spectate', icon = 'fa-arrow-right-arrow-left', msg = '', amt = '', amtRed = false;
+
     if (event.type === 'sips_given') {
       const isCulSec = event.isCulSec;
-      const sips     = event.amount;
       const isMeFrom = event.fromId === playerId;
       const isMeTo   = event.toId   === playerId;
-      if (isMeFrom)    text.textContent = `Tu donnes à ${event.toName}`;
-      else if (isMeTo) text.textContent = `${event.fromName} te donne`;
-      else             text.textContent = `${event.fromName} donne à ${event.toName}`;
-      amount.textContent = isCulSec ? 'CUL SEC' : `${sips} gorgée${sips > 1 ? 's' : ''}`;
-      amount.style.color = isCulSec ? 'var(--red)' : 'var(--gold)';
-      amount.style.background = isCulSec ? 'rgba(231,76,60,.15)' : 'rgba(243,156,18,.15)';
+      amt = isCulSec ? 'CUL SEC' : `${event.amount} gorgée${event.amount > 1 ? 's' : ''}`;
+      if (isCulSec) amtRed = true;
+      if (isMeFrom)      { accent = 'me-give';  icon = 'fa-hand-holding-droplet'; msg = `Tu donnes à <strong>${event.toName}</strong>`; }
+      else if (isMeTo)   { accent = 'me-drink'; icon = 'fa-beer-mug-empty';       msg = `<strong>${event.fromName}</strong> te donne`; amtRed = true; }
+      else               { accent = 'spectate'; icon = 'fa-arrow-right-arrow-left'; msg = `<strong>${event.fromName}</strong> → <strong>${event.toName}</strong>`; }
     } else if (event.type === 'menteur_resolved') {
       const isMeAccused = event.accusedId === playerId;
       const isMeAccuser = event.accuserId === playerId;
+      amt = `${event.penalty} gorgée${event.penalty > 1 ? 's' : ''}`;
+      amtRed = true;
       if (event.correct) {
-        if (isMeAccuser)      text.textContent = `${event.accusedName} avait la carte... tu bois`;
-        else if (isMeAccused) text.textContent = `Tu as prouvé ! ${event.accuserName} boit`;
-        else                  text.textContent = `${event.accusedName} avait la carte — ${event.accuserName} boit`;
+        if (isMeAccuser)      { accent = 'me-drink'; icon = 'fa-beer-mug-empty'; msg = `<strong>${event.accusedName}</strong> avait la carte… tu bois`; }
+        else if (isMeAccused) { accent = 'win';      icon = 'fa-shield-halved';  msg = `Tu as prouvé ! <strong>${event.accuserName}</strong> boit`; }
+        else                  { accent = 'spectate'; icon = 'fa-shield-halved';  msg = `<strong>${event.accusedName}</strong> avait la carte — <strong>${event.accuserName}</strong> boit`; }
       } else {
-        if (isMeAccused)      text.textContent = `Tu as menti... tu bois`;
-        else                  text.textContent = `${event.accusedName} mentait !`;
+        if (isMeAccused)      { accent = 'me-drink'; icon = 'fa-face-frown-open'; msg = `Tu as menti… tu bois`; }
+        else                  { accent = 'spectate'; icon = 'fa-face-frown-open'; msg = `<strong>${event.accusedName}</strong> mentait !`; }
       }
-      amount.textContent = `${event.penalty} gorgée${event.penalty > 1 ? 's' : ''}`;
-      amount.style.color = 'var(--red)';
-      amount.style.background = 'rgba(231,76,60,.15)';
-    }
-    banner.classList.add('show');
+    } else { return; }
+
+    iconEl.innerHTML = `<i class="fas ${icon}"></i>`;
+    text.innerHTML = msg;
+    amount.textContent = amt;
+    amount.classList.toggle('red', amtRed);
+    banner.className = `sips-banner ${accent} show`;
     clearTimeout(sipsBannerTimer);
     sipsBannerTimer = setTimeout(() => banner.classList.remove('show'), 4000);
   }

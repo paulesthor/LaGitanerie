@@ -127,7 +127,7 @@ export function mount(root, api) {
     finally { _flipping = false; }
   }
 
-  // Avatar d'un joueur aléatoire à afficher au centre d'une carte (option règles)
+  // Avatar d'un joueur aléatoire au centre de la carte de la pyramide (option règles)
   function photoMarkup(pid) {
     const av = game.players?.[pid]?.avatar || '🃏';
     if (isPhotoAvatar(av)) return `<span class="oc-photo"><img src="${av}" alt=""></span>`;
@@ -196,7 +196,6 @@ export function mount(root, api) {
     cards.forEach((card, i) => {
       const sym   = SUIT_SYMBOL[card.suit] || '';
       const isRed = ['hearts', 'diamonds'].includes(card.suit);
-      const photo = game.rules?.photoCards && card.photoOwner ? photoMarkup(card.photoOwner) : '';
       const wrap = document.createElement('div');
       wrap.className = 'oral-card';
       wrap.dataset.idx = i;
@@ -205,7 +204,7 @@ export function mount(root, api) {
           <div class="oc-back"></div>
           <div class="oc-face ${isRed ? 'red' : 'black'}">
             <span class="occ-idx tl"><span class="r">${card.value}</span><span class="s">${sym}</span></span>
-            ${photo || `<span class="occ-pip">${sym}</span>`}
+            <span class="occ-pip">${sym}</span>
             <span class="occ-idx br"><span class="r">${card.value}</span><span class="s">${sym}</span></span>
           </div>
         </div>`;
