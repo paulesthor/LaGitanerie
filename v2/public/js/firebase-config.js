@@ -28,6 +28,22 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 /* ---------------------------------------------------------------------------
+ *  Mise à jour transparente du Service Worker
+ *  Dès qu'une nouvelle version prend le contrôle (nouveau déploiement), on
+ *  recharge une seule fois la page → les mises à jour (CSS/JS) s'appliquent
+ *  immédiatement, sans "train de retard" ni double rechargement manuel.
+ * ------------------------------------------------------------------------- */
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator
+    && navigator.serviceWorker.controller) {   // déjà contrôlé → un changement = vraie mise à jour (pas la 1re visite)
+  let _swReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_swReloaded) return;
+    _swReloaded = true;
+    window.location.reload();
+  });
+}
+
+/* ---------------------------------------------------------------------------
  *  AUTH
  *  Persistance locale forte : un joueur déjà connecté le reste même hors-ligne
  *  et n'a PAS besoin du réseau pour ré-authentifier au retour dans le jeu.
