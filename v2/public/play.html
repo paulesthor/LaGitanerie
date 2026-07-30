@@ -211,6 +211,47 @@
     .stat-highlight-icon { font-size:1.8rem; flex-shrink:0; }
     .xp-section { text-align:center; padding:18px; background:rgba(243,156,18,.1); border-radius:var(--radius); border:1px solid rgba(243,156,18,.25); animation:scale-in .4s cubic-bezier(.34,1.4,.64,1) 1.4s both; }
 
+    /* ══ Mode Soirée (oral) — plein écran, paysage & portrait ══ */
+    .oral-screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:min(4vh,26px); padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 12px); background:radial-gradient(120% 90% at 50% 0%, #223141 0%, var(--bg) 70%); }
+    .oral-leave { position:absolute; top:calc(env(safe-area-inset-top) + 8px); left:12px; z-index:5; width:42px; height:42px; border-radius:50%; background:var(--bg-surface); border:1px solid var(--border); color:var(--text); font-size:1rem; cursor:pointer; }
+    .oral-code { position:absolute; top:calc(env(safe-area-inset-top) + 16px); right:16px; font-size:.8rem; color:var(--text-muted); }
+    .oral-stage { display:flex; flex-direction:column; align-items:center; gap:14px; width:100%; max-width:420px; }
+    .oral-timerbar { width:min(74vw,240px); height:6px; background:var(--bg-surface); border-radius:3px; overflow:hidden; }
+    .oral-timerbar-fill { height:100%; width:100%; background:var(--orange); border-radius:3px; transition:width .2s linear; }
+    .oral-py-slot { display:flex; align-items:center; justify-content:center; }
+    .oral-py-card { width:min(34vw,150px); aspect-ratio:5/7; background:#fff; border-radius:14px; border:1px solid #e0e0e0; box-shadow:0 12px 34px rgba(0,0,0,.45); display:flex; flex-direction:column; justify-content:space-between; padding:10px 12px; font-weight:700; animation:oral-flip .5s ease both; }
+    .oral-py-card.red { color:#e74c3c; } .oral-py-card.black { color:#1a1a2e; }
+    .oral-py-card.culsec { box-shadow:0 0 0 3px var(--red), 0 12px 34px rgba(231,76,60,.5); }
+    .opc-corner { font-size:clamp(1rem,4.5vw,1.6rem); line-height:1; }
+    .opc-corner.bot { align-self:flex-end; transform:rotate(180deg); }
+    .opc-center { font-size:clamp(2.2rem,11vw,4rem); text-align:center; }
+    @keyframes oral-flip { from { transform:perspective(700px) rotateY(85deg); opacity:0; } to { transform:perspective(700px) rotateY(0); opacity:1; } }
+    .oral-sips { font-size:1.5rem; font-weight:800; color:var(--gold); text-align:center; min-height:1.6em; }
+    .oral-sips.culsec { color:var(--red); }
+    .oral-sips.done { color:var(--text-muted); font-size:1.1rem; }
+    .oral-end { font-size:2rem; text-align:center; color:var(--gold); font-weight:800; line-height:1.3; }
+    .oral-hand-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .oral-hint { font-size:.72rem; color:var(--text-muted); text-align:center; }
+    .oral-hand { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+    .oral-card { width:min(20vw,74px); aspect-ratio:5/7; cursor:pointer; -webkit-tap-highlight-color:transparent; transition:transform .12s; }
+    .oral-card:active { transform:scale(.94); }
+    .oral-card-back { width:100%; height:100%; border-radius:10px; background-color:var(--card-back-color); background-image:var(--card-back-img); border:1px solid var(--card-back-border); box-shadow:var(--card-back-shadow); }
+    .oral-card-face { width:100%; height:100%; border-radius:10px; background:#fff; border:1px solid #e0e0e0; display:flex; flex-direction:column; justify-content:space-between; padding:5px 6px; font-weight:700; animation:oral-flip .3s ease both; }
+    .oral-card-face.red { color:#e74c3c; } .oral-card-face.black { color:#1a1a2e; }
+    .occ-corner { font-size:.8rem; line-height:1; } .occ-corner.bot { align-self:flex-end; transform:rotate(180deg); }
+    .occ-center { font-size:1.5rem; text-align:center; }
+    .oral-reveal { position:fixed; top:calc(env(safe-area-inset-top) + 56px); left:50%; transform:translateX(-50%) translateY(-160%); background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; display:flex; align-items:center; gap:12px; z-index:400; box-shadow:0 8px 24px rgba(0,0,0,.4); transition:transform .35s cubic-bezier(.34,1.56,.64,1); }
+    .oral-reveal.show { transform:translateX(-50%) translateY(0); }
+    /* Paysage : les 4 cartes en une seule ligne, à droite de la pyramide */
+    @media (orientation:landscape) and (max-height:560px) {
+      .oral-screen { flex-direction:row; justify-content:center; gap:5vw; }
+      .oral-stage { width:auto; }
+      .oral-py-card { width:24vh; }
+      .oral-hand { grid-template-columns:repeat(4,1fr); }
+      .oral-card { width:12vh; }
+      .oral-sips { font-size:1.2rem; }
+    }
+
     /* ── Bascule ── */
     .spa-loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); color:var(--text-muted); font-size:.9rem; gap:10px; z-index:10; }
   </style>
@@ -245,11 +286,14 @@
       distribution: '/js/phases/distribution.js',
       memorize:     '/js/phases/memorize.js',
       pyramid:      '/js/phases/pyramid.js',
+      pyramidOral:  '/js/phases/pyramidOral.js',
       end:          '/js/phases/end.js',
     };
     function mapName(game) {
       const p = game.phase || 'waiting';
-      if (p === 'memoryReveal') return 'pyramid';
+      const oral = game.mode === 'oral';
+      if (p === 'memoryReveal') return oral ? 'pyramidOral' : 'pyramid';
+      if (p === 'pyramid')      return oral ? 'pyramidOral' : 'pyramid';
       return PHASE_SRC[p] ? p : 'waiting';
     }
 

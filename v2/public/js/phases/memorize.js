@@ -1,6 +1,6 @@
 // ── Phase « memorize » (portée depuis memorize.html) ──────────────────
 import { db } from '/js/firebase-config.js';
-import { ref, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { ref, update, get, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { showToast, SUIT_SYMBOL } from '/js/game/utils.js';
 import { avatarHTML } from '/js/game/avatar.js';
 
@@ -121,9 +121,38 @@ export function mount(root, api) {
     if (allReady && isHost) launchPyramid();
   }
 
+  let _launching = false;
   async function launchPyramid() {
+    if (_launching) return;
+    _launching = true;
     clearInterval(timerInterval);
-    await update(gameRef, { phase: 'pyramid' });
+    if (game.mode !== 'oral') {
+      await update(gameRef, { phase: 'pyramid' });
+      return;
+    }
+    // Mode Soirée : on pré-remplit toute la pyramide (valeurs cachées côté
+    // affichage) et on démarre l'horloge d'auto-retournement. Aucun « pilote »
+    // ensuite : chaque téléphone calcule la carte courante depuis l'heure serveur.
+    const snap  = (await get(gameRef)).val() || {};
+    const order = snap.pyramidOrder || [];
+    const deck  = snap.deck || [];
+    const intervalSec = snap.rules?.oralInterval || 12;
+    const updates = {
+      phase: 'pyramid',
+      oralStartTs: serverTimestamp(),
+      oralInterval: intervalSec * 1000,
+      oralExtraMs: 0,
+      oralReveal: null,
+    };
+    order.forEach((pos, i) => {
+      const c = deck[i];
+      if (c) {
+        updates[`pyramid/${pos.row}/${pos.col}/value`] = c.value;
+        updates[`pyramid/${pos.row}/${pos.col}/suit`]  = c.suit;
+      }
+    });
+    updates.deck = deck.slice(order.length);
+    await update(gameRef, updates);
   }
 
   const btnReady = $('btn-ready');

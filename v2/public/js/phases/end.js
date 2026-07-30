@@ -55,9 +55,30 @@ const END_VIEW = `
     </div>
   </div>`;
 
+const END_VIEW_ORAL = `
+  <div class="screen">
+    <header class="app-header">
+      <div style="width:36px"></div>
+      <div class="header-brand"><i class="fas fa-guitar" style="color:var(--red);margin-right:6px;font-size:.9rem"></i>La <span class="brand-accent">Gitanerie</span></div>
+      <div style="width:36px"></div>
+    </header>
+    <div class="page-content" style="justify-content:center">
+      <div class="card flex-col gap-14 text-center">
+        <div style="font-size:3rem">🎉</div>
+        <h2>Partie terminée !</h2>
+        <p class="text-sm text-muted">Mode Soirée — santé à tous 🍻</p>
+        <div id="oral-end-players" class="flex-col gap-8" style="margin-top:6px"></div>
+        <div id="oral-end-note" class="text-sm text-muted hidden"><i class="fas fa-check-circle" style="color:var(--green)"></i> Partie ajoutée à ton compteur</div>
+      </div>
+      <div class="flex-col gap-12 mt-auto">
+        <button id="btn-replay" class="btn btn-primary"><i class="fas fa-redo"></i> Nouvelle partie</button>
+        <button id="btn-home" class="btn btn-secondary"><i class="fas fa-flag-checkered"></i> Menu</button>
+      </div>
+    </div>
+  </div>`;
+
 export function mount(root, api) {
   const { gameId, playerId } = api;
-  root.innerHTML = END_VIEW;
   const $ = (id) => root.querySelector('#' + id);
   let _rendered = false;
 
@@ -89,8 +110,47 @@ export function mount(root, api) {
     } catch (e) { /* déjà supprimé, OK */ }
   }
 
-  $('btn-replay').onclick = async () => { await cleanupGame(); window.location.href = '/lobbypyramide.html'; };
-  $('btn-home').onclick   = async () => { await cleanupGame(); window.location.href = '/'; };
+  function bindButtons() {
+    $('btn-replay').onclick = async () => { await cleanupGame(); window.location.href = '/lobbypyramide.html'; };
+    $('btn-home').onclick   = async () => { await cleanupGame(); window.location.href = '/'; };
+  }
+
+  // ── Fin « Mode Soirée » : pas de stats/titres, juste le compteur de parties ──
+  function renderOral(game) {
+    const players = Object.entries(game.players || {}).map(([id, p]) => ({ id, ...p }));
+    const list = $('oral-end-players');
+    list.innerHTML = '';
+    players.forEach((p, i) => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-12';
+      row.style.animation = `slide-up-fade 0.35s ease-out ${0.1 + i * 0.1}s both`;
+      row.innerHTML = `${avatarHTML(p.avatar, 36)}<span class="font-bold" style="flex:1;text-align:left">${p.name}${p.id === playerId ? ' (toi)' : ''}</span>`;
+      list.appendChild(row);
+    });
+
+    let _done = false;
+    onAuthStateChanged(auth, async (user) => {
+      if (!user || user.isAnonymous || _done) return;
+      _done = true;
+      const firestore = await getFirestore();
+      let userData = {};
+      try {
+        const dsnap = await getDoc(doc(firestore, 'users', user.uid));
+        if (dsnap.exists()) userData = dsnap.data();
+      } catch (e) {}
+      if (userData.lastRewardedGame === gameId) return;  // idempotent
+      try {
+        await setDoc(doc(firestore, 'users', user.uid), {
+          totalGames: increment(1),
+          lastRewardedGame: gameId,
+        }, { merge: true });
+        $('oral-end-note').classList.remove('hidden');
+      } catch (e) {}
+    });
+
+    clearGameSession();
+    launchConfetti();
+  }
 
   function render(game) {
     const players = Object.entries(game.players || {}).map(([id, p]) => ({ id, ...p }));
@@ -294,7 +354,15 @@ export function mount(root, api) {
     if (_rendered) return;
     if (!game || !game.players) return;
     _rendered = true;
-    render(game);
+    if (game.mode === 'oral') {
+      root.innerHTML = END_VIEW_ORAL;
+      bindButtons();
+      renderOral(game);
+    } else {
+      root.innerHTML = END_VIEW;
+      bindButtons();
+      render(game);
+    }
   }
 
   function unmount() {}

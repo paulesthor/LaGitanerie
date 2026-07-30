@@ -1,9 +1,10 @@
-const CACHE = 'gitanerie-v63';
+const CACHE = 'gitanerie-v64';
 
 // Assets à pré-cacher à l'installation
 const PRECACHE = [
   '/',
   '/index.html',
+  '/pyramide.html',
   '/lobbypyramide.html',
   '/loupgarou.html',
   '/loupwait.html',
@@ -28,6 +29,7 @@ const PRECACHE = [
   '/js/phases/distribution.js',
   '/js/phases/memorize.js',
   '/js/phases/pyramid.js',
+  '/js/phases/pyramidOral.js',
   '/js/phases/end.js',
   '/manifest.json',
   '/icons/hedgehog.png',

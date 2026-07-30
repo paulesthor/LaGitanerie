@@ -42,11 +42,19 @@ const VIEW = `
               <div class="rule-info"><div class="rule-name">Cartes visibles (phase 1)</div><div class="rule-desc">Les autres voient la carte révélée pendant 3s</div></div>
               <label class="toggle"><input type="checkbox" id="rule-showPhase1" checked><span class="toggle-slider"></span></label>
             </div>
-            <div class="rule-row">
+            <div class="rule-row" id="row-oral-interval" style="display:none">
+              <div class="rule-info"><div class="rule-name">Temps par carte</div><div class="rule-desc">Délai avant que la pyramide retourne la carte suivante</div></div>
+              <div class="segmented" data-seg="oralInterval">
+                <button class="seg-btn" data-val="8">8s</button>
+                <button class="seg-btn active" data-val="12">12s</button>
+                <button class="seg-btn" data-val="20">20s</button>
+              </div>
+            </div>
+            <div class="rule-row" id="row-showProof">
               <div class="rule-info"><div class="rule-name">Preuve visible pour tous</div><div class="rule-desc">Quand quelqu'un prouve au Menteur, tous voient la carte</div></div>
               <label class="toggle"><input type="checkbox" id="rule-showProof" checked><span class="toggle-slider"></span></label>
             </div>
-            <div class="rule-row">
+            <div class="rule-row" id="row-mult">
               <div class="rule-info"><div class="rule-name">Multiplicateur de gorgées</div><div class="rule-desc">Multiplie toutes les gorgées de la pyramide</div></div>
               <div class="segmented" data-seg="mult">
                 <button class="seg-btn active" data-val="1">×1</button>
@@ -54,7 +62,7 @@ const VIEW = `
                 <button class="seg-btn" data-val="3">×3</button>
               </div>
             </div>
-            <div class="rule-row">
+            <div class="rule-row" id="row-timer">
               <div class="rule-info"><div class="rule-name">Timer par carte</div><div class="rule-desc">Délai avant que l'hôte puisse forcer le tour</div></div>
               <div class="segmented" data-seg="timer">
                 <button class="seg-btn" data-val="20">20s</button>
@@ -89,8 +97,9 @@ export function mount(root, api) {
   const gameRef   = ref(db, `games/${gameId}`);
   const playerRef = ref(db, `games/${gameId}/players/${playerId}`);
 
-  let rules = { rows: 5, showPhase1: true, showProof: true, sipsMultiplier: 1, timerDuration: 30 };
+  let rules = { rows: 5, showPhase1: true, showProof: true, sipsMultiplier: 1, timerDuration: 30, oralInterval: 12 };
   let isReady = false;
+  let _modeApplied = false;
 
   // ── « Rejoindre rapidement » : l'hôte (compte connecté) publie sa partie en
   // attente pour que ses amis la voient et la rejoignent sans taper le code. ──
@@ -185,6 +194,7 @@ export function mount(root, api) {
         const val = Number(btn.dataset.val);
         if (seg.dataset.seg === 'mult')  rules.sipsMultiplier = val;
         if (seg.dataset.seg === 'timer') rules.timerDuration  = val;
+        if (seg.dataset.seg === 'oralInterval') rules.oralInterval = val;
       };
     });
   });
@@ -196,6 +206,17 @@ export function mount(root, api) {
     const entries = Object.entries(players);
     $('game-code').textContent = game.gameCode || '----';
     publishActiveGame(game);
+
+    // Affiche les bonnes règles selon le mode (une seule fois)
+    if (!_modeApplied && isHost) {
+      _modeApplied = true;
+      const oral = game.mode === 'oral';
+      const setDisp = (id, show) => { const el = $(id); if (el) el.style.display = show ? '' : 'none'; };
+      setDisp('row-oral-interval', oral);
+      setDisp('row-showProof', !oral);
+      setDisp('row-mult', !oral);
+      setDisp('row-timer', !oral);
+    }
     $('player-count').textContent = entries.length;
 
     const numPlayers = entries.length;
@@ -273,7 +294,7 @@ export function mount(root, api) {
     const updates = {
       status: 'started', phase: 'distribution', pyramid, pyramidOrder: order, deck,
       currentTurn: ids[0],
-      rules: { showPhase1: rules.showPhase1, showProof: rules.showProof, sipsMultiplier: rules.sipsMultiplier, timerDuration: rules.timerDuration }
+      rules: { showPhase1: rules.showPhase1, showProof: rules.showProof, sipsMultiplier: rules.sipsMultiplier, timerDuration: rules.timerDuration, oralInterval: rules.oralInterval }
     };
     ids.forEach(id => {
       updates[`players/${id}/cards`]       = deck.splice(0, 4).map(c => ({ ...c, revealed: false }));

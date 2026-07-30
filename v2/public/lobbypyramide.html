@@ -98,12 +98,6 @@
         </div>
       </div>
 
-      <!-- Rejoindre rapidement (parties d'amis en attente) -->
-      <div id="quick-join" class="card flex-col gap-10 hidden">
-        <h3><i class="fas fa-bolt" style="color:var(--gold)"></i> Parties de tes amis</h3>
-        <div id="quick-join-list" class="flex-col gap-8"></div>
-      </div>
-
       <!-- Tabs Créer / Rejoindre -->
       <div class="section-tabs">
         <button class="tab-btn active" id="tab-create" onclick="switchTab('create')">Créer</button>
@@ -112,6 +106,11 @@
 
       <!-- Panel Créer -->
       <div id="panel-create" class="flex-col gap-12">
+        <div id="mode-badge" class="flex items-center gap-8" style="padding:10px 12px;background:var(--bg-surface);border-radius:var(--radius-sm)">
+          <i id="mode-badge-icon" class="fas fa-mobile-screen-button" style="color:var(--orange)"></i>
+          <span class="text-sm">Mode <strong id="mode-badge-name">Classique</strong></span>
+          <a href="/pyramide.html" class="text-sm" style="margin-left:auto;color:var(--gold)">Changer</a>
+        </div>
         <p class="text-sm">Tu seras l'hôte de la partie. Partage le code avec tes amis.</p>
         <button id="btn-create" class="btn btn-primary">
           <i class="fas fa-plus-circle"></i> Créer la partie
@@ -163,6 +162,9 @@
     // Paint optimiste : privilégier le vrai avatar du compte (frais, effacé à la
     // déconnexion) plutôt que l'avatar invité qui peut être périmé → évite le flash
     // de l'ancienne photo avant le retour de Firestore.
+    // Mode de jeu choisi sur /pyramide.html (classic par défaut)
+    const _mode = (new URLSearchParams(location.search).get('mode') === 'oral') ? 'oral' : 'classic';
+
     let selectedAvatar = '';
     try { selectedAvatar = localStorage.getItem('lastProfileAvatar') || ''; } catch (e) {}
     if (!selectedAvatar) selectedAvatar = getGuestAvatar() || '';
@@ -219,6 +221,13 @@
       }, 400);
     });
 
+    // --- Badge du mode choisi ---
+    if (_mode === 'oral') {
+      document.getElementById('mode-badge-name').textContent = 'Soirée';
+      const ic = document.getElementById('mode-badge-icon');
+      ic.className = 'fas fa-champagne-glasses'; ic.style.color = 'var(--gold)';
+    }
+
     // --- Pré-remplir le nom ---
     const nameInput = document.getElementById('input-name');
     if (!nameInput.value) nameInput.value = getGuestName();
@@ -245,6 +254,7 @@
           }
         } catch (e) { console.warn('[profil] chargement:', e); }
       }
+      attemptAutoJoin();
     });
 
     // --- Tabs ---
@@ -298,6 +308,7 @@
             hostId: playerId,
             status: 'waiting',
             phase: null,
+            mode: _mode,
             createdAt: now,
             players: {
               [playerId]: {
@@ -399,50 +410,22 @@
       joinGameByCode(code, document.getElementById('btn-join'));
     };
 
-    // --- Rejoindre rapidement : parties d'amis en attente ---
-    async function loadFriendGames(user) {
-      const wrap = document.getElementById('quick-join');
-      const list = document.getElementById('quick-join-list');
-      if (!wrap || !list) return;
-      let ids = [];
-      try { ids = Object.keys((await get(ref(db, `friends/${user.uid}`))).val() || {}); }
-      catch (e) { return; }
-      if (!ids.length) { wrap.classList.add('hidden'); return; }
-
-      const games = (await Promise.all(ids.map(async (fid) => {
-        try {
-          const g = (await get(ref(db, `activeGames/${fid}`))).val();
-          return g && g.code ? g : null;
-        } catch (e) { return null; }
-      }))).filter(Boolean);
-
-      if (!games.length) { wrap.classList.add('hidden'); return; }
-
-      list.innerHTML = '';
-      games.forEach((g) => {
-        const row = document.createElement('div');
-        row.className = 'flex items-center gap-12';
-        row.innerHTML = `
-          ${avatarHTML(g.avatar || '🎴', 40)}
-          <div class="flex-col" style="flex:1">
-            <span class="font-bold">${g.name || 'Un ami'}</span>
-            <span class="text-sm text-muted">Partie en attente · ${g.code}</span>
-          </div>`;
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-gold btn-sm';
-        btn.style.width = 'auto';
-        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Rejoindre';
-        btn.onclick = () => joinGameByCode(g.code, btn);
-        row.appendChild(btn);
-        list.appendChild(row);
-      });
-      wrap.classList.remove('hidden');
+    // --- Rejoindre rapidement (depuis /pyramide.html) : ?join=CODE ---
+    const _joinParam = (new URLSearchParams(location.search).get('join') || '').trim().toUpperCase();
+    let _autoJoined = false;
+    function attemptAutoJoin() {
+      if (_autoJoined || !_joinParam) return;
+      if (!nameInput.value.trim()) return;   // on attend d'avoir un pseudo
+      _autoJoined = true;
+      joinGameByCode(_joinParam, document.getElementById('btn-join'));
     }
-
-    onAuthStateChanged(auth, (user) => {
-      if (user && !user.isAnonymous) loadFriendGames(user);
-      else document.getElementById('quick-join')?.classList.add('hidden');
-    });
+    if (_joinParam) {
+      switchTab('join');
+      document.getElementById('input-code').value = _joinParam;
+      // dès que le pseudo est prêt (compte ou invité), on rejoint automatiquement
+      setTimeout(attemptAutoJoin, 600);
+      authReady.then(() => setTimeout(attemptAutoJoin, 200));
+    }
   </script>
 
 </body></html>
