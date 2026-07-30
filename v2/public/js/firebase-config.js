@@ -7,6 +7,7 @@ import {
   getDatabase, ref as dbRef, onValue
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import { initLogger, logError } from "./logger.js";
+import "./gestures.js";   // gestes tactiles globaux (swipe fermer / retour, haptique)
 import { initPresence } from "./presence.js";
 
 // Réexport : les pages peuvent faire  import { logError } from '/js/firebase-config.js'
