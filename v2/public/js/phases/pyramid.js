@@ -1,7 +1,7 @@
 // ── Phases « pyramid » + « memoryReveal » (portées depuis game2.html) ──
 import { db, auth } from '/js/firebase-config.js';
 import { ref, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-import { showToast, SUIT_SYMBOL, getSipsForCard, clearGameSession } from '/js/game/utils.js';
+import { showToast, SUIT_SYMBOL, getSipsForCard, clearGameSession, cardFaceInner } from '/js/game/utils.js';
 import { avatarHTML, isPhotoAvatar } from '/js/game/avatar.js';
 
 const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate?.(p));
@@ -323,11 +323,7 @@ export function mount(root, api) {
         const isRed = ['hearts','diamonds'].includes(card.suit);
         cardEl.innerHTML = `
           <div class="inner">
-            <div class="face ${isRed ? 'red' : 'black'}">
-              <div>${card.value}${sym}</div>
-              <div class="suit-center">${sym}</div>
-              <div style="align-self:flex-end;transform:rotate(180deg)">${card.value}${sym}</div>
-            </div>
+            <div class="face ${isRed ? 'red' : 'black'}">${cardFaceInner(card.value, sym)}</div>
             <div class="back"></div>
           </div>`;
         if (game.hostId === playerId && isNext && !card.revealed) {
@@ -873,13 +869,8 @@ export function mount(root, api) {
       if (_mRes[i] !== null) {
         const isRed = ['hearts','diamonds'].includes(card.suit);
         const sym   = SUIT_SYMBOL[card.suit] || '';
-        const col   = isRed ? '#e74c3c' : '#1a1a2e';
         wrap.innerHTML = `
-          <div class="mem-card-face ${_mRes[i]}" style="color:${col};animation:mem-flip .35s ease both">
-            <div>${card.value}${sym}</div>
-            <div style="font-size:.95rem;text-align:center">${sym}</div>
-            <div style="align-self:flex-end;transform:rotate(180deg)">${card.value}${sym}</div>
-          </div>
+          <div class="mem-card-face ${_mRes[i]} ${isRed ? 'red' : 'black'}" style="animation:mem-flip .35s ease both">${cardFaceInner(card.value, sym)}</div>
           <div class="mem-result ${_mRes[i]}"><i class="fas fa-${_mRes[i]==='ok'?'check':'times'}"></i></div>`;
       } else {
         wrap.innerHTML = `<div class="mem-card-back"></div>`;

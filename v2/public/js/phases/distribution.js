@@ -3,7 +3,7 @@
 // la rafraîchit à chaque snapshot fourni par le routeur de play.html.
 import { db } from '/js/firebase-config.js';
 import { ref, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-import { showToast, SUIT_SYMBOL, checkPrediction, clearGameSession } from '/js/game/utils.js';
+import { showToast, SUIT_SYMBOL, checkPrediction, clearGameSession, cardFaceInner } from '/js/game/utils.js';
 import { avatarHTML, isPhotoAvatar } from '/js/game/avatar.js';
 
 const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate?.(p));
@@ -49,12 +49,13 @@ const VIEW = `
       <div class="mc-bot" id="reveal-corner-bot"></div>
     </div>
     <div class="notif-text">
-      <div class="notif-who" id="reveal-who">Joueur révèle</div>
-      <div class="notif-sub">disparaît dans <span id="reveal-countdown">3</span>s</div>
+      <div class="notif-who" id="reveal-who">Joueur</div>
+      <div class="notif-sub">révèle sa carte</div>
     </div>
   </div>
 
   <div id="sips-banner" class="sips-banner">
+    <div class="sips-icon" id="sips-banner-icon"><i class="fas fa-beer-mug-empty"></i></div>
     <div class="sips-text" id="sips-banner-text">...</div>
     <div class="sips-amount" id="sips-banner-amount">0</div>
   </div>
@@ -138,21 +139,13 @@ export function mount(root, api) {
     const notif    = $('reveal-notif');
     const colorCls = ['hearts','diamonds'].includes(card.suit) ? 'red' : 'black';
     const sym      = SUIT_SYMBOL[card.suit];
-    $('reveal-who').textContent = `${playerName} révèle`;
+    $('reveal-who').textContent = playerName;
     $('reveal-mini-card').className = `mini-card ${colorCls}`;
     $('reveal-corner-top').textContent = `${card.value}${sym}`;
     $('reveal-center').textContent = sym;
     $('reveal-corner-bot').textContent = `${card.value}${sym}`;
     notif.classList.add('show');
-    let countdown = 3;
-    $('reveal-countdown').textContent = countdown;
-    clearInterval(notifCountdown);
     clearTimeout(notifTimer);
-    notifCountdown = setInterval(() => {
-      countdown--;
-      $('reveal-countdown').textContent = Math.max(0, countdown);
-      if (countdown <= 0) clearInterval(notifCountdown);
-    }, 1000);
     notifTimer = setTimeout(() => {
       notif.classList.remove('show');
       lastRevealedCardKey = null;
@@ -195,11 +188,7 @@ export function mount(root, api) {
         : '';
       el.innerHTML = `
         <div class="inner">
-          <div class="face ${isRed ? 'red' : 'black'}">
-            <div class="card-corner">${card.value}<br>${sym}</div>
-            <div class="card-suit-center">${sym}</div>
-            <div class="card-corner bot">${card.value}<br>${sym}</div>
-          </div>
+          <div class="face ${isRed ? 'red' : 'black'}">${cardFaceInner(card.value, sym)}</div>
           <div class="back" ${backStyle}></div>
         </div>`;
       container.appendChild(el);
@@ -333,21 +322,22 @@ export function mount(root, api) {
   }
 
   function showSipsBanner(event) {
-    if (!event) return;
+    if (!event || event.type !== 'sips_given') return;
     const banner = $('sips-banner');
     const text   = $('sips-banner-text');
     const amount = $('sips-banner-amount');
+    const iconEl = $('sips-banner-icon');
     const isMeFrom = event.fromId === playerId;
     const isMeTo   = event.toId   === playerId;
-    if (event.type === 'sips_given') {
-      if (isMeFrom)      text.textContent = `Tu donnes à ${event.toName}`;
-      else if (isMeTo)   text.textContent = `${event.fromName} te donne`;
-      else               text.textContent = `${event.fromName} donne à ${event.toName}`;
-      amount.textContent = `${event.amount} gorgée${event.amount > 1 ? 's' : ''}`;
-      amount.style.color = 'var(--gold)';
-      amount.style.background = 'rgba(243,156,18,.15)';
-    }
-    banner.classList.add('show');
+    let accent = 'spectate', icon = 'fa-arrow-right-arrow-left', msg = '';
+    if (isMeFrom)      { accent = 'me-give';  icon = 'fa-hand-holding-droplet'; msg = `Tu donnes à <strong>${event.toName}</strong>`; }
+    else if (isMeTo)   { accent = 'me-drink'; icon = 'fa-beer-mug-empty';       msg = `<strong>${event.fromName}</strong> te donne`; }
+    else               { accent = 'spectate'; icon = 'fa-arrow-right-arrow-left'; msg = `<strong>${event.fromName}</strong> → <strong>${event.toName}</strong>`; }
+    iconEl.innerHTML = `<i class="fas ${icon}"></i>`;
+    text.innerHTML = msg;
+    amount.textContent = `${event.amount} gorgée${event.amount > 1 ? 's' : ''}`;
+    amount.classList.toggle('red', isMeTo);
+    banner.className = `sips-banner ${accent} show`;
     clearTimeout(sipsBannerTimer);
     sipsBannerTimer = setTimeout(() => banner.classList.remove('show'), 3500);
   }

@@ -1,7 +1,7 @@
 // ── Phase « memorize » (portée depuis memorize.html) ──────────────────
 import { db } from '/js/firebase-config.js';
 import { ref, update, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-import { showToast, SUIT_SYMBOL } from '/js/game/utils.js';
+import { showToast, SUIT_SYMBOL, cardFaceInner } from '/js/game/utils.js';
 import { avatarHTML } from '/js/game/avatar.js';
 
 const TIMER_DURATION = 60;
@@ -72,10 +72,7 @@ export function mount(root, api) {
       const sym   = SUIT_SYMBOL[card.suit] || '';
       const el    = document.createElement('div');
       el.className = `mem-card ${isRed ? 'red' : 'black'}`;
-      el.innerHTML = `
-        <div class="corner">${card.value}${sym}</div>
-        <div class="center">${sym}</div>
-        <div class="corner bot">${card.value}${sym}</div>`;
+      el.innerHTML = cardFaceInner(card.value, sym);
       container.appendChild(el);
     });
   }

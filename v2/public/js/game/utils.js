@@ -105,6 +105,15 @@ export function cardNumericValue(value) {
 export const SUIT_SYMBOL = { hearts: '♥', diamonds: '♦', clubs: '♣', spades: '♠' };
 export const SUIT_COLOR  = { hearts: 'red', diamonds: 'red', clubs: 'black', spades: 'black' };
 
+// --- Face de carte unifiée (index d'angle empilé + pip central) ---
+// Retourne le contenu interne d'une face de carte ; le conteneur porte la
+// classe .cface (+ .red/.black) et fixe la taille via les variables --cf-*.
+export function cardFaceInner(value, sym) {
+  return `<span class="cf-idx tl"><span class="r">${value}</span><span class="s">${sym}</span></span>`
+       + `<span class="cf-pip">${sym}</span>`
+       + `<span class="cf-idx br"><span class="r">${value}</span><span class="s">${sym}</span></span>`;
+}
+
 // --- Toast ---
 let toastTimer = null;
 export function showToast(message, type = 'info') {

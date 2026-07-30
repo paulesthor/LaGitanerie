@@ -81,6 +81,7 @@ export function mount(root, api) {
   const { gameId, playerId } = api;
   const $ = (id) => root.querySelector('#' + id);
   let _rendered = false;
+  let _unsubAuth = null;
 
   function fire(opts) { if (typeof confetti === 'function') confetti(opts); }
 
@@ -129,7 +130,7 @@ export function mount(root, api) {
     });
 
     let _done = false;
-    onAuthStateChanged(auth, async (user) => {
+    _unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (!user || user.isAnonymous || _done) return;
       _done = true;
       const firestore = await getFirestore();
@@ -220,7 +221,7 @@ export function mount(root, api) {
 
     // --- XP + récompenses si connecté ---
     let _rewardsProcessed = false;
-    onAuthStateChanged(auth, async (user) => {
+    _unsubAuth = onAuthStateChanged(auth, async (user) => {
       if (!user || user.isAnonymous) return;
       if (_rewardsProcessed) return;
       _rewardsProcessed = true;
@@ -365,7 +366,7 @@ export function mount(root, api) {
     }
   }
 
-  function unmount() {}
+  function unmount() { if (_unsubAuth) { try { _unsubAuth(); } catch (e) {} _unsubAuth = null; } }
 
   return { update, unmount };
 }
