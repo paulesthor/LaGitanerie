@@ -212,7 +212,7 @@ export function mount(root, api) {
       _modeApplied = true;
       const oral = game.mode === 'oral';
       const setDisp = (id, show) => { const el = $(id); if (el) el.style.display = show ? '' : 'none'; };
-      setDisp('row-oral-interval', oral);
+      setDisp('row-oral-interval', false); // plus de timer : l'hôte retourne les cartes
       setDisp('row-showProof', !oral);
       setDisp('row-mult', !oral);
       setDisp('row-timer', !oral);

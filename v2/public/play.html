@@ -216,8 +216,11 @@
     .oral-leave { position:absolute; top:calc(env(safe-area-inset-top) + 8px); left:12px; z-index:5; width:42px; height:42px; border-radius:50%; background:var(--bg-surface); border:1px solid var(--border); color:var(--text); font-size:1rem; cursor:pointer; }
     .oral-code { position:absolute; top:calc(env(safe-area-inset-top) + 16px); right:16px; font-size:.8rem; color:var(--text-muted); }
     .oral-stage { display:flex; flex-direction:column; align-items:center; gap:14px; width:100%; max-width:420px; }
-    .oral-timerbar { width:min(74vw,240px); height:6px; background:var(--bg-surface); border-radius:3px; overflow:hidden; }
-    .oral-timerbar-fill { height:100%; width:100%; background:var(--orange); border-radius:3px; transition:width .2s linear; }
+    .oral-progress { font-size:.85rem; font-weight:700; letter-spacing:.05em; color:var(--text-muted); }
+    .oral-placeholder { width:min(34vw,150px); aspect-ratio:5/7; border-radius:14px; border:2px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:2.4rem; color:var(--text-muted); }
+    .oral-host-bar { width:100%; max-width:360px; }
+    .oral-host-bar .btn { width:100%; }
+    .oral-wait { font-size:.85rem; color:var(--text-muted); text-align:center; }
     .oral-py-slot { display:flex; align-items:center; justify-content:center; }
     .oral-py-card { width:min(34vw,150px); aspect-ratio:5/7; background:#fff; border-radius:14px; border:1px solid #e0e0e0; box-shadow:0 12px 34px rgba(0,0,0,.45); display:flex; flex-direction:column; justify-content:space-between; padding:10px 12px; font-weight:700; animation:oral-flip .5s ease both; }
     .oral-py-card.red { color:#e74c3c; } .oral-py-card.black { color:#1a1a2e; }
@@ -242,14 +245,16 @@
     .occ-center { font-size:1.5rem; text-align:center; }
     .oral-reveal { position:fixed; top:calc(env(safe-area-inset-top) + 56px); left:50%; transform:translateX(-50%) translateY(-160%); background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; display:flex; align-items:center; gap:12px; z-index:400; box-shadow:0 8px 24px rgba(0,0,0,.4); transition:transform .35s cubic-bezier(.34,1.56,.64,1); }
     .oral-reveal.show { transform:translateX(-50%) translateY(0); }
-    /* Paysage : les 4 cartes en une seule ligne, à droite de la pyramide */
+    /* Paysage : les 4 cartes sur une seule ligne, tout condensé en hauteur */
     @media (orientation:landscape) and (max-height:560px) {
-      .oral-screen { flex-direction:row; justify-content:center; gap:5vw; }
-      .oral-stage { width:auto; }
-      .oral-py-card { width:24vh; }
-      .oral-hand { grid-template-columns:repeat(4,1fr); }
-      .oral-card { width:12vh; }
-      .oral-sips { font-size:1.2rem; }
+      .oral-screen { gap:2vh; justify-content:center; }
+      .oral-py-card { width:22vh; }
+      .oral-placeholder { width:22vh; }
+      .oral-hand { grid-template-columns:repeat(4,1fr); gap:2vh; }
+      .oral-card { width:11vh; }
+      .oral-sips { font-size:1.15rem; min-height:1.3em; }
+      .oral-hint { display:none; }
+      .oral-host-bar .btn { padding:12px; }
     }
 
     /* ── Bascule ── */

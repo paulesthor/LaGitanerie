@@ -1,6 +1,6 @@
 // ── Phase « memorize » (portée depuis memorize.html) ──────────────────
 import { db } from '/js/firebase-config.js';
-import { ref, update, get, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { ref, update, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { showToast, SUIT_SYMBOL } from '/js/game/utils.js';
 import { avatarHTML } from '/js/game/avatar.js';
 
@@ -131,19 +131,12 @@ export function mount(root, api) {
       return;
     }
     // Mode Soirée : on pré-remplit toute la pyramide (valeurs cachées côté
-    // affichage) et on démarre l'horloge d'auto-retournement. Aucun « pilote »
-    // ensuite : chaque téléphone calcule la carte courante depuis l'heure serveur.
+    // affichage). C'est l'hôte qui retourne chaque carte (oralIndex), pas de
+    // timer. -1 = aucune carte encore retournée.
     const snap  = (await get(gameRef)).val() || {};
     const order = snap.pyramidOrder || [];
     const deck  = snap.deck || [];
-    const intervalSec = snap.rules?.oralInterval || 12;
-    const updates = {
-      phase: 'pyramid',
-      oralStartTs: serverTimestamp(),
-      oralInterval: intervalSec * 1000,
-      oralExtraMs: 0,
-      oralReveal: null,
-    };
+    const updates = { phase: 'pyramid', oralIndex: -1, oralReveal: null };
     order.forEach((pos, i) => {
       const c = deck[i];
       if (c) {

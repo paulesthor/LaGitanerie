@@ -1,20 +1,14 @@
 // ── Phase « pyramid » en MODE SOIRÉE (oral) ───────────────────────────
-// Le téléphone ne sert qu'à voir la pyramide qui se retourne toute seule et
-// tes 4 cartes (face cachée). Tout le reste (donner les gorgées) se fait à
-// l'oral. Seule interaction : double-taper une de tes cartes pour la montrer
-// (prouver que tu ne mens pas).
-//
-// L'avancement est piloté par une HORLOGE (oralStartTs + oralInterval), calée
-// sur l'heure serveur Firebase : pas de « pilote », tous les téléphones voient
-// la même carte au même instant, même si l'écran était verrouillé.
+// Le téléphone ne sert qu'à voir la pyramide et tes 4 cartes (face cachée).
+// C'est l'HÔTE qui retourne chaque carte (pas de timer imposé). Tout le reste
+// (donner les gorgées) se fait à l'oral. Seule interaction pour les joueurs :
+// double-taper une de tes cartes pour la montrer (prouver que tu ne mens pas).
 import { db } from '/js/firebase-config.js';
-import { ref, update, remove, onValue, runTransaction } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { ref, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { showToast, SUIT_SYMBOL, getSipsForCard, clearGameSession } from '/js/game/utils.js';
-import { avatarHTML } from '/js/game/avatar.js';
 
 const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate?.(p));
-const PAUSE_MS = 2500;   // pause de l'auto-avance quand quelqu'un montre une carte
-const REVEAL_MS = 3000;  // durée d'affichage d'une preuve
+const REVEAL_MS = 3500;  // durée d'affichage d'une preuve
 
 const VIEW = `
   <div class="oral-screen">
@@ -22,7 +16,7 @@ const VIEW = `
     <div class="oral-code">Partie <span id="oral-code-val" style="color:var(--gold)">----</span></div>
 
     <div class="oral-stage">
-      <div class="oral-timerbar"><div id="oral-timer-fill" class="oral-timerbar-fill"></div></div>
+      <div id="oral-progress" class="oral-progress">—</div>
       <div id="oral-py-slot" class="oral-py-slot"></div>
       <div id="oral-sips" class="oral-sips">—</div>
     </div>
@@ -31,6 +25,13 @@ const VIEW = `
       <p class="oral-hint" id="oral-hint">Tes cartes — double-tape pour montrer</p>
       <div id="oral-hand" class="oral-hand"></div>
     </div>
+
+    <div id="oral-host-bar" class="oral-host-bar hidden">
+      <button id="btn-flip" class="btn btn-primary" style="font-size:1.05rem;padding:16px">
+        <i class="fas fa-hand-pointer"></i> <span id="btn-flip-label">Retourner la carte</span>
+      </button>
+    </div>
+    <p id="oral-wait" class="oral-wait hidden">En attente que l'hôte retourne la carte…</p>
 
     <div id="oral-reveal" class="oral-reveal">
       <div id="oral-reveal-card" class="mini-card red">
@@ -52,21 +53,13 @@ export function mount(root, api) {
   const gameRef = ref(db, `games/${gameId}`);
 
   let game = {};
-  let serverOffset = 0;
-  let tickInterval = null;
-  let _maxIdx = 0;
-  let _lastRenderIdx = -1;
+  let _lastRenderIdx = -99;
+  let _flipping = false;
   let _endWritten = false;
   let _lastRevealTs = 0;
   let _revealTimer = null;
   let _localReveal = { idx: -1, until: 0 };
   let _tapTimes = {};
-
-  // Horloge serveur → tous les téléphones synchronisés
-  const offOffset = onValue(ref(db, '.info/serverTimeOffset'), (s) => {
-    serverOffset = s.val() || 0;
-  });
-  const serverNow = () => Date.now() + serverOffset;
 
   $('btn-leave').onclick = async () => {
     if (!confirm('Quitter la partie ?')) return;
@@ -75,81 +68,73 @@ export function mount(root, api) {
     window.location.href = '/';
   };
 
-  function currentIndex() {
-    const start    = game.oralStartTs || 0;
-    const interval = game.oralInterval || 12000;
-    const extra    = game.oralExtraMs || 0;
-    if (!start) return 0;
-    const elapsed = serverNow() - start - extra;
-    let idx = Math.floor(elapsed / interval);
-    if (idx < 0) idx = 0;
-    if (idx < _maxIdx) idx = _maxIdx;   // jamais en arrière (pause = on tient la carte)
-    _maxIdx = idx;
-    return idx;
-  }
-
-  function cardProgress() {
-    const start    = game.oralStartTs || 0;
-    const interval = game.oralInterval || 12000;
-    const extra    = game.oralExtraMs || 0;
-    if (!start) return 0;
-    const elapsed = serverNow() - start - extra;
-    const inCard  = ((elapsed % interval) + interval) % interval;
-    return Math.min(1, Math.max(0, inCard / interval));
-  }
+  $('btn-flip').onclick = flipNext;
 
   function update_(newGame) {
     game = newGame;
     $('oral-code-val').textContent = game.gameCode || '----';
 
-    // Preuve d'un autre joueur → notif + (la pause a déjà été posée par l'auteur)
     const rTs = game.oralReveal?.ts || 0;
     if (rTs > _lastRevealTs) {
       _lastRevealTs = rTs;
       if (game.oralReveal?.pid !== playerId) showRevealNotif(game.oralReveal);
     }
 
-    startTick();
-    renderStage(true);
+    renderStage();
   }
 
-  function startTick() {
-    if (tickInterval) return;
-    tickInterval = setInterval(() => renderStage(false), 200);
-  }
-
-  function renderStage(force) {
-    const order = game.pyramidOrder || [];
-    const pyramid = game.pyramid || [];
-    const idx = currentIndex();
-
-    // Fin de partie : plus de carte à retourner
-    if (order.length && idx >= order.length) {
-      $('oral-timer-fill').style.width = '0%';
-      $('oral-sips').textContent = 'Partie terminée';
-      $('oral-sips').className = 'oral-sips done';
-      $('oral-py-slot').innerHTML = '<div class="oral-end">🎉<br>Fini !</div>';
-      // N'importe quel joueur peut clôturer (idempotent) — évite de rester bloqué
-      // si le téléphone-hôte a quitté la table.
-      if (!_endWritten) {
-        _endWritten = true;
-        update(gameRef, { phase: 'end' }).catch(() => { _endWritten = false; });
+  async function flipNext() {
+    if (_flipping) return;
+    _flipping = true;
+    vibrate(20);
+    try {
+      const order = game.pyramidOrder || [];
+      const idx   = (game.oralIndex ?? -1) + 1;
+      if (idx >= order.length) {
+        if (!_endWritten) { _endWritten = true; await update(gameRef, { phase: 'end' }); }
+        return;
       }
-      return;
+      await update(gameRef, { oralIndex: idx, oralReveal: null });
+    } catch (e) { showToast('Erreur réseau', 'error'); }
+    finally { _flipping = false; }
+  }
+
+  function renderStage() {
+    const order   = game.pyramidOrder || [];
+    const pyramid = game.pyramid || [];
+    const idx     = game.oralIndex ?? -1;
+    const total   = order.length;
+
+    // Barre hôte / message d'attente
+    const isLast = idx >= total - 1;
+    if (isHost) {
+      $('oral-host-bar').classList.remove('hidden');
+      $('btn-flip-label').textContent = idx < 0 ? 'Retourner la première carte'
+        : (isLast ? 'Terminer la partie' : 'Carte suivante');
+    } else {
+      $('oral-wait').classList.toggle('hidden', idx >= 0);
     }
 
-    // Barre de temps de la carte courante
-    $('oral-timer-fill').style.width = ((1 - cardProgress()) * 100).toFixed(1) + '%';
+    $('oral-progress').textContent = idx < 0 ? `0 / ${total}` : `${Math.min(idx + 1, total)} / ${total}`;
 
-    if (!force && idx === _lastRenderIdx) { renderHand(); return; }
+    if (idx === _lastRenderIdx) { renderHand(); return; }
     _lastRenderIdx = idx;
+
+    // Aucune carte encore retournée
+    if (idx < 0) {
+      $('oral-py-slot').innerHTML = '<div class="oral-placeholder"><i class="fas fa-layer-group"></i></div>';
+      $('oral-sips').textContent = 'Prêt ?';
+      $('oral-sips').className = 'oral-sips';
+      renderHand();
+      return;
+    }
 
     const pos  = order[idx] || { row: 0, col: 0 };
     const card = pyramid[pos.row]?.[pos.col] || {};
     const { sips, isCulSec } = getSipsForCard(pos.row, pyramid.length || 5);
-
     const sym   = SUIT_SYMBOL[card.suit] || '';
     const isRed = ['hearts', 'diamonds'].includes(card.suit);
+
     $('oral-py-slot').innerHTML = `
       <div class="oral-py-card ${isRed ? 'red' : 'black'} ${isCulSec ? 'culsec' : ''}" key="${idx}">
         <div class="opc-corner">${card.value || ''}${sym}</div>
@@ -158,13 +143,8 @@ export function mount(root, api) {
       </div>`;
 
     const sipsEl = $('oral-sips');
-    if (isCulSec) {
-      sipsEl.innerHTML = '<i class="fas fa-fire"></i> CUL SEC';
-      sipsEl.className = 'oral-sips culsec';
-    } else {
-      sipsEl.textContent = `${sips} gorgée${sips > 1 ? 's' : ''}`;
-      sipsEl.className = 'oral-sips';
-    }
+    if (isCulSec) { sipsEl.innerHTML = '<i class="fas fa-fire"></i> CUL SEC'; sipsEl.className = 'oral-sips culsec'; }
+    else { sipsEl.textContent = `${sips} gorgée${sips > 1 ? 's' : ''}`; sipsEl.className = 'oral-sips'; }
     vibrate(15);
     renderHand();
   }
@@ -174,8 +154,6 @@ export function mount(root, api) {
     const cards = game.players?.[playerId]?.cards || [];
     const now = Date.now();
     const showFace = _localReveal.until > now ? _localReveal.idx : -1;
-
-    // Reconstruire seulement si le nombre de cartes ou l'état révélé change
     const sig = cards.length + '|' + showFace;
     if (el._sig === sig) return;
     el._sig = sig;
@@ -202,7 +180,6 @@ export function mount(root, api) {
     });
   }
 
-  // Double-tap (tactile + souris) sur une de ses cartes → la montrer à tous
   function onCardTap(i) {
     const now = Date.now();
     const last = _tapTimes[i] || 0;
@@ -214,15 +191,9 @@ export function mount(root, api) {
     const card = game.players?.[playerId]?.cards?.[i];
     if (!card) return;
     vibrate([40, 40, 40]);
-    // Affichage local immédiat
     _localReveal = { idx: i, until: Date.now() + REVEAL_MS };
-    _lastRenderIdx = -2;  // force re-render de la main
-    renderHand();
-    setTimeout(() => { renderHand(); }, REVEAL_MS + 50);
-
-    // Pause de l'auto-avance pour laisser tout le monde regarder
-    try { await runTransaction(ref(db, `games/${gameId}/oralExtraMs`), (cur) => (cur || 0) + PAUSE_MS); } catch (e) {}
-    // Diffusion à tous
+    el_forceHand();
+    setTimeout(el_forceHand, REVEAL_MS + 50);
     try {
       await update(gameRef, {
         oralReveal: {
@@ -232,6 +203,12 @@ export function mount(root, api) {
         },
       });
     } catch (e) { showToast('Erreur réseau', 'error'); }
+  }
+
+  function el_forceHand() {
+    const el = $('oral-hand');
+    if (el) el._sig = null;
+    renderHand();
   }
 
   function showRevealNotif(rev) {
@@ -250,9 +227,7 @@ export function mount(root, api) {
   }
 
   function unmount() {
-    clearInterval(tickInterval);
     clearTimeout(_revealTimer);
-    try { offOffset(); } catch (e) {}
   }
 
   return { update: update_, unmount };
