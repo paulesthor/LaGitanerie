@@ -118,7 +118,7 @@ export function mount(root, api) {
 
     $('oral-progress').textContent = idx < 0 ? `0 / ${total}` : `${Math.min(idx + 1, total)} / ${total}`;
 
-    if (idx === _lastRenderIdx) { renderHand(); return; }
+    if (idx === _lastRenderIdx) { buildHand(); return; }
     _lastRenderIdx = idx;
 
     // Aucune carte encore retournée
@@ -126,7 +126,7 @@ export function mount(root, api) {
       $('oral-py-slot').innerHTML = '<div class="oral-placeholder"><i class="fas fa-layer-group"></i></div>';
       $('oral-sips').textContent = 'Prêt ?';
       $('oral-sips').className = 'oral-sips';
-      renderHand();
+      buildHand();
       return;
     }
 
@@ -147,38 +147,39 @@ export function mount(root, api) {
     if (isCulSec) { sipsEl.innerHTML = '<i class="fas fa-fire"></i> CUL SEC'; sipsEl.className = 'oral-sips culsec'; }
     else { sipsEl.textContent = `${sips} gorgée${sips > 1 ? 's' : ''}`; sipsEl.className = 'oral-sips'; }
     vibrate(15);
-    renderHand();
+    buildHand();
   }
 
-  function renderHand() {
+  // Construit les 4 cartes une seule fois (recto = dos, verso = valeur).
+  // Montrer/cacher = simple bascule de la classe .flipped → masquage garanti.
+  function buildHand() {
     const el = $('oral-hand');
     const cards = game.players?.[playerId]?.cards || [];
-    const now = Date.now();
-    const showFace = _localReveal.until > now ? _localReveal.idx : -1;
-    const sig = cards.length + '|' + showFace;
-    if (el._sig === sig) return;
-    el._sig = sig;
-
+    if (el._built === cards.length) return;
+    el._built = cards.length;
     el.innerHTML = '';
     cards.forEach((card, i) => {
+      const sym   = SUIT_SYMBOL[card.suit] || '';
+      const isRed = ['hearts', 'diamonds'].includes(card.suit);
       const wrap = document.createElement('div');
       wrap.className = 'oral-card';
-      if (i === showFace) {
-        const sym   = SUIT_SYMBOL[card.suit] || '';
-        const isRed = ['hearts', 'diamonds'].includes(card.suit);
-        wrap.classList.add('flipped');
-        wrap.innerHTML = `
-          <div class="oral-card-face ${isRed ? 'red' : 'black'}">
+      wrap.dataset.idx = i;
+      wrap.innerHTML = `
+        <div class="oc-inner">
+          <div class="oc-back"></div>
+          <div class="oc-face ${isRed ? 'red' : 'black'}">
             <div class="occ-corner">${card.value}${sym}</div>
             <div class="occ-center">${sym}</div>
             <div class="occ-corner bot">${card.value}${sym}</div>
-          </div>`;
-      } else {
-        wrap.innerHTML = '<div class="oral-card-back"></div>';
-      }
+          </div>
+        </div>`;
       wrap.onclick = () => onCardTap(i);
       el.appendChild(wrap);
     });
+  }
+
+  function hideAllCards() {
+    root.querySelectorAll('.oral-card.flipped').forEach((c) => c.classList.remove('flipped'));
   }
 
   function onCardTap(i) {
@@ -192,11 +193,12 @@ export function mount(root, api) {
     const card = game.players?.[playerId]?.cards?.[i];
     if (!card) return;
     vibrate([40, 40, 40]);
-    _localReveal = { idx: i, until: Date.now() + REVEAL_MS };
-    el_forceHand();
-    // Re-cacher après quelques secondes (remise à zéro explicite → déterministe)
+    hideAllCards();
+    const el = root.querySelector(`.oral-card[data-idx="${i}"]`);
+    if (el) el.classList.add('flipped');
+    // Re-cacher automatiquement après quelques secondes
     clearTimeout(_hideTimer);
-    _hideTimer = setTimeout(() => { _localReveal = { idx: -1, until: 0 }; el_forceHand(); }, REVEAL_MS);
+    _hideTimer = setTimeout(hideAllCards, REVEAL_MS);
     try {
       await update(gameRef, {
         oralReveal: {
@@ -206,12 +208,6 @@ export function mount(root, api) {
         },
       });
     } catch (e) { showToast('Erreur réseau', 'error'); }
-  }
-
-  function el_forceHand() {
-    const el = $('oral-hand');
-    if (el) el._sig = null;
-    renderHand();
   }
 
   function showRevealNotif(rev) {
