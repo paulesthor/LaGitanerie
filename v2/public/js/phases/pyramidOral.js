@@ -6,9 +6,10 @@
 import { db } from '/js/firebase-config.js';
 import { ref, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import { showToast, SUIT_SYMBOL, getSipsForCard, clearGameSession } from '/js/game/utils.js';
+import { isPhotoAvatar } from '/js/game/avatar.js';
 
 const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate?.(p));
-const REVEAL_MS = 2500;  // durée d'affichage d'une preuve (secondes) puis re-cachée
+const REVEAL_MS = 2500;  // durée d'affichage (carte montrée + notif) puis re-cachée
 
 const VIEW = `
   <div class="oral-screen">
@@ -33,17 +34,7 @@ const VIEW = `
     </div>
     <p id="oral-wait" class="oral-wait hidden">En attente que l'hôte retourne la carte…</p>
 
-    <div id="oral-reveal" class="oral-reveal">
-      <div id="oral-reveal-card" class="mini-card red">
-        <div class="mc-corner" id="orv-top"></div>
-        <div class="mc-center" id="orv-sym"></div>
-        <div class="mc-bot" id="orv-bot"></div>
-      </div>
-      <div class="notif-text">
-        <div class="notif-who" id="orv-who">—</div>
-        <div class="notif-sub">montre sa carte</div>
-      </div>
-    </div>
+    <div id="oral-reveal-stack" class="oral-reveal-stack"></div>
   </div>`;
 
 export function mount(root, api) {
@@ -56,10 +47,8 @@ export function mount(root, api) {
   let _lastRenderIdx = -99;
   let _flipping = false;
   let _endWritten = false;
-  let _lastRevealTs = 0;
-  let _revealTimer = null;
+  let _seenReveals = {};   // ts déjà affiché par joueur (gère les reveals simultanés)
   let _hideTimer = null;
-  let _localReveal = { idx: -1, until: 0 };
   let _tapTimes = {};
 
   $('btn-leave').onclick = async () => {
@@ -75,13 +64,50 @@ export function mount(root, api) {
     game = newGame;
     $('oral-code-val').textContent = game.gameCode || '----';
 
-    const rTs = game.oralReveal?.ts || 0;
-    if (rTs > _lastRevealTs) {
-      _lastRevealTs = rTs;
-      if (game.oralReveal?.pid !== playerId) showRevealNotif(game.oralReveal);
-    }
+    // Style de cartes choisi par l'hôte
+    const screen = root.querySelector('.oral-screen');
+    if (screen) screen.className = 'oral-screen cs-' + (game.rules?.cardStyle || 'classic');
 
+    syncReveals();
     renderStage();
+  }
+
+  // ── Reveals concurrents : chaque joueur écrit dans oralReveals/{pid}. On
+  // affiche une notif empilée pour chaque nouveau reveal (sauf le sien). ──
+  function syncReveals() {
+    const map = game.oralReveals || {};
+    const pids = Object.keys(map);
+    if (!pids.length) { _seenReveals = {}; return; }
+    pids.forEach((pid) => {
+      if (pid === playerId) return;
+      const rev = map[pid];
+      const ts = rev?.ts || 0;
+      if (ts > (_seenReveals[pid] || 0)) {
+        _seenReveals[pid] = ts;
+        pushRevealNotif(rev);
+      }
+    });
+  }
+
+  function pushRevealNotif(rev) {
+    const stack = $('oral-reveal-stack');
+    if (!stack || !rev) return;
+    const sym   = SUIT_SYMBOL[rev.suit] || '';
+    const isRed = ['hearts', 'diamonds'].includes(rev.suit);
+    const chip = document.createElement('div');
+    chip.className = 'oral-reveal-chip';
+    chip.innerHTML = `
+      <div class="orv-mini ${isRed ? 'red' : 'black'}">${rev.value || ''}${sym}</div>
+      <div class="orv-txt">
+        <div class="orv-who">${rev.name || 'Un joueur'}</div>
+        <div class="orv-sub">montre sa carte</div>
+      </div>`;
+    stack.appendChild(chip);
+    vibrate(30);
+    setTimeout(() => {
+      chip.classList.add('out');
+      setTimeout(() => chip.remove(), 300);
+    }, REVEAL_MS);
   }
 
   async function flipNext() {
@@ -95,9 +121,17 @@ export function mount(root, api) {
         if (!_endWritten) { _endWritten = true; await update(gameRef, { phase: 'end' }); }
         return;
       }
-      await update(gameRef, { oralIndex: idx, oralReveal: null });
+      // Nouvelle carte → on efface les preuves de la carte précédente.
+      await update(gameRef, { oralIndex: idx, oralReveals: null });
     } catch (e) { showToast('Erreur réseau', 'error'); }
     finally { _flipping = false; }
+  }
+
+  // Avatar d'un joueur aléatoire à afficher au centre d'une carte (option règles)
+  function photoMarkup(pid) {
+    const av = game.players?.[pid]?.avatar || '🃏';
+    if (isPhotoAvatar(av)) return `<span class="oc-photo"><img src="${av}" alt=""></span>`;
+    return `<span class="oc-photo emoji">${av}</span>`;
   }
 
   function renderStage() {
@@ -135,11 +169,12 @@ export function mount(root, api) {
     const { sips, isCulSec } = getSipsForCard(pos.row, pyramid.length || 5);
     const sym   = SUIT_SYMBOL[card.suit] || '';
     const isRed = ['hearts', 'diamonds'].includes(card.suit);
+    const photo = game.rules?.photoCards && card.photoOwner ? photoMarkup(card.photoOwner) : '';
 
     $('oral-py-slot').innerHTML = `
       <div class="oral-py-card ${isRed ? 'red' : 'black'} ${isCulSec ? 'culsec' : ''}" key="${idx}">
         <span class="opc-idx tl"><span class="r">${card.value || ''}</span><span class="s">${sym}</span></span>
-        <span class="opc-pip">${sym}</span>
+        ${photo || `<span class="opc-pip">${sym}</span>`}
         <span class="opc-idx br"><span class="r">${card.value || ''}</span><span class="s">${sym}</span></span>
       </div>`;
 
@@ -161,6 +196,7 @@ export function mount(root, api) {
     cards.forEach((card, i) => {
       const sym   = SUIT_SYMBOL[card.suit] || '';
       const isRed = ['hearts', 'diamonds'].includes(card.suit);
+      const photo = game.rules?.photoCards && card.photoOwner ? photoMarkup(card.photoOwner) : '';
       const wrap = document.createElement('div');
       wrap.className = 'oral-card';
       wrap.dataset.idx = i;
@@ -169,7 +205,7 @@ export function mount(root, api) {
           <div class="oc-back"></div>
           <div class="oc-face ${isRed ? 'red' : 'black'}">
             <span class="occ-idx tl"><span class="r">${card.value}</span><span class="s">${sym}</span></span>
-            <span class="occ-pip">${sym}</span>
+            ${photo || `<span class="occ-pip">${sym}</span>`}
             <span class="occ-idx br"><span class="r">${card.value}</span><span class="s">${sym}</span></span>
           </div>
         </div>`;
@@ -200,33 +236,14 @@ export function mount(root, api) {
     clearTimeout(_hideTimer);
     _hideTimer = setTimeout(hideAllCards, REVEAL_MS);
     try {
-      await update(gameRef, {
-        oralReveal: {
-          pid: playerId,
-          name: game.players?.[playerId]?.name || 'Joueur',
-          value: card.value, suit: card.suit, ts: Date.now(),
-        },
+      await update(ref(db, `games/${gameId}/oralReveals/${playerId}`), {
+        name: game.players?.[playerId]?.name || 'Joueur',
+        value: card.value, suit: card.suit, ts: Date.now(),
       });
     } catch (e) { showToast('Erreur réseau', 'error'); }
   }
 
-  function showRevealNotif(rev) {
-    if (!rev) return;
-    const sym   = SUIT_SYMBOL[rev.suit] || '';
-    const isRed = ['hearts', 'diamonds'].includes(rev.suit);
-    $('oral-reveal-card').className = `mini-card ${isRed ? 'red' : 'black'}`;
-    $('orv-top').textContent = `${rev.value}${sym}`;
-    $('orv-sym').textContent = sym;
-    $('orv-bot').textContent = `${rev.value}${sym}`;
-    $('orv-who').textContent = rev.name || 'Un joueur';
-    $('oral-reveal').classList.add('show');
-    vibrate(30);
-    clearTimeout(_revealTimer);
-    _revealTimer = setTimeout(() => $('oral-reveal').classList.remove('show'), REVEAL_MS);
-  }
-
   function unmount() {
-    clearTimeout(_revealTimer);
     clearTimeout(_hideTimer);
   }
 

@@ -136,12 +136,17 @@ export function mount(root, api) {
     const snap  = (await get(gameRef)).val() || {};
     const order = snap.pyramidOrder || [];
     const deck  = snap.deck || [];
-    const updates = { phase: 'pyramid', oralIndex: -1, oralReveal: null };
+    const pids  = Object.keys(snap.players || {});
+    const photoOn = !!snap.rules?.photoCards;
+    const updates = { phase: 'pyramid', oralIndex: -1, oralReveals: null };
     order.forEach((pos, i) => {
       const c = deck[i];
       if (c) {
         updates[`pyramid/${pos.row}/${pos.col}/value`] = c.value;
         updates[`pyramid/${pos.row}/${pos.col}/suit`]  = c.suit;
+        if (photoOn && pids.length) {
+          updates[`pyramid/${pos.row}/${pos.col}/photoOwner`] = pids[Math.floor(Math.random() * pids.length)];
+        }
       }
     });
     updates.deck = deck.slice(order.length);
