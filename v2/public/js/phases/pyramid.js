@@ -4,7 +4,7 @@ import { ref, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/
 import { showToast, SUIT_SYMBOL, getSipsForCard, clearGameSession } from '/js/game/utils.js';
 import { avatarHTML, isPhotoAvatar } from '/js/game/avatar.js';
 
-const vibrate = (p) => navigator.vibrate?.(p);
+const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate?.(p));
 
 const VIEW = `
   <div class="screen">

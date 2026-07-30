@@ -5,7 +5,16 @@
 //    supporte pas l'API Vibration — comportement no-op inoffensif)
 (function () {
   if (typeof document === 'undefined') return;
-  const vibrate = (p) => { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} };
+
+  // Vibration centralisée, respecte le réglage (localStorage gita_haptics === '0' → off).
+  // Exposée en global pour que le jeu l'utilise aussi (window.gitaVibrate).
+  const vibrate = (p) => {
+    try {
+      if (localStorage.getItem('gita_haptics') === '0') return;
+      navigator.vibrate && navigator.vibrate(p);
+    } catch (e) {}
+  };
+  window.gitaVibrate = vibrate;
 
   // ── 1. Retour haptique sur les boutons importants ──
   const HAPTIC_SEL = '.btn, .action-btn, .pred-btn, .target-btn, .game, .seg-btn, .stepper-btn';
