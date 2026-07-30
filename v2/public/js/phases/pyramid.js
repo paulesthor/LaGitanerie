@@ -190,7 +190,17 @@ export function mount(root, api) {
   // Reçoit chaque snapshot depuis le routeur
   function update_(newGame) {
     const evTs = newGame.lastEvent?.timestamp || 0;
-    if (evTs > lastEventTimestamp) { lastEventTimestamp = evTs; showSipsBanner(newGame.lastEvent); }
+    if (evTs > lastEventTimestamp) {
+      lastEventTimestamp = evTs;
+      const ev = newGame.lastEvent;
+      // Menteur démasqué → UNE seule notif en haut (carte + verdict).
+      // Gorgées données/reçues → bandeau du bas.
+      if (ev?.type === 'menteur_resolved') {
+        showMenteurNotif(ev, newGame.proofCard, newGame.rules?.showProof !== false);
+      } else {
+        showSipsBanner(ev);
+      }
+    }
 
     const lcId = newGame.lastRevealedCardId;
     if (lcId && lcId !== _lastCulSecFlashId && newGame.pyramid) {
@@ -209,12 +219,6 @@ export function mount(root, api) {
     if (mrTs > lastMemRevealTs) {
       lastMemRevealTs = mrTs;
       if (newGame.memoryReveal?.pid !== playerId) showMemRevealNotif(newGame.memoryReveal);
-    }
-
-    const proofTs = newGame.proofCard?.timestamp || 0;
-    if (proofTs > lastProofTimestamp) {
-      lastProofTimestamp = proofTs;
-      if (newGame.rules?.showProof !== false) showProofOverlay(newGame.proofCard);
     }
 
     game = newGame;
@@ -747,28 +751,43 @@ export function mount(root, api) {
     sipsBannerTimer = setTimeout(() => banner.classList.remove('show'), 4000);
   }
 
-  function showProofOverlay(proof) {
-    if (!proof) return;
-    const isRed = ['hearts','diamonds'].includes(proof.suit);
-    const sym   = SUIT_SYMBOL[proof.suit] || '';
+  // Menteur démasqué : une seule notif en haut = carte-preuve (si autorisée)
+  // + verdict (qui avait raison, qui boit combien), avec code couleur.
+  function showMenteurNotif(ev, proof, showCard) {
+    if (!ev) return;
     const notif = $('proof-notif');
-    $('proof-mini-card').className = `mini-card ${isRed ? 'red' : 'black'}`;
-    $('proof-top').textContent     = `${proof.value}${sym}`;
-    $('proof-sym').textContent     = sym;
-    $('proof-bot').textContent     = `${proof.value}${sym}`;
-    $('proof-who').textContent     = `${proof.playerName} montre`;
-    $('proof-result').innerHTML    = `disparaît dans <span id="proof-countdown">3</span>s`;
-    notif.classList.add('show');
-    let c = 3;
+    const mini  = $('proof-mini-card');
+
+    if (showCard && proof) {
+      const isRed = ['hearts','diamonds'].includes(proof.suit);
+      const sym   = SUIT_SYMBOL[proof.suit] || '';
+      mini.className = `mini-card ${isRed ? 'red' : 'black'}`;
+      mini.style.display = '';
+      $('proof-top').textContent = `${proof.value}${sym}`;
+      $('proof-sym').textContent = sym;
+      $('proof-bot').textContent = `${proof.value}${sym}`;
+    } else {
+      mini.style.display = 'none';
+    }
+
+    const isMeAccused = ev.accusedId === playerId;
+    const isMeAccuser = ev.accuserId === playerId;
+    const pen = `${ev.penalty} gorgée${ev.penalty > 1 ? 's' : ''}`;
+    let accent = '', who = '', sub = '';
+    if (ev.correct) {
+      if (isMeAccuser)      { accent = 'me-drink'; who = 'Accusation ratée';               sub = `${ev.accusedName} avait la carte — tu bois ${pen}`; }
+      else if (isMeAccused) { accent = 'win';      who = 'Tu as prouvé !';                  sub = `${ev.accuserName} boit ${pen}`; }
+      else                  { accent = '';         who = `${ev.accusedName} avait la carte`; sub = `${ev.accuserName} boit ${pen}`; }
+    } else {
+      if (isMeAccused)      { accent = 'me-drink'; who = 'Tu as menti…';                    sub = `Tu bois ${pen}`; }
+      else                  { accent = '';         who = `${ev.accusedName} mentait !`;      sub = `${ev.accusedName} boit ${pen}`; }
+    }
+    $('proof-who').textContent    = who;
+    $('proof-result').textContent = sub;
+    notif.className = `card-notif ${accent} show`;
     clearInterval(proofCountdown);
-    proofCountdown = setInterval(() => {
-      c--;
-      const el = $('proof-countdown');
-      if (el) el.textContent = Math.max(0, c);
-      if (c <= 0) clearInterval(proofCountdown);
-    }, 1000);
     clearTimeout(proofTimer);
-    proofTimer = setTimeout(() => notif.classList.remove('show'), 3000);
+    proofTimer = setTimeout(() => notif.classList.remove('show'), 4200);
   }
 
   // ── Phase mémoire (memoryReveal) ──
@@ -903,13 +922,15 @@ export function mount(root, api) {
     const isRed = ['hearts','diamonds'].includes(card.suit);
     const sym   = SUIT_SYMBOL[card.suit] || '';
     const notif = $('proof-notif');
-    $('proof-mini-card').className = `mini-card ${isRed ? 'red' : 'black'}`;
+    const mini  = $('proof-mini-card');
+    mini.className = `mini-card ${isRed ? 'red' : 'black'}`;
+    mini.style.display = '';
     $('proof-top').textContent = `${card.value}${sym}`;
     $('proof-sym').textContent = sym;
     $('proof-bot').textContent = `${card.value}${sym}`;
     $('proof-who').textContent = `${name} : ${correct ? '✅ correct' : '❌ raté +3🍺'}`;
     $('proof-result').innerHTML = `disparaît dans <span id="proof-countdown">4</span>s`;
-    notif.classList.add('show');
+    notif.className = 'card-notif show';
     let c = 4;
     clearInterval(_memNotifCd);
     _memNotifCd = setInterval(() => {
