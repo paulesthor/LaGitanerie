@@ -82,7 +82,11 @@
     .set-slider::before { content:''; position:absolute; width:22px; height:22px; left:3px; top:2px; background:#fff; border-radius:50%; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
     .set-toggle input:checked + .set-slider { background:var(--orange); border-color:var(--orange); }
     .set-toggle input:checked + .set-slider::before { transform:translateX(22px); }
+    /* Amis */
+    .friend-row { display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--bg-surface); border-radius:var(--radius-sm); }
+    #friend-qr img { display:block; width:96px; height:96px; image-rendering:pixelated; border-radius:8px; border:3px solid #fff; background:#fff; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 </head>
 <body>
 
@@ -234,6 +238,31 @@
         <div id="stats-rows" class="flex-col"></div>
       </div>
 
+      <!-- Amis -->
+      <div id="friends-section" class="card flex-col gap-14 hidden">
+        <h3><i class="fas fa-user-friends" style="color:var(--orange)"></i> Mes amis</h3>
+        <div class="flex items-center gap-14">
+          <div id="friend-qr"></div>
+          <div class="flex-col gap-6" style="flex:1">
+            <span class="text-sm text-muted">Ton code d'ami</span>
+            <span id="friend-code" class="font-bold" style="font-size:1.4rem;letter-spacing:.18em;color:var(--gold)">------</span>
+            <button id="btn-copy-friend-code" class="btn btn-secondary btn-sm" style="width:auto">
+              <i class="fas fa-copy"></i> Copier
+            </button>
+            <span class="text-sm text-muted">Fais scanner ce QR à un ami (photo du téléphone) pour qu'il t'ajoute.</span>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Ajouter un ami par son code</label>
+          <div class="flex gap-8">
+            <input id="friend-code-input" class="input" placeholder="Code d'ami" maxlength="8" autocomplete="off" style="text-transform:uppercase;flex:1">
+            <button id="btn-add-friend" class="btn btn-primary" style="width:auto"><i class="fas fa-user-plus"></i></button>
+          </div>
+        </div>
+        <div id="friend-msg" class="text-sm text-center hidden"></div>
+        <div id="friends-list" class="flex-col gap-8"></div>
+      </div>
+
       <!-- Déconnexion -->
       <div id="logout-section" class="hidden mt-auto">
         <button id="btn-logout" class="btn btn-ghost">
@@ -247,12 +276,13 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { auth, getFirestore } from '/js/firebase-config.js';
+    import { auth, db, getFirestore } from '/js/firebase-config.js';
     import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
     import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { ref as dbRef, get as dbGet, set as dbSet, update as dbUpdate, remove as dbRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
     import { getGuestName, setGuestName, getGuestAvatar, setGuestAvatar, showToast } from '/js/game/utils.js';
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
-    import { compressAvatar, isPhotoAvatar } from '/js/game/avatar.js';
+    import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
     const EMOJIS = ['🃏','🎴','🎰','🍺','🥃','🍻','🎭','👑','💀','🔥','⚡','🌙','🎯','🎲','🐍','🦁','🐺','🎸','🤠','🎪'];
     let selectedAvatar = '';
@@ -554,6 +584,7 @@
         paintProfile(data);
         try { localStorage.setItem('profileFullCache', JSON.stringify(data)); } catch (e) {}
         unlockPseudoTitles(data.displayName || user.displayName || 'Joueur');
+        initFriends(user, data);
       } else {
         document.getElementById('guest-banner').classList.remove('hidden');
         const name   = getGuestName();
@@ -646,6 +677,137 @@
         if (cb.checked && window.gitaVibrate) window.gitaVibrate(20); // petit retour de confirmation
       });
     })();
+
+    // ── Système d'amis (RTDB) ───────────────────────────────
+    // Si scan de QR alors qu'on n'est pas encore connecté : on mémorise le code
+    // pour l'ajouter dès que le profil se charge connecté.
+    try {
+      const _a = new URLSearchParams(location.search).get('add');
+      if (_a) { localStorage.setItem('pendingFriendAdd', _a.toUpperCase()); }
+    } catch (e) {}
+
+    function genFriendCode() {
+      const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let s = ''; for (let i = 0; i < 6; i++) s += A[Math.floor(Math.random() * A.length)];
+      return s;
+    }
+
+    async function ensureFriendCode(user, data) {
+      const metaRef = dbRef(db, `userMeta/${user.uid}`);
+      const meta = (await dbGet(metaRef)).val() || {};
+      let code = meta.code;
+      if (!code) {
+        for (let t = 0; t < 6 && !code; t++) {
+          const c = genFriendCode();
+          const exists = (await dbGet(dbRef(db, `friendCodes/${c}`))).exists();
+          if (!exists) code = c;
+        }
+        if (!code) code = genFriendCode();
+        await dbSet(dbRef(db, `friendCodes/${code}`), user.uid);
+      }
+      await dbUpdate(metaRef, { code, name: data.displayName || 'Joueur', avatar: data.avatar || '🃏' });
+      return code;
+    }
+
+    function renderFriendQR(code) {
+      const el = document.getElementById('friend-qr');
+      if (!el || !window.qrcode) { if (el) el.textContent = ''; return; }
+      try {
+        const qr = window.qrcode(0, 'M');
+        qr.addData(`${location.origin}/profile.html?add=${code}`);
+        qr.make();
+        el.innerHTML = qr.createImgTag(3, 4);
+      } catch (e) { el.textContent = ''; }
+    }
+
+    function friendMsg(txt, ok) {
+      const el = document.getElementById('friend-msg');
+      if (!el) return;
+      el.textContent = txt;
+      el.style.color = ok ? 'var(--green)' : 'var(--red)';
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    async function addFriendByCode(user, code, myCode) {
+      code = (code || '').trim().toUpperCase();
+      if (!code) return;
+      if (code === myCode) { friendMsg("C'est ton propre code 🙂", false); return; }
+      try {
+        const fid = (await dbGet(dbRef(db, `friendCodes/${code}`))).val();
+        if (!fid) { friendMsg('Code introuvable', false); return; }
+        if (fid === user.uid) { friendMsg("C'est ton propre code 🙂", false); return; }
+        await dbUpdate(dbRef(db, 'friends'), {
+          [`${user.uid}/${fid}`]: true,
+          [`${fid}/${user.uid}`]: true,
+        });
+        document.getElementById('friend-code-input').value = '';
+        friendMsg('Ami ajouté ✓', true);
+        if (window.gitaVibrate) window.gitaVibrate(20);
+        await loadFriends(user);
+      } catch (e) { friendMsg('Erreur — vérifie ta connexion', false); }
+    }
+
+    async function loadFriends(user) {
+      const list = document.getElementById('friends-list');
+      if (!list) return;
+      let ids = [];
+      try { ids = Object.keys((await dbGet(dbRef(db, `friends/${user.uid}`))).val() || {}); }
+      catch (e) { return; }
+      if (!ids.length) {
+        list.innerHTML = '<p class="text-sm text-muted text-center" style="padding:6px">Aucun ami pour l\'instant. Partage ton code ou ton QR !</p>';
+        return;
+      }
+      const metas = await Promise.all(ids.map(async (fid) => {
+        let m = {}; try { m = (await dbGet(dbRef(db, `userMeta/${fid}`))).val() || {}; } catch (e) {}
+        return { fid, name: m.name || 'Joueur', avatar: m.avatar || '🃏' };
+      }));
+      list.innerHTML = '';
+      metas.forEach(({ fid, name, avatar }) => {
+        const row = document.createElement('div');
+        row.className = 'friend-row';
+        row.innerHTML = `${avatarHTML(avatar, 40)}<span class="font-bold" style="flex:1">${name}</span>`;
+        const del = document.createElement('button');
+        del.innerHTML = '<i class="fas fa-user-minus"></i>';
+        del.title = 'Retirer';
+        del.style.cssText = 'background:none;border:none;color:var(--red);font-size:1rem;padding:4px 8px;cursor:pointer';
+        del.onclick = async () => {
+          try {
+            await dbUpdate(dbRef(db, 'friends'), { [`${user.uid}/${fid}`]: null, [`${fid}/${user.uid}`]: null });
+            await loadFriends(user);
+          } catch (e) { friendMsg('Erreur réseau', false); }
+        };
+        row.appendChild(del);
+        list.appendChild(row);
+      });
+    }
+
+    async function initFriends(user, data) {
+      const section = document.getElementById('friends-section');
+      if (!section) return;
+      let myCode;
+      try { myCode = await ensureFriendCode(user, data); }
+      catch (e) { section.classList.add('hidden'); return; } // règles pas encore publiées → on masque
+      section.classList.remove('hidden');
+      document.getElementById('friend-code').textContent = myCode;
+      renderFriendQR(myCode);
+      document.getElementById('btn-copy-friend-code').onclick = async () => {
+        try { await navigator.clipboard.writeText(myCode); showToast('Code copié', 'success'); }
+        catch { showToast('Copie non supportée', 'error'); }
+      };
+      const addInput = document.getElementById('friend-code-input');
+      document.getElementById('btn-add-friend').onclick = () => addFriendByCode(user, addInput.value, myCode);
+      addInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addFriendByCode(user, addInput.value, myCode); });
+      await loadFriends(user);
+      // Ajout en attente (scan de QR)
+      let pending = '';
+      try { pending = localStorage.getItem('pendingFriendAdd') || ''; } catch (e) {}
+      try { history.replaceState(null, '', location.pathname); } catch (e) {}
+      if (pending) {
+        try { localStorage.removeItem('pendingFriendAdd'); } catch (e) {}
+        addFriendByCode(user, pending, myCode);
+      }
+    }
 
     // Déconnexion
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
