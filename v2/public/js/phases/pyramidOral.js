@@ -8,7 +8,7 @@ import { ref, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/
 import { showToast, SUIT_SYMBOL, getSipsForCard, clearGameSession } from '/js/game/utils.js';
 
 const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate?.(p));
-const REVEAL_MS = 3500;  // durée d'affichage d'une preuve
+const REVEAL_MS = 2500;  // durée d'affichage d'une preuve (secondes) puis re-cachée
 
 const VIEW = `
   <div class="oral-screen">
@@ -58,6 +58,7 @@ export function mount(root, api) {
   let _endWritten = false;
   let _lastRevealTs = 0;
   let _revealTimer = null;
+  let _hideTimer = null;
   let _localReveal = { idx: -1, until: 0 };
   let _tapTimes = {};
 
@@ -193,7 +194,9 @@ export function mount(root, api) {
     vibrate([40, 40, 40]);
     _localReveal = { idx: i, until: Date.now() + REVEAL_MS };
     el_forceHand();
-    setTimeout(el_forceHand, REVEAL_MS + 50);
+    // Re-cacher après quelques secondes (remise à zéro explicite → déterministe)
+    clearTimeout(_hideTimer);
+    _hideTimer = setTimeout(() => { _localReveal = { idx: -1, until: 0 }; el_forceHand(); }, REVEAL_MS);
     try {
       await update(gameRef, {
         oralReveal: {
@@ -228,6 +231,7 @@ export function mount(root, api) {
 
   function unmount() {
     clearTimeout(_revealTimer);
+    clearTimeout(_hideTimer);
   }
 
   return { update: update_, unmount };
