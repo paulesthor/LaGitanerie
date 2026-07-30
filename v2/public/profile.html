@@ -259,6 +259,9 @@
             <button id="btn-add-friend" class="btn btn-primary" style="width:auto"><i class="fas fa-user-plus"></i></button>
           </div>
         </div>
+        <button id="btn-scan-friend" class="btn btn-secondary" style="width:100%">
+          <i class="fas fa-qrcode"></i> Scanner le QR d'un ami
+        </button>
         <div id="friend-msg" class="text-sm text-center hidden"></div>
         <div id="friends-list" class="flex-col gap-8"></div>
       </div>
@@ -271,6 +274,19 @@
       </div>
 
     </div>
+  </div>
+
+  <!-- Scanner QR (caméra dans l'app) -->
+  <div id="scan-overlay" style="display:none;position:fixed;inset:0;z-index:2000;background:#000;flex-direction:column">
+    <video id="scan-video" playsinline muted style="width:100%;height:100%;object-fit:cover;background:#000"></video>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+      <div style="width:66vw;max-width:280px;aspect-ratio:1;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)"></div>
+    </div>
+    <div style="position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;justify-content:space-between;align-items:center">
+      <span style="color:#fff;font-weight:700"><i class="fas fa-qrcode"></i> Scanne le QR de ton ami</span>
+      <button id="btn-scan-close" style="background:rgba(0,0,0,.5);border:none;color:#fff;font-size:1.4rem;width:42px;height:42px;border-radius:50%;cursor:pointer"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="scan-hint" style="position:absolute;bottom:calc(env(safe-area-inset-bottom) + 24px);left:0;right:0;text-align:center;color:#fff;opacity:.85;font-size:.9rem"></div>
   </div>
 
   <div id="toast" class="toast"></div>
@@ -782,6 +798,119 @@
       });
     }
 
+    // Extrait un code d'ami depuis un texte scanné (URL ?add=CODE ou code brut).
+    function parseScannedCode(txt) {
+      if (!txt) return '';
+      try {
+        const u = new URL(txt);
+        const c = u.searchParams.get('add');
+        if (c) return c.trim().toUpperCase();
+      } catch (e) {}
+      const m = txt.match(/add=([A-Z0-9]{4,8})/i);
+      if (m) return m[1].toUpperCase();
+      if (/^[A-Z0-9]{4,8}$/i.test(txt.trim())) return txt.trim().toUpperCase();
+      return '';
+    }
+
+    // Charge jsQR à la demande (fallback iOS Safari sans BarcodeDetector).
+    let _jsqrPromise = null;
+    function loadJsQR() {
+      if (window.jsQR) return Promise.resolve(window.jsQR);
+      if (_jsqrPromise) return _jsqrPromise;
+      _jsqrPromise = new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+        s.onload = () => res(window.jsQR);
+        s.onerror = () => rej(new Error('jsQR load failed'));
+        document.head.appendChild(s);
+      });
+      return _jsqrPromise;
+    }
+
+    let _scanStream = null, _scanRAF = null, _scanActive = false;
+    function stopScanner() {
+      _scanActive = false;
+      if (_scanRAF) { cancelAnimationFrame(_scanRAF); _scanRAF = null; }
+      if (_scanStream) { _scanStream.getTracks().forEach(t => t.stop()); _scanStream = null; }
+      const ov = document.getElementById('scan-overlay');
+      if (ov) ov.style.display = 'none';
+      const v = document.getElementById('scan-video');
+      if (v) v.srcObject = null;
+    }
+
+    async function startScanner(user, myCode) {
+      const ov = document.getElementById('scan-overlay');
+      const video = document.getElementById('scan-video');
+      const hint = document.getElementById('scan-hint');
+      if (!ov || !video) return;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        friendMsg('Caméra non disponible sur cet appareil', false); return;
+      }
+      ov.style.display = 'flex';
+      hint.textContent = 'Autorise la caméra…';
+      try {
+        _scanStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }, audio: false,
+        });
+      } catch (e) {
+        stopScanner();
+        friendMsg("Accès caméra refusé", false);
+        return;
+      }
+      video.srcObject = _scanStream;
+      try { await video.play(); } catch (e) {}
+      _scanActive = true;
+      hint.textContent = 'Vise le QR de ton ami';
+
+      const onFound = (raw) => {
+        const code = parseScannedCode(raw);
+        if (!code) { hint.textContent = 'QR non reconnu — réessaie'; return; }
+        if (window.gitaVibrate) window.gitaVibrate(20);
+        stopScanner();
+        addFriendByCode(user, code, myCode);
+      };
+
+      // 1) BarcodeDetector natif (Android/Chrome) — rapide et précis.
+      let detector = null;
+      if ('BarcodeDetector' in window) {
+        try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (e) {}
+      }
+      if (detector) {
+        const tick = async () => {
+          if (!_scanActive) return;
+          try {
+            const codes = await detector.detect(video);
+            if (codes && codes.length) { onFound(codes[0].rawValue); return; }
+          } catch (e) {}
+          _scanRAF = requestAnimationFrame(tick);
+        };
+        _scanRAF = requestAnimationFrame(tick);
+        return;
+      }
+
+      // 2) Fallback jsQR (iOS Safari) via canvas.
+      let jsQR;
+      try { jsQR = await loadJsQR(); }
+      catch (e) { stopScanner(); friendMsg('Scanner indisponible — utilise le code', false); return; }
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const tick = () => {
+        if (!_scanActive) return;
+        if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth) {
+          const w = canvas.width = video.videoWidth;
+          const h = canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, w, h);
+          try {
+            const img = ctx.getImageData(0, 0, w, h);
+            const res = jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+            if (res && res.data) { onFound(res.data); return; }
+          } catch (e) {}
+        }
+        _scanRAF = requestAnimationFrame(tick);
+      };
+      _scanRAF = requestAnimationFrame(tick);
+    }
+
     async function initFriends(user, data) {
       const section = document.getElementById('friends-section');
       if (!section) return;
@@ -798,6 +927,8 @@
       const addInput = document.getElementById('friend-code-input');
       document.getElementById('btn-add-friend').onclick = () => addFriendByCode(user, addInput.value, myCode);
       addInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addFriendByCode(user, addInput.value, myCode); });
+      document.getElementById('btn-scan-friend').onclick = () => startScanner(user, myCode);
+      document.getElementById('btn-scan-close').onclick = stopScanner;
       await loadFriends(user);
       // Ajout en attente (scan de QR)
       let pending = '';

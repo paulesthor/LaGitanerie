@@ -1,6 +1,6 @@
 // ── Phase « waiting » / salle d'attente (portée depuis join.html) ─────
-import { db } from '/js/firebase-config.js';
-import { ref, update, remove, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+import { db, auth } from '/js/firebase-config.js';
+import { ref, update, remove, get, set, onDisconnect } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import {
   showToast, createDeck, createPyramid, createPyramidOrder,
   defaultPyramidRows, clearGameSession
@@ -92,6 +92,29 @@ export function mount(root, api) {
   let rules = { rows: 5, showPhase1: true, showProof: true, sipsMultiplier: 1, timerDuration: 30 };
   let isReady = false;
 
+  // ── « Rejoindre rapidement » : l'hôte (compte connecté) publie sa partie en
+  // attente pour que ses amis la voient et la rejoignent sans taper le code. ──
+  const agRef = ref(db, `activeGames/${playerId}`);
+  let agPublished = false;
+  async function publishActiveGame(game) {
+    const u = auth.currentUser;
+    if (!isHost || agPublished || !u || u.isAnonymous || !game.gameCode) return;
+    agPublished = true;
+    const me = (game.players || {})[playerId] || {};
+    try {
+      await set(agRef, {
+        code: game.gameCode, gameId,
+        name: me.name || 'Joueur', avatar: me.avatar || '🎴', ts: Date.now(),
+      });
+      onDisconnect(agRef).remove();  // nettoyage si l'hôte ferme l'app
+    } catch (e) { agPublished = false; }
+  }
+  async function unpublishActiveGame() {
+    if (!isHost) return;
+    try { onDisconnect(agRef).cancel(); } catch (e) {}
+    try { await remove(agRef); } catch (e) {}
+  }
+
   if (isHost) {
     $('host-section').classList.remove('hidden');
     $('rules-section').classList.remove('hidden');
@@ -127,6 +150,7 @@ export function mount(root, api) {
     btn.disabled = true;
     try {
       if (isHost) {
+        await unpublishActiveGame();
         const snap = await get(gameRef);
         const gameCode = snap.val()?.gameCode;
         await update(gameRef, { status: 'abandoned' });
@@ -171,6 +195,7 @@ export function mount(root, api) {
     const players = game.players || {};
     const entries = Object.entries(players);
     $('game-code').textContent = game.gameCode || '----';
+    publishActiveGame(game);
     $('player-count').textContent = entries.length;
 
     const numPlayers = entries.length;
@@ -256,6 +281,7 @@ export function mount(root, api) {
       updates[`players/${id}/sipsGiven`]   = 0;
     });
     updates.deck = deck;
+    await unpublishActiveGame();
     await update(gameRef, updates);
   }
 
@@ -266,7 +292,7 @@ export function mount(root, api) {
     setTimeout(() => el.classList.add('hidden'), 4000);
   }
 
-  function unmount() {}
+  function unmount() { unpublishActiveGame(); }
 
   return { update: update_, unmount };
 }

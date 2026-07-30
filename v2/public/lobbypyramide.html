@@ -98,6 +98,12 @@
         </div>
       </div>
 
+      <!-- Rejoindre rapidement (parties d'amis en attente) -->
+      <div id="quick-join" class="card flex-col gap-10 hidden">
+        <h3><i class="fas fa-bolt" style="color:var(--gold)"></i> Parties de tes amis</h3>
+        <div id="quick-join-list" class="flex-col gap-8"></div>
+      </div>
+
       <!-- Tabs Créer / Rejoindre -->
       <div class="section-tabs">
         <button class="tab-btn active" id="tab-create" onclick="switchTab('create')">Créer</button>
@@ -140,7 +146,7 @@
       getGuestName, setGuestName, getGuestAvatar, setGuestAvatar,
       generateGameCode, setGameSession, showToast
     } from '/js/game/utils.js';
-    import { compressAvatar } from '/js/game/avatar.js';
+    import { compressAvatar, avatarHTML } from '/js/game/avatar.js';
 
     // ── Authentification au plus tôt ───────────────────────────────
     // On s'authentifie (anonyme si besoin) DÈS le chargement, pour que toute
@@ -316,31 +322,29 @@
       }
     };
 
-    // --- Rejoindre une partie ---
-    document.getElementById('btn-join').onclick = async () => {
+    // --- Rejoindre une partie par code (utilisé par le bouton Rejoindre ET le
+    //     bouton « Rejoindre rapidement » d'une partie d'ami) ---
+    async function joinGameByCode(code, btn) {
       const player = getPlayerInfo();
-      if (!player) return;
-
-      const code = document.getElementById('input-code').value.trim().toUpperCase();
-      if (code.length !== 4) return showError('Le code fait 4 caractères');
-
-      const btn = document.getElementById('btn-join');
-      btn.disabled = true;
+      if (!player) { if (btn) btn.disabled = false; return; }
+      code = (code || '').trim().toUpperCase();
+      if (code.length !== 4) { showError('Le code fait 4 caractères'); if (btn) btn.disabled = false; return; }
+      if (btn) btn.disabled = true;
 
       try {
         // S'assurer d'être authentifié AVANT toute lecture RTDB
         await authReady;
 
         const codeSnap = await withRetry(() => get(ref(db, `gameCodes/${code}`)));
-        if (!codeSnap.exists()) return (() => { showError('Code incorrect'); btn.disabled = false; })();
+        if (!codeSnap.exists()) return (() => { showError('Code incorrect'); if (btn) btn.disabled = false; })();
 
         const gameId   = codeSnap.val().gameId;
         const gameSnap = await withRetry(() => get(ref(db, `games/${gameId}`)));
-        if (!gameSnap.exists()) return (() => { showError('Partie introuvable'); btn.disabled = false; })();
+        if (!gameSnap.exists()) return (() => { showError('Partie introuvable'); if (btn) btn.disabled = false; })();
 
         const game = gameSnap.val();
         if (game.status === 'abandoned') {
-          return (() => { showError("L'hôte a quitté cette partie"); btn.disabled = false; })();
+          return (() => { showError("L'hôte a quitté cette partie"); if (btn) btn.disabled = false; })();
         }
         if (game.status === 'started') {
           const phaseMsg = {
@@ -349,7 +353,7 @@
             memoryReveal: 'Partie en fin de partie, rejoins la prochaine.',
           };
           if (game.phase !== 'pyramid') {
-            return (() => { showError(phaseMsg[game.phase] || 'Partie en cours'); btn.disabled = false; })();
+            return (() => { showError(phaseMsg[game.phase] || 'Partie en cours'); if (btn) btn.disabled = false; })();
           }
         }
 
@@ -360,7 +364,7 @@
         // Rejoindre en cours (phase pyramide uniquement)
         if (game.status === 'started' && game.phase === 'pyramid') {
           const deck = game.deck || [];
-          if (deck.length < 4) return (() => { showError('Plus assez de cartes pour rejoindre'); btn.disabled = false; })();
+          if (deck.length < 4) return (() => { showError('Plus assez de cartes pour rejoindre'); if (btn) btn.disabled = false; })();
           const playerCards = deck.slice(0, 4).map(c => ({ ...c, revealed: false }));
           await withRetry(() => update(ref(db, `games/${gameId}`), {
             [`players/${playerId}`]: { name: player.name, avatar: player.avatar, uid: user.uid, online: true, cards: playerCards, sipsToDrink: 0, sipsGiven: 0, actedOnCard: null },
@@ -386,9 +390,59 @@
 
       } catch (e) {
         showError(friendlyError(e));
-        btn.disabled = false;
+        if (btn) btn.disabled = false;
       }
+    }
+
+    document.getElementById('btn-join').onclick = () => {
+      const code = document.getElementById('input-code').value.trim().toUpperCase();
+      joinGameByCode(code, document.getElementById('btn-join'));
     };
+
+    // --- Rejoindre rapidement : parties d'amis en attente ---
+    async function loadFriendGames(user) {
+      const wrap = document.getElementById('quick-join');
+      const list = document.getElementById('quick-join-list');
+      if (!wrap || !list) return;
+      let ids = [];
+      try { ids = Object.keys((await get(ref(db, `friends/${user.uid}`))).val() || {}); }
+      catch (e) { return; }
+      if (!ids.length) { wrap.classList.add('hidden'); return; }
+
+      const games = (await Promise.all(ids.map(async (fid) => {
+        try {
+          const g = (await get(ref(db, `activeGames/${fid}`))).val();
+          return g && g.code ? g : null;
+        } catch (e) { return null; }
+      }))).filter(Boolean);
+
+      if (!games.length) { wrap.classList.add('hidden'); return; }
+
+      list.innerHTML = '';
+      games.forEach((g) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-12';
+        row.innerHTML = `
+          ${avatarHTML(g.avatar || '🎴', 40)}
+          <div class="flex-col" style="flex:1">
+            <span class="font-bold">${g.name || 'Un ami'}</span>
+            <span class="text-sm text-muted">Partie en attente · ${g.code}</span>
+          </div>`;
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-gold btn-sm';
+        btn.style.width = 'auto';
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Rejoindre';
+        btn.onclick = () => joinGameByCode(g.code, btn);
+        row.appendChild(btn);
+        list.appendChild(row);
+      });
+      wrap.classList.remove('hidden');
+    }
+
+    onAuthStateChanged(auth, (user) => {
+      if (user && !user.isAnonymous) loadFriendGames(user);
+      else document.getElementById('quick-join')?.classList.add('hidden');
+    });
   </script>
 
 </body></html>
