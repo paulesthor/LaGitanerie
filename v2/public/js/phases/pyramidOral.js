@@ -138,9 +138,9 @@ export function mount(root, api) {
 
     $('oral-py-slot').innerHTML = `
       <div class="oral-py-card ${isRed ? 'red' : 'black'} ${isCulSec ? 'culsec' : ''}" key="${idx}">
-        <div class="opc-corner">${card.value || ''}${sym}</div>
-        <div class="opc-center">${sym}</div>
-        <div class="opc-corner bot">${card.value || ''}${sym}</div>
+        <span class="opc-idx tl"><span class="r">${card.value || ''}</span><span class="s">${sym}</span></span>
+        <span class="opc-pip">${sym}</span>
+        <span class="opc-idx br"><span class="r">${card.value || ''}</span><span class="s">${sym}</span></span>
       </div>`;
 
     const sipsEl = $('oral-sips');
@@ -168,9 +168,9 @@ export function mount(root, api) {
         <div class="oc-inner">
           <div class="oc-back"></div>
           <div class="oc-face ${isRed ? 'red' : 'black'}">
-            <div class="occ-corner">${card.value}${sym}</div>
-            <div class="occ-center">${sym}</div>
-            <div class="occ-corner bot">${card.value}${sym}</div>
+            <span class="occ-idx tl"><span class="r">${card.value}</span><span class="s">${sym}</span></span>
+            <span class="occ-pip">${sym}</span>
+            <span class="occ-idx br"><span class="r">${card.value}</span><span class="s">${sym}</span></span>
           </div>
         </div>`;
       wrap.onclick = () => onCardTap(i);

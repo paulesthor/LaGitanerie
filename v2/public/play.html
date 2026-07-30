@@ -217,17 +217,20 @@
     .oral-code { position:absolute; top:calc(env(safe-area-inset-top) + 16px); right:16px; font-size:.8rem; color:var(--text-muted); }
     .oral-stage { display:flex; flex-direction:column; align-items:center; gap:14px; width:100%; max-width:420px; }
     .oral-progress { font-size:.85rem; font-weight:700; letter-spacing:.05em; color:var(--text-muted); }
-    .oral-placeholder { width:min(34vw,150px); aspect-ratio:5/7; border-radius:14px; border:2px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:2.4rem; color:var(--text-muted); }
+    .oral-placeholder { width:min(34vw,150px); aspect-ratio:5/7; border-radius:16px; border:2px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:2.4rem; color:var(--text-muted); }
     .oral-host-bar { width:100%; max-width:360px; }
     .oral-host-bar .btn { width:100%; }
     .oral-wait { font-size:.85rem; color:var(--text-muted); text-align:center; }
     .oral-py-slot { display:flex; align-items:center; justify-content:center; }
-    .oral-py-card { width:min(34vw,150px); aspect-ratio:5/7; background:#fff; border-radius:14px; border:1px solid #e0e0e0; box-shadow:0 12px 34px rgba(0,0,0,.45); display:flex; flex-direction:column; justify-content:space-between; padding:10px 12px; font-weight:700; animation:oral-flip .5s ease both; }
-    .oral-py-card.red { color:#e74c3c; } .oral-py-card.black { color:#1a1a2e; }
-    .oral-py-card.culsec { box-shadow:0 0 0 3px var(--red), 0 12px 34px rgba(231,76,60,.5); }
-    .opc-corner { font-size:clamp(1rem,4.5vw,1.6rem); line-height:1; }
-    .opc-corner.bot { align-self:flex-end; transform:rotate(180deg); }
-    .opc-center { font-size:clamp(2.2rem,11vw,4rem); text-align:center; }
+    .oral-py-card { position:relative; width:min(34vw,150px); aspect-ratio:5/7; background:linear-gradient(158deg,#fff 0%,#f1f1ec 100%); border-radius:16px; box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 0 0 1px rgba(0,0,0,.08), 0 18px 42px rgba(0,0,0,.5); font-weight:800; font-variant-numeric:lining-nums; animation:oral-flip .5s ease both; }
+    .oral-py-card::after { content:''; position:absolute; inset:6px; border-radius:11px; border:1px solid currentColor; opacity:.13; pointer-events:none; }
+    .oral-py-card.red { color:#d63031; } .oral-py-card.black { color:#1a1a24; }
+    .oral-py-card.culsec { box-shadow:0 0 0 2px var(--red), 0 0 22px rgba(231,76,60,.55), 0 18px 42px rgba(231,76,60,.42); }
+    .opc-idx { position:absolute; display:flex; flex-direction:column; align-items:center; line-height:.9; }
+    .opc-idx .r { font-size:clamp(1.05rem,4.8vw,1.7rem); }
+    .opc-idx .s { font-size:clamp(.7rem,3vw,1rem); margin-top:1px; }
+    .opc-idx.tl { top:9px; left:11px; } .opc-idx.br { bottom:9px; right:11px; transform:rotate(180deg); }
+    .opc-pip { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:clamp(2.3rem,11.5vw,4.2rem); filter:drop-shadow(0 2px 3px rgba(0,0,0,.18)); }
     @keyframes oral-flip { from { transform:perspective(700px) rotateY(85deg); opacity:0; } to { transform:perspective(700px) rotateY(0); opacity:1; } }
     .oral-sips { font-size:1.5rem; font-weight:800; color:var(--gold); text-align:center; min-height:1.6em; }
     .oral-sips.culsec { color:var(--red); }
@@ -241,12 +244,16 @@
     .oral-card.flipped .oc-inner { transform:rotateY(180deg); }
     .oc-back, .oc-face { position:absolute; inset:0; border-radius:10px; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
     .oc-back { background-color:var(--card-back-color); background-image:var(--card-back-img); border:1px solid var(--card-back-border); box-shadow:var(--card-back-shadow); }
-    .oc-face { transform:rotateY(180deg); background:#fff; border:1px solid #e0e0e0; display:flex; flex-direction:column; justify-content:space-between; padding:5px 6px; font-weight:700; }
-    .oc-face.red { color:#e74c3c; } .oc-face.black { color:#1a1a2e; }
-    .occ-corner { font-size:.8rem; line-height:1; } .occ-corner.bot { align-self:flex-end; transform:rotate(180deg); }
-    .occ-center { font-size:1.5rem; text-align:center; }
-    .oral-reveal { position:fixed; top:calc(env(safe-area-inset-top) + 56px); left:50%; transform:translateX(-50%) translateY(-160%); background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; display:flex; align-items:center; gap:12px; z-index:400; box-shadow:0 8px 24px rgba(0,0,0,.4); transition:transform .35s cubic-bezier(.34,1.56,.64,1); }
-    .oral-reveal.show { transform:translateX(-50%) translateY(0); }
+    .oc-back::after { content:''; position:absolute; top:50%; left:50%; width:34%; aspect-ratio:1; transform:translate(-50%,-50%) rotate(45deg); border:1.5px solid rgba(255,255,255,.22); border-radius:3px; }
+    .oc-face { transform:rotateY(180deg); background:linear-gradient(158deg,#fff 0%,#f1f1ec 100%); box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); font-weight:800; font-variant-numeric:lining-nums; }
+    .oc-face::after { content:''; position:absolute; inset:3px; border-radius:8px; border:1px solid currentColor; opacity:.13; pointer-events:none; }
+    .oc-face.red { color:#d63031; } .oc-face.black { color:#1a1a24; }
+    .occ-idx { position:absolute; display:flex; flex-direction:column; align-items:center; line-height:.86; }
+    .occ-idx .r { font-size:.82rem; } .occ-idx .s { font-size:.55rem; margin-top:1px; }
+    .occ-idx.tl { top:4px; left:6px; } .occ-idx.br { bottom:4px; right:6px; transform:rotate(180deg); }
+    .occ-pip { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.7rem; filter:drop-shadow(0 1px 2px rgba(0,0,0,.15)); }
+    .oral-reveal { position:fixed; top:calc(env(safe-area-inset-top) + 56px); left:50%; transform:translateX(-50%) translateY(-24px); opacity:0; pointer-events:none; visibility:hidden; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; display:flex; align-items:center; gap:12px; z-index:400; box-shadow:0 8px 24px rgba(0,0,0,.4); transition:transform .35s cubic-bezier(.34,1.56,.64,1), opacity .25s ease, visibility .25s; }
+    .oral-reveal.show { transform:translateX(-50%) translateY(0); opacity:1; pointer-events:auto; visibility:visible; }
     /* Paysage : les 4 cartes sur une seule ligne, tout condensé en hauteur */
     @media (orientation:landscape) and (max-height:560px) {
       .oral-screen { gap:2vh; justify-content:center; }
