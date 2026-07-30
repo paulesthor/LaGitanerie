@@ -1,4 +1,4 @@
-const CACHE = 'gitanerie-v58';
+const CACHE = 'gitanerie-v59';
 
 // Assets à pré-cacher à l'installation
 const PRECACHE = [
@@ -53,9 +53,15 @@ const BYPASS = [
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE).then(cache =>
+      // cache:'reload' → on récupère depuis le RÉSEAU, jamais le cache HTTP du
+      // navigateur (sinon le SW recopie l'ancien CSS/JS après un déploiement).
+      Promise.all(PRECACHE.map(u =>
+        fetch(new Request(u, { cache: 'reload' }))
+          .then(r => { if (r && r.ok) return cache.put(u, r); })
+          .catch(() => {})
+      ))
+    ).then(() => self.skipWaiting())
   );
 });
 
@@ -93,12 +99,14 @@ self.addEventListener('fetch', e => {
   }
 
   // Nos assets (HTML, CSS, JS, images) — stale-while-revalidate
-  // → réponse immédiate depuis le cache, mise à jour silencieuse en arrière-plan
+  // → réponse immédiate depuis le cache, mise à jour silencieuse en arrière-plan.
+  // La revalidation utilise cache:'reload' pour contourner le cache HTTP et
+  // récupérer réellement la dernière version (sinon on recache du périmé).
   e.respondWith(
     caches.open(CACHE).then(cache =>
       cache.match(req).then(cached => {
-        const network = fetch(req).then(res => {
-          if (res.ok) cache.put(req, res.clone());
+        const network = fetch(new Request(req.url, { cache: 'reload' })).then(res => {
+          if (res && res.ok) cache.put(req, res.clone());
           return res;
         }).catch(() => cached);
         return cached || network;
