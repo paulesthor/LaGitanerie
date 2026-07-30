@@ -558,30 +558,11 @@ p  { font-size: 0.9rem; line-height: 1.55; color: var(--text-muted); }
 /* Scroll natif fluide iOS */
 .player-hand, #event-log { -webkit-overflow-scrolling: touch; }
 
-/* ── Animations globales ── */
-@keyframes page-enter {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.screen {
-  animation: page-enter 0.28s ease-out both;
-  will-change: opacity, transform;
-}
-
-/* View Transitions API — transitions de navigation entre pages */
-@view-transition { navigation: auto; }
-::view-transition-old(root) {
-  animation: 160ms ease-in vt-out;
-}
-::view-transition-new(root) {
-  animation: 260ms ease-out vt-in;
-}
-@keyframes vt-out {
-  to { opacity: 0; transform: translateY(-8px); }
-}
-@keyframes vt-in {
-  from { opacity: 0; transform: translateY(10px); }
-}
+/* ── Transitions de navigation : DÉSACTIVÉES ──
+   L'animation d'entrée de page (page-enter) + les View Transitions faisaient
+   se superposer l'ancienne et la nouvelle page (effet fantôme / scintillement).
+   Le fond sombre étant peint immédiatement (style inline en tête de page), la
+   navigation est nette et instantanée sans aucun fondu. */
 
 /* ── Utilitaires animation ── */
 @keyframes slide-up-fade {
