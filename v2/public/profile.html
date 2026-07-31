@@ -295,7 +295,7 @@
     import { auth, db, getFirestore } from '/js/firebase-config.js';
     import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
     import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-    import { ref as dbRef, get as dbGet, set as dbSet, update as dbUpdate, remove as dbRemove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+    import { ref as dbRef, get as dbGet, set as dbSet, update as dbUpdate, remove as dbRemove, onValue as dbOnValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
     import { getGuestName, setGuestName, getGuestAvatar, setGuestAvatar, showToast } from '/js/game/utils.js';
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
@@ -760,16 +760,27 @@
         document.getElementById('friend-code-input').value = '';
         friendMsg('Ami ajouté ✓', true);
         if (window.gitaVibrate) window.gitaVibrate(20);
-        await loadFriends(user);
+        // La liste se rafraîchit d'elle-même via l'écouteur temps réel.
       } catch (e) { friendMsg('Erreur — vérifie ta connexion', false); }
     }
 
-    async function loadFriends(user) {
+    // Écoute temps réel de la liste d'amis : dès que quelqu'un t'ajoute (ou que
+    // tu retires un ami), la liste se met à jour sans quitter la page.
+    let _friendsUnsub = null;
+    function loadFriends(user) {
+      if (_friendsUnsub) { try { _friendsUnsub(); } catch (e) {} _friendsUnsub = null; }
       const list = document.getElementById('friends-list');
       if (!list) return;
-      let ids = [];
-      try { ids = Object.keys((await dbGet(dbRef(db, `friends/${user.uid}`))).val() || {}); }
-      catch (e) { return; }
+      _friendsUnsub = dbOnValue(
+        dbRef(db, `friends/${user.uid}`),
+        (snap) => { renderFriends(user, Object.keys(snap.val() || {})); },
+        () => {}
+      );
+    }
+
+    async function renderFriends(user, ids) {
+      const list = document.getElementById('friends-list');
+      if (!list) return;
       if (!ids.length) {
         list.innerHTML = '<p class="text-sm text-muted text-center" style="padding:6px">Aucun ami pour l\'instant. Partage ton code ou ton QR !</p>';
         return;
@@ -790,7 +801,7 @@
         del.onclick = async () => {
           try {
             await dbUpdate(dbRef(db, 'friends'), { [`${user.uid}/${fid}`]: null, [`${fid}/${user.uid}`]: null });
-            await loadFriends(user);
+            // L'écouteur temps réel retire la ligne automatiquement.
           } catch (e) { friendMsg('Erreur réseau', false); }
         };
         row.appendChild(del);
