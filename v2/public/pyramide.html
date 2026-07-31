@@ -79,54 +79,75 @@
 
   <script type="module">
     import { auth, db, waitForAuth } from '/js/firebase-config.js';
-    import { ref, get } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+    import { ref, get, onValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
     import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
     import { avatarHTML } from '/js/game/avatar.js';
 
-    // --- Rejoindre rapidement : parties d'amis en attente ---
+    // --- Rejoindre rapidement : parties d'amis en attente (temps réel) ---
+    // On écoute chaque activeGames/{ami} en direct : dès qu'un ami crée sa
+    // partie, elle apparaît ici sans avoir à quitter/revenir sur la page.
+    let _friendUnsubs = [];
+    function clearFriendListeners() {
+      _friendUnsubs.forEach((u) => { try { u(); } catch (e) {} });
+      _friendUnsubs = [];
+    }
+
     async function loadFriendGames(user) {
       const wrap = document.getElementById('quick-join');
       const list = document.getElementById('quick-join-list');
       if (!wrap || !list) return;
+      clearFriendListeners();
       let ids = [];
       try { ids = Object.keys((await get(ref(db, `friends/${user.uid}`))).val() || {}); }
       catch (e) { return; }
       if (!ids.length) { wrap.classList.add('hidden'); return; }
 
-      const games = (await Promise.all(ids.map(async (fid) => {
-        try {
-          const g = (await get(ref(db, `activeGames/${fid}`))).val();
-          return g && g.code ? g : null;
-        } catch (e) { return null; }
-      }))).filter(Boolean);
+      const gamesByFid = {};
+      const render = () => {
+        const games = Object.values(gamesByFid).filter(Boolean);
+        if (!games.length) { list.innerHTML = ''; wrap.classList.add('hidden'); return; }
+        list.innerHTML = '';
+        games.forEach((g) => {
+          const row = document.createElement('div');
+          row.className = 'flex items-center gap-12';
+          row.innerHTML = `
+            ${avatarHTML(g.avatar || '🎴', 40)}
+            <div class="flex-col" style="flex:1">
+              <span class="font-bold">${g.name || 'Un ami'}</span>
+              <span class="text-sm text-muted">Partie en attente · ${g.code}</span>
+            </div>`;
+          const btn = document.createElement('button');
+          btn.className = 'btn btn-gold btn-sm';
+          btn.style.width = 'auto';
+          btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Rejoindre';
+          btn.onclick = () => { window.location.href = `/lobbypyramide.html?join=${g.code}`; };
+          row.appendChild(btn);
+          list.appendChild(row);
+        });
+        wrap.classList.remove('hidden');
+      };
 
-      if (!games.length) { wrap.classList.add('hidden'); return; }
-
-      list.innerHTML = '';
-      games.forEach((g) => {
-        const row = document.createElement('div');
-        row.className = 'flex items-center gap-12';
-        row.innerHTML = `
-          ${avatarHTML(g.avatar || '🎴', 40)}
-          <div class="flex-col" style="flex:1">
-            <span class="font-bold">${g.name || 'Un ami'}</span>
-            <span class="text-sm text-muted">Partie en attente · ${g.code}</span>
-          </div>`;
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-gold btn-sm';
-        btn.style.width = 'auto';
-        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Rejoindre';
-        btn.onclick = () => { window.location.href = `/lobbypyramide.html?join=${g.code}`; };
-        row.appendChild(btn);
-        list.appendChild(row);
+      ids.forEach((fid) => {
+        const unsub = onValue(ref(db, `activeGames/${fid}`), (snap) => {
+          const g = snap.val();
+          gamesByFid[fid] = (g && g.code) ? g : null;
+          render();
+        }, () => { gamesByFid[fid] = null; render(); });
+        _friendUnsubs.push(unsub);
       });
-      wrap.classList.remove('hidden');
     }
 
     onAuthStateChanged(auth, (user) => {
-      if (user && !user.isAnonymous) loadFriendGames(user);
-      else document.getElementById('quick-join')?.classList.add('hidden');
+      if (user && !user.isAnonymous) {
+        loadFriendGames(user);
+      } else {
+        clearFriendListeners();
+        document.getElementById('quick-join')?.classList.add('hidden');
+      }
     });
+
+    // Coupe les écouteurs quand on quitte la page (évite les fuites).
+    window.addEventListener('pagehide', clearFriendListeners);
   </script>
 
 </body></html>
