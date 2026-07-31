@@ -169,7 +169,7 @@ export function mount(root, api) {
     const { sips, isCulSec } = getSipsForCard(pos.row, pyramid.length || 5);
     const sym   = SUIT_SYMBOL[card.suit] || '';
     const isRed = ['hearts', 'diamonds'].includes(card.suit);
-    const photo = game.rules?.photoCards && card.photoOwner ? photoMarkup(card.photoOwner) : '';
+    const photo = card.photoOwner ? photoMarkup(card.photoOwner) : '';
 
     $('oral-py-slot').innerHTML = `
       <div class="oral-py-card ${isRed ? 'red' : 'black'} ${isCulSec ? 'culsec' : ''}" key="${idx}">

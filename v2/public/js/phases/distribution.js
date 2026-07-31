@@ -31,6 +31,10 @@ const VIEW = `
         <div id="hand-container" class="hand-container"></div>
       </div>
       <div id="action-area"></div>
+      <div id="oral-chat" class="oral-chat hidden">
+        <div class="oral-chat-head"><i class="fas fa-comments"></i> Historique de la partie</div>
+        <div id="oral-chat-log" class="oral-chat-log"></div>
+      </div>
     </div>
   </div>
 
@@ -78,6 +82,7 @@ export function mount(root, api) {
   const gameRef = ref(db, `games/${gameId}`);
 
   let game = {};
+  const isOral = () => game.mode === 'oral';
   let isProcessing = false;
   let isAnimating  = false;
   let _rafPending  = false;
@@ -111,8 +116,11 @@ export function mount(root, api) {
   function update_(newGame) {
     detectCardReveal(game, newGame);
     const evTs = newGame.lastEvent?.timestamp || 0;
-    if (evTs > lastEventTs) { lastEventTs = evTs; showSipsBanner(newGame.lastEvent); }
+    const isNewEvent = evTs > lastEventTs;
+    if (isNewEvent) lastEventTs = evTs;
     game = newGame;
+    // Mode Soirée : les gorgées et le résultat vont dans le mini-chat, pas en popup.
+    if (isNewEvent) showSipsBanner(game.lastEvent);
     scheduleRender();
   }
 
@@ -158,6 +166,49 @@ export function mount(root, api) {
     renderMyCards();
     renderActionArea();
     renderSidebarPlayers();
+    renderChatLog();
+  }
+
+  // ── Mini-chat (mode Soirée) : historique partagé des révélations & gorgées ──
+  function renderChatLog() {
+    const chat = $('oral-chat');
+    if (!chat) return;
+    chat.classList.toggle('hidden', !isOral());
+    if (!isOral()) return;
+    const log = $('oral-chat-log');
+    const entries = Object.values(game.eventLog || {})
+      .filter(Boolean)
+      .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))
+      .slice(-40);
+    if (!entries.length) {
+      log.innerHTML = '<div class="ocl-empty">La partie commence… les gorgées s\'afficheront ici.</div>';
+      return;
+    }
+    const nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+    log.innerHTML = entries.map(chatLineHTML).join('');
+    if (nearBottom) log.scrollTop = log.scrollHeight;
+  }
+
+  function chatLineHTML(ev) {
+    if (ev.type === 'reveal') {
+      const sym    = SUIT_SYMBOL[ev.suit] || '';
+      const colCls = ['hearts', 'diamonds'].includes(ev.suit) ? 'red' : 'black';
+      const tag = ev.correct
+        ? '<span class="ocl-tag good">réussi</span>'
+        : `<span class="ocl-tag bad">raté · boit ${ev.sips}</span>`;
+      return `<div class="ocl-line">
+        <span class="ocl-card ${colCls}">${ev.value ?? ''}${sym}</span>
+        <span class="ocl-body"><strong>${ev.byName || 'Joueur'}</strong> révèle ${tag}</span>
+      </div>`;
+    }
+    if (ev.type === 'sips_given') {
+      const amt = `${ev.amount} gorgée${ev.amount > 1 ? 's' : ''}`;
+      return `<div class="ocl-line">
+        <span class="ocl-ic drink"><i class="fas fa-beer-mug-empty"></i></span>
+        <span class="ocl-body"><strong>${ev.fromName || 'Joueur'}</strong> → <strong>${ev.toName || '?'}</strong> · <span class="ocl-amt">${amt}</span></span>
+      </div>`;
+    }
+    return '';
   }
 
   function renderTurnBanner() {
@@ -270,17 +321,23 @@ export function mount(root, api) {
     const correct = checkPrediction(choice, card, stepIdx, myCards);
     const sips    = stepIdx + 1;
     vibrate(correct ? [50] : [150, 50, 150]);
+    const revealTs = Date.now();
     await update(ref(db, `games/${gameId}`), {
       [`players/${playerId}/cards/${stepIdx}/revealed`]: true,
-      lastRevealedCard: { value: card.value, suit: card.suit, playerName: game.players[playerId].name }
+      lastRevealedCard: { value: card.value, suit: card.suit, playerName: game.players[playerId].name },
+      // Journal partagé (mini-chat du mode Soirée) : révélation + résultat.
+      [`eventLog/${revealTs}`]: {
+        type: 'reveal', byName: game.players[playerId].name,
+        value: card.value, suit: card.suit, correct, sips, timestamp: revealTs
+      }
     });
     setTimeout(async () => {
       isAnimating = false;
       if (correct) {
-        showToast(`Bonne réponse — donne ${sips} gorgée(s)`, 'success');
+        if (!isOral()) showToast(`Bonne réponse — donne ${sips} gorgée(s)`, 'success');
         showTargetModal(sips);
       } else {
-        showToast(`Raté — tu bois ${sips} gorgée(s)`, 'error');
+        if (!isOral()) showToast(`Raté — tu bois ${sips} gorgée(s)`, 'error');
         const current = game.players[playerId].sipsToDrink || 0;
         await passTurn({ [`players/${playerId}/sipsToDrink`]: current + sips });
       }
@@ -322,6 +379,7 @@ export function mount(root, api) {
   }
 
   function showSipsBanner(event) {
+    if (isOral()) return;  // en Soirée, tout passe par le mini-chat
     if (!event || event.type !== 'sips_given') return;
     const banner = $('sips-banner');
     const text   = $('sips-banner-text');

@@ -137,6 +137,26 @@
     .notif-who { font-size:.85rem; font-weight:700; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
     .notif-sub { font-size:.72rem; color:var(--text-muted); }
 
+    /* ── Mini-chat historique (mode Soirée, phase 1) ── */
+    .oral-chat { flex:1 1 auto; min-height:130px; display:flex; flex-direction:column; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .oral-chat.hidden { display:none; }
+    .oral-chat-head { flex-shrink:0; padding:10px 14px; font-size:.82rem; font-weight:800; color:var(--text-muted); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+    .oral-chat-head i { color:var(--gold); }
+    .oral-chat-log { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:8px 12px; display:flex; flex-direction:column; gap:7px; }
+    .ocl-empty { color:var(--text-muted); font-size:.82rem; text-align:center; margin:auto 0; padding:12px; line-height:1.4; }
+    .ocl-line { display:flex; align-items:center; gap:9px; font-size:.85rem; line-height:1.3; animation:pred-up .22s ease-out both; }
+    .ocl-line strong { font-weight:800; }
+    .ocl-body { min-width:0; }
+    .ocl-card { flex-shrink:0; min-width:26px; text-align:center; font-weight:800; font-size:.82rem; padding:3px 5px; border-radius:6px; background:linear-gradient(158deg,#fff,#f1f1ec); box-shadow:inset 0 0 0 1px rgba(0,0,0,.1); }
+    .ocl-card.red { color:#d63031; }
+    .ocl-card.black { color:#1a1a24; }
+    .ocl-ic { flex-shrink:0; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.75rem; }
+    .ocl-ic.drink { color:var(--red); background:rgba(231,76,60,.16); }
+    .ocl-tag { font-weight:800; }
+    .ocl-tag.good { color:var(--green); }
+    .ocl-tag.bad { color:var(--red); }
+    .ocl-amt { font-weight:800; color:var(--gold); }
+
     /* ── Mémorisation (60s) ── */
     .timer-circle-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; }
     .timer-circle { width:80px; height:80px; position:relative; }

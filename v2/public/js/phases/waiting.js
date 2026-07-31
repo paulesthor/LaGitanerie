@@ -58,10 +58,6 @@ const VIEW = `
                 <button class="seg-btn" data-val="gold">Or</button>
               </div>
             </div>
-            <div class="rule-row" id="row-photoCards" style="display:none">
-              <div class="rule-info"><div class="rule-name">Photos sur les cartes</div><div class="rule-desc">Chaque carte porte la photo d'un joueur au hasard</div></div>
-              <label class="toggle"><input type="checkbox" id="rule-photoCards"><span class="toggle-slider"></span></label>
-            </div>
             <div class="rule-row" id="row-showProof">
               <div class="rule-info"><div class="rule-name">Preuve visible pour tous</div><div class="rule-desc">Quand quelqu'un prouve au Menteur, tous voient la carte</div></div>
               <label class="toggle"><input type="checkbox" id="rule-showProof" checked><span class="toggle-slider"></span></label>
@@ -109,7 +105,7 @@ export function mount(root, api) {
   const gameRef   = ref(db, `games/${gameId}`);
   const playerRef = ref(db, `games/${gameId}/players/${playerId}`);
 
-  let rules = { rows: 5, showPhase1: true, showProof: true, sipsMultiplier: 1, timerDuration: 30, oralInterval: 12, cardStyle: 'classic', photoCards: false };
+  let rules = { rows: 5, showPhase1: true, showProof: true, sipsMultiplier: 1, timerDuration: 30, oralInterval: 12, cardStyle: 'classic' };
   let isReady = false;
   let _modeApplied = false;
 
@@ -213,7 +209,6 @@ export function mount(root, api) {
   });
   $('rule-showPhase1') && ($('rule-showPhase1').onchange = (e) => { rules.showPhase1 = e.target.checked; });
   $('rule-showProof')  && ($('rule-showProof').onchange  = (e) => { rules.showProof  = e.target.checked; });
-  $('rule-photoCards') && ($('rule-photoCards').onchange = (e) => { rules.photoCards = e.target.checked; });
 
   function update_(game) {
     const players = game.players || {};
@@ -230,8 +225,7 @@ export function mount(root, api) {
       setDisp('row-showProof', !oral);
       setDisp('row-mult', !oral);
       setDisp('row-timer', !oral);
-      setDisp('row-cardStyle', oral);   // style & photos : propres au mode Soirée
-      setDisp('row-photoCards', oral);
+      setDisp('row-cardStyle', oral);   // style des cartes : propre au mode Soirée
     }
     $('player-count').textContent = entries.length;
 
@@ -310,11 +304,10 @@ export function mount(root, api) {
     const updates = {
       status: 'started', phase: 'distribution', pyramid, pyramidOrder: order, deck,
       currentTurn: ids[0],
-      rules: { showPhase1: rules.showPhase1, showProof: rules.showProof, sipsMultiplier: rules.sipsMultiplier, timerDuration: rules.timerDuration, oralInterval: rules.oralInterval, cardStyle: rules.cardStyle, photoCards: rules.photoCards }
+      rules: { showPhase1: rules.showPhase1, showProof: rules.showProof, sipsMultiplier: rules.sipsMultiplier, timerDuration: rules.timerDuration, oralInterval: rules.oralInterval, cardStyle: rules.cardStyle }
     };
-    const pickPhoto = () => ids[Math.floor(Math.random() * ids.length)];
     ids.forEach(id => {
-      updates[`players/${id}/cards`]       = deck.splice(0, 4).map(c => ({ ...c, revealed: false, ...(rules.photoCards ? { photoOwner: pickPhoto() } : {}) }));
+      updates[`players/${id}/cards`]       = deck.splice(0, 4).map(c => ({ ...c, revealed: false }));
       updates[`players/${id}/sipsToDrink`] = 0;
       updates[`players/${id}/sipsGiven`]   = 0;
     });
