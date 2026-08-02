@@ -2,7 +2,7 @@
 <html lang="fr"><head>
   <meta charset="UTF-8">
   <style id="gita-early-bg">html{background:#1b2734}</style>
-  
+
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,6 +13,7 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&amp;family=Playfair+Display:wght@500;600;700&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="/css/main.css">
@@ -25,171 +26,162 @@
   <!-- Perf : préparer les pages de jeu pour un clic instantané -->
   <link rel="prefetch" href="/pyramide.html">
   <link rel="prefetch" href="/loupgarou.html">
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   <style>
-    /* L'accueil est plus foncé que le reste du site : aligner le document
-       pour éviter un bleu différent lors du rebond en bas d'écran. */
     html, body { background: #1b2734; }
-    .home-min {
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      background: #1b2734;
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: calc(env(safe-area-inset-bottom) + 8px);
-    }
 
-    /* ── Barre compte (discrète) ── */
-    .topbar {
-      display: flex; align-items: center; gap: 12px;
-      padding: 16px 22px;
+    /* ── Système d'onglets (hub) ── */
+    .tab-view { display:none; min-height:100dvh; padding-bottom:calc(76px + env(safe-area-inset-bottom)); }
+    .tab-view.active { display:flex; flex-direction:column; }
+    #view-accueil { background:#1b2734; padding-top:env(safe-area-inset-top); }
+    #view-profil, #view-stats, #view-amis, #view-reglages { background:#2c3e50; }
+
+    .pane-head { padding:calc(env(safe-area-inset-top) + 18px) 22px 2px; }
+    .pane-head h1 {
+      font-family:var(--font-brand,'Playfair Display',serif);
+      font-weight:600; font-size:1.7rem; color:var(--text,#ecf0f1); line-height:1;
     }
-    .topbar-id { display: flex; align-items: center; gap: 11px; flex: 1; min-width: 0; }
+    .pane-head .pane-sub { font-size:.78rem; color:rgba(236,240,241,.45); margin-top:6px; }
+
+    /* ── Barre d'onglets fixe en bas ── */
+    .tabbar {
+      position:fixed; left:0; right:0; bottom:0; z-index:300;
+      display:flex; background:rgba(18,26,34,.97);
+      -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+      border-top:1px solid rgba(255,255,255,.08);
+      padding-bottom:env(safe-area-inset-bottom);
+    }
+    .tabbar button {
+      flex:1; background:none; border:none; cursor:pointer;
+      display:flex; flex-direction:column; align-items:center; gap:3px;
+      padding:9px 2px 7px; font-family:inherit; font-size:.6rem; font-weight:600;
+      color:rgba(236,240,241,.5); transition:color .15s; letter-spacing:.02em;
+    }
+    .tabbar button i { font-size:1.18rem; line-height:1; }
+    .tabbar button.active { color:var(--orange,#f39c12); }
+    .tabbar button:active { color:var(--orange,#f39c12); }
+
+    /* ── Barre compte (accueil) ── */
+    .topbar { display:flex; align-items:center; gap:12px; padding:16px 22px; }
+    .topbar-id { display:flex; align-items:center; gap:11px; flex:1; min-width:0; cursor:pointer; }
     .avatar-sm {
-      width: 38px; height: 38px; border-radius: 50%;
-      background: var(--bg-surface, #1a2530);
-      border: 1px solid rgba(255,255,255,0.08);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.05rem; overflow: hidden; flex-shrink: 0;
+      width:38px; height:38px; border-radius:50%;
+      background:var(--bg-surface,#1a2530); border:1px solid rgba(255,255,255,0.08);
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.05rem; overflow:hidden; flex-shrink:0;
     }
-    .id-text { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .id-name-row { display: flex; align-items: center; gap: 6px; }
+    .id-text { min-width:0; display:flex; flex-direction:column; gap:2px; }
+    .id-name-row { display:flex; align-items:center; gap:6px; }
     .id-name-row .user-name {
-      font-size: 0.9rem; font-weight: 600; color: var(--text, #ecf0f1);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 42vw;
+      font-size:0.9rem; font-weight:600; color:var(--text,#ecf0f1);
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:42vw;
     }
-    .user-title {
-      font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.14em; color: var(--orange, #f39c12);
-    }
-    .xp-mini { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
-    .xp-mini .xp-val-text { font-size: 0.58rem; color: rgba(236,240,241,0.4); letter-spacing: .04em; white-space: nowrap; }
-    .xp-track { width: 70px; height: 3px; border-radius: 3px; background: rgba(255,255,255,0.09); overflow: hidden; }
-    .xp-mini #xp-bar-fill { display: block; height: 100%; background: var(--orange, #f39c12); width: 0%; }
+    .user-title { font-size:0.6rem; font-weight:700; text-transform:uppercase; letter-spacing:0.14em; color:var(--orange,#f39c12); }
+    .xp-mini { display:flex; align-items:center; gap:8px; margin-top:3px; }
+    .xp-mini .xp-val-text { font-size:0.58rem; color:rgba(236,240,241,0.4); letter-spacing:.04em; white-space:nowrap; }
+    .xp-track { width:70px; height:3px; border-radius:3px; background:rgba(255,255,255,0.09); overflow:hidden; }
+    .xp-mini #home-xp-bar-fill { display:block; height:100%; background:var(--orange,#f39c12); width:0%; }
     .link-btn {
-      background: none; border: none; padding: 6px 2px;
-      font-family: inherit; font-size: 0.78rem; font-weight: 600; letter-spacing: .02em;
-      color: rgba(236,240,241,0.55); cursor: pointer; white-space: nowrap;
-      border-bottom: 1px solid transparent; transition: color .15s, border-color .15s;
+      background:none; border:none; padding:6px 2px;
+      font-family:inherit; font-size:0.78rem; font-weight:600; letter-spacing:.02em;
+      color:rgba(236,240,241,0.55); cursor:pointer; white-space:nowrap;
+      border-bottom:1px solid transparent; transition:color .15s, border-color .15s;
     }
-    .link-btn:active { color: var(--orange, #f39c12); border-color: rgba(243,156,18,0.4); }
+    .link-btn:active { color:var(--orange,#f39c12); border-color:rgba(243,156,18,0.4); }
 
     /* ── Hero ── */
-    .hero { padding: 52px 22px 76px; }
-    .hero-eyebrow {
-      font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.32em; color: rgba(236,240,241,0.4); margin-bottom: 18px;
-    }
+    .hero { padding:44px 22px 60px; }
     .hero-title {
-      font-family: var(--font-brand, 'Playfair Display', serif);
-      font-weight: 600; font-size: clamp(3rem, 15vw, 4.4rem);
-      line-height: 0.9; letter-spacing: -0.01em; color: var(--text, #ecf0f1);
+      font-family:var(--font-brand,'Playfair Display',serif);
+      font-weight:600; font-size:clamp(3rem,15vw,4.4rem);
+      line-height:0.9; letter-spacing:-0.01em; color:var(--text,#ecf0f1);
     }
-    .hero-title .amp { color: var(--orange, #f39c12); }
-    .hero-tagline {
-      margin-top: 20px; font-size: 0.9rem; line-height: 1.55;
-      color: rgba(236,240,241,0.5); max-width: 30ch;
-    }
+    .hero-title .amp { color:var(--orange,#f39c12); }
 
-    /* ── Liste de jeux (éditoriale) ── */
-    .games { padding: 8px 22px 0; }
+    /* ── Liste de jeux ── */
+    .games { padding:8px 22px 0; }
     .games-label {
-      font-size: 0.58rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.28em; color: rgba(236,240,241,0.3);
-      padding-bottom: 6px;
+      font-size:0.58rem; font-weight:700; text-transform:uppercase;
+      letter-spacing:0.28em; color:rgba(236,240,241,0.3); padding-bottom:6px;
     }
     .game {
-      display: flex; align-items: center; gap: 18px;
-      padding: 26px 2px;
-      border-top: 1px solid rgba(255,255,255,0.07);
-      text-decoration: none; color: inherit;
-      transition: padding-left .18s ease;
+      display:flex; align-items:center; gap:18px; padding:26px 2px;
+      border-top:1px solid rgba(255,255,255,0.07);
+      text-decoration:none; color:inherit; transition:padding-left .18s ease;
     }
-    .game:last-of-type { border-bottom: 1px solid rgba(255,255,255,0.07); }
-    .game:active { padding-left: 8px; }
+    .game:last-of-type { border-bottom:1px solid rgba(255,255,255,0.07); }
+    .game:active { padding-left:8px; }
     .game-num {
-      font-family: var(--font-brand, 'Playfair Display', serif);
-      font-size: 1rem; font-weight: 500; color: rgba(236,240,241,0.28);
-      width: 22px; flex-shrink: 0;
+      font-family:var(--font-brand,'Playfair Display',serif);
+      font-size:1rem; font-weight:500; color:rgba(236,240,241,0.28); width:22px; flex-shrink:0;
     }
-    .game-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+    .game-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
     .game-name {
-      font-family: var(--font-brand, 'Playfair Display', serif);
-      font-weight: 600; font-size: clamp(1.45rem, 6.5vw, 1.9rem); line-height: 1.05;
-      color: var(--text, #ecf0f1);
+      font-family:var(--font-brand,'Playfair Display',serif);
+      font-weight:600; font-size:clamp(1.45rem,6.5vw,1.9rem); line-height:1.05; color:var(--text,#ecf0f1);
     }
-    .game-desc { font-size: 0.78rem; color: rgba(236,240,241,0.45); line-height: 1.4; }
-    .game-go {
-      margin-left: auto; flex-shrink: 0;
-      color: var(--orange, #f39c12); font-size: 1.25rem; line-height: 1;
-      transition: transform .18s ease;
-    }
-    .game:active .game-go { transform: translateX(5px); }
+    .game-desc { font-size:0.78rem; color:rgba(236,240,241,0.45); line-height:1.4; }
+    .game-go { margin-left:auto; flex-shrink:0; color:var(--orange,#f39c12); font-size:1.25rem; line-height:1; transition:transform .18s ease; }
+    .game:active .game-go { transform:translateX(5px); }
+    .home-footer { margin-top:auto; padding:30px 22px 20px; font-size:0.66rem; font-style:italic; letter-spacing:.01em; color:rgba(236,240,241,0.22); }
 
-    /* ── Footer ── */
-    .home-footer {
-      margin-top: auto; padding: 30px 22px 20px;
-      font-size: 0.66rem; font-style: italic; letter-spacing: .01em;
-      color: rgba(236,240,241,0.22);
-    }
+    /* ── Profil / stats / amis / réglages (repris de l'ancienne page profil) ── */
+    .emoji-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:8px; }
+    .emoji-btn { font-size:1.6rem; background:var(--bg-surface); border:2px solid transparent; border-radius:var(--radius-sm); padding:8px 4px; cursor:pointer; text-align:center; transition:border-color var(--transition); }
+    .emoji-btn.selected { border-color:var(--red); }
+    .stat-row { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); }
+    .stat-row:last-child { border-bottom:none; }
+    .level-badge { display:inline-flex; align-items:center; gap:6px; background:rgba(243,156,18,.15); border:1px solid var(--gold); border-radius:20px; padding:6px 14px; font-size:.85rem; font-weight:700; color:var(--gold); }
+    .guest-banner { background:rgba(243,156,18,.1); border:1px solid rgba(243,156,18,.3); border-radius:var(--radius); padding:14px 16px; display:flex; align-items:center; gap:12px; }
+    .title-pill { padding:8px 14px; border-radius:20px; border:1px solid var(--border); background:var(--bg-surface); color:var(--text); font-family:inherit; font-size:.85rem; font-weight:600; cursor:pointer; transition:all var(--transition); }
+    .title-pill.active { border-color:var(--gold); background:rgba(243,156,18,.15); color:var(--gold); }
+    .title-unlock-ov { position:fixed; inset:0; z-index:3000; background:rgba(8,12,16,.72); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; padding:24px; opacity:0; transition:opacity .25s ease; pointer-events:none; }
+    .title-unlock-ov.show { opacity:1; pointer-events:auto; }
+    .title-unlock-card { background:linear-gradient(160deg,#20303f,#141d26); border:1px solid var(--gold); border-radius:18px; padding:28px 26px; text-align:center; max-width:320px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,.5), 0 0 40px rgba(243,156,18,.15); transform:scale(.85) translateY(10px); transition:transform .3s cubic-bezier(.34,1.5,.64,1); display:flex; flex-direction:column; align-items:center; gap:10px; }
+    .title-unlock-ov.show .title-unlock-card { transform:scale(1) translateY(0); }
+    .tu-crown { font-size:2.4rem; color:var(--gold); filter:drop-shadow(0 3px 10px rgba(243,156,18,.5)); }
+    .tu-label { font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.18em; color:var(--text-muted); }
+    .tu-name { font-family:var(--font-brand); font-size:1.9rem; font-weight:700; color:var(--text); line-height:1.1; }
+    .tu-desc { font-size:.85rem; color:var(--text-muted); font-style:italic; }
+    .title-unlock-card .tu-ok { width:auto; padding-left:30px; padding-right:30px; margin-top:8px; }
+    .set-toggle { position:relative; width:50px; height:28px; flex-shrink:0; }
+    .set-toggle input { opacity:0; width:0; height:0; position:absolute; }
+    .set-slider { position:absolute; inset:0; background:var(--bg-surface); border:1px solid var(--border); border-radius:14px; cursor:pointer; transition:background .2s; }
+    .set-slider::before { content:''; position:absolute; width:22px; height:22px; left:3px; top:2px; background:#fff; border-radius:50%; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.3); }
+    .set-toggle input:checked + .set-slider { background:var(--orange); border-color:var(--orange); }
+    .set-toggle input:checked + .set-slider::before { transform:translateX(22px); }
+    .friend-row { display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--bg-surface); border-radius:var(--radius-sm); }
+    #friend-qr img { display:block; width:96px; height:96px; image-rendering:pixelated; border-radius:8px; border:3px solid #fff; background:#fff; }
   </style>
 </head>
 <body>
 
-  <div class="home-min">
-
-    <!-- Compte -->
+  <!-- ══════════════ ACCUEIL ══════════════ -->
+  <section id="view-accueil" class="tab-view active">
     <div class="topbar">
-      <div class="topbar-id">
-        <div id="user-avatar-wrap" style="flex-shrink:0"><div class="avatar-sm" id="user-avatar">👤</div></div>
+      <div class="topbar-id" id="home-chip">
+        <div id="home-user-avatar-wrap" style="flex-shrink:0"><div class="avatar-sm" id="home-user-avatar">👤</div></div>
         <div class="id-text">
           <div class="id-name-row">
-            <span class="user-name" id="user-name">Invité</span>
-            <span id="user-badge" style="display:inline-flex"></span>
+            <span class="user-name" id="home-user-name">Invité</span>
+            <span id="home-user-badge" style="display:inline-flex"></span>
           </div>
-          <div class="user-title" id="user-title"></div>
-          <div id="xp-wrap" class="xp-mini" style="display:none">
-            <span class="xp-track"><span id="xp-bar-fill"></span></span>
-            <span class="xp-val-text" id="xp-val">0</span>
+          <div class="user-title" id="home-user-title"></div>
+          <div id="home-xp-wrap" class="xp-mini" style="display:none">
+            <span class="xp-track"><span id="home-xp-bar-fill"></span></span>
+            <span class="xp-val-text" id="home-xp-val">0</span>
           </div>
         </div>
       </div>
-      <button id="btn-account" class="link-btn">Connexion</button>
+      <button id="home-btn-account" class="link-btn">Connexion</button>
     </div>
 
-    <!-- Peinture optimiste SYNCHRONE (avant la 1re peinture) → pas de flash "Invité" -->
-    <script>
-      (function () {
-        try {
-          var c = JSON.parse(localStorage.getItem('profileCache'));
-          if (!c) return;
-          var name = document.getElementById('user-name');
-          var btn  = document.getElementById('btn-account');
-          var av   = document.getElementById('user-avatar');
-          var wrap = document.getElementById('user-avatar-wrap');
-          if (name) name.textContent = c.displayName || 'Joueur';
-          if (btn)  { btn.textContent = 'Mon profil'; btn.onclick = function () { window.location.href = '/profile.html'; }; }
-          if (av && c.avatar) {
-            if (/^data:|^http/.test(c.avatar)) av.innerHTML = '<img src="' + c.avatar + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover">';
-            else av.textContent = c.avatar;
-          }
-          if (wrap && c.activeBorder) { wrap.className = 'avatar-framed border-' + c.activeBorder; }
-          var xp = c.xp || 0, lvl = Math.floor(xp / 100);
-          var xw = document.getElementById('xp-wrap'); if (xw) xw.style.display = 'flex';
-          var xv = document.getElementById('xp-val'); if (xv) xv.textContent = 'Niv. ' + lvl + ' · ' + xp + ' XP';
-          var xf = document.getElementById('xp-bar-fill'); if (xf) xf.style.width = (xp % 100) + '%';
-        } catch (e) {}
-      })();
-    </script>
-
-    <!-- Hero -->
     <div class="hero">
       <h1 class="hero-title"><span class="amp">La</span><br>Gitanerie</h1>
     </div>
 
-    <!-- Jeux -->
     <nav class="games">
       <div class="games-label">Choisis ton poison</div>
-
       <a href="/pyramide.html" class="game">
         <span class="game-num">01</span>
         <span class="game-body">
@@ -198,7 +190,6 @@
         </span>
         <span class="game-go" aria-hidden="true">→</span>
       </a>
-
       <a href="/loupgarou.html" class="game">
         <span class="game-num">02</span>
         <span class="game-body">
@@ -211,84 +202,923 @@
     </nav>
 
     <div class="home-footer">L'abus d'alcool est recommandé par les collègues.</div>
+  </section>
 
+  <!-- ══════════════ PROFIL ══════════════ -->
+  <section id="view-profil" class="tab-view">
+    <div class="pane-head"><h1>Profil</h1></div>
+    <div class="page-content">
+
+      <div id="guest-banner" class="guest-banner hidden">
+        <span style="font-size:1.5rem">👤</span>
+        <div class="flex-col gap-8" style="flex:1">
+          <span class="font-bold">Mode invité</span>
+          <span class="text-sm text-muted">Connecte-toi pour sauvegarder ton XP et tes stats.</span>
+        </div>
+        <a href="/login.html" class="btn btn-gold btn-sm" style="white-space:nowrap">Connexion</a>
+      </div>
+
+      <!-- Identité -->
+      <div class="card flex-col gap-16">
+        <div class="flex items-center gap-16">
+          <div id="profile-avatar-wrap" style="flex-shrink:0">
+            <div style="width:64px;height:64px;border-radius:50%;background:var(--bg-surface);border:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;font-size:2.2rem" id="profile-avatar">🃏</div>
+          </div>
+          <div class="flex-col gap-8" style="flex:1">
+            <span id="profile-name" class="font-bold" style="font-size:1.2rem">Invité</span>
+            <span id="profile-title" class="text-sm" style="color:var(--gold);font-weight:600"></span>
+            <div id="level-badge" class="level-badge hidden">
+              <i class="fas fa-star"></i> Niveau <span id="level-num">0</span>
+            </div>
+          </div>
+        </div>
+        <div id="xp-section" class="flex-col gap-6 hidden">
+          <div class="flex justify-between text-sm text-muted">
+            <span>XP : <strong id="xp-val">0</strong></span>
+            <span><strong id="xp-progress">0/100</strong> pour Niv. <span id="xp-next-level">2</span></span>
+          </div>
+          <div class="xp-bar-wrap" style="height:8px">
+            <div class="xp-bar-fill" id="xp-fill" style="width:0%"></div>
+          </div>
+          <p class="text-sm text-muted" style="font-style:italic;font-size:.72rem">+10 XP par partie jouée · +1 XP par gorgée donnée · −1 XP par gorgée bue</p>
+        </div>
+      </div>
+
+      <!-- Éditer -->
+      <div class="card flex-col gap-16">
+        <h3>Modifier</h3>
+        <div class="input-group">
+          <label>Nom de joueur</label>
+          <input type="text" id="edit-name" class="input" placeholder="Ton pseudo" maxlength="15">
+        </div>
+        <div class="flex-col gap-10">
+          <span class="text-sm text-muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Photo de profil</span>
+          <div class="flex items-center gap-14">
+            <div id="photo-preview" style="width:72px;height:72px;border-radius:50%;background:var(--bg-surface);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:2rem;overflow:hidden;flex-shrink:0">🃏</div>
+            <div class="flex-col gap-8" style="flex:1">
+              <button id="btn-photo" class="btn btn-secondary btn-sm"><i class="fas fa-camera"></i> Prendre / Choisir</button>
+              <button id="btn-remove-photo" class="btn btn-ghost btn-sm hidden" style="color:var(--red)"><i class="fas fa-trash"></i> Supprimer la photo</button>
+            </div>
+          </div>
+          <input type="file" id="photo-input" accept="image/*" style="display:none">
+        </div>
+        <div id="emoji-section" class="flex-col gap-8">
+          <span class="text-sm text-muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Ou choisis un emoji</span>
+          <div id="emoji-grid" class="emoji-grid"></div>
+        </div>
+        <button id="btn-save" class="btn btn-primary"><i class="fas fa-save"></i> Sauvegarder</button>
+      </div>
+
+      <!-- Titres -->
+      <div id="titles-section" class="card flex-col gap-14 hidden">
+        <h3><i class="fas fa-award" style="color:var(--orange)"></i> Mes titres</h3>
+        <p class="text-sm text-muted">Le titre équipé s'affiche à côté de ton pseudo.</p>
+        <div id="titles-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      </div>
+
+      <!-- Badges -->
+      <div id="badges-section" class="card flex-col gap-14 hidden">
+        <h3><i class="fas fa-medal" style="color:var(--orange)"></i> Mes badges</h3>
+        <div id="badges-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px"></div>
+        <div class="flex-col gap-8">
+          <span class="label-caps">Badge affiché en jeu</span>
+          <div id="active-badge-preview" class="flex items-center gap-12 card-sm">
+            <div id="active-badge-icon" class="badge-hex" style="width:40px;height:40px;background:var(--bg-raised)"></div>
+            <span id="active-badge-name" class="text-sm text-muted">Aucun</span>
+            <button id="btn-clear-badge" class="btn btn-ghost btn-sm hidden" style="width:auto;margin-left:auto">Retirer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cadres -->
+      <div id="borders-section" class="card flex-col gap-14 hidden">
+        <h3><i class="fas fa-circle-half-stroke" style="color:var(--orange)"></i> Cadre de profil</h3>
+        <div id="borders-grid" class="flex gap-14 flex-wrap"></div>
+        <p class="text-sm text-muted">Les cadres se débloquent par niveau. Niv. 5 Bronze · Niv. 10 Argent · Niv. 20 Or · Niv. 30 Légende</p>
+      </div>
+
+      <!-- Outils de test (dev) -->
+      <div id="dev-section" class="card flex-col gap-12 hidden" style="border:1px dashed var(--orange)">
+        <h3><i class="fas fa-flask" style="color:var(--orange)"></i> Outils de test</h3>
+        <p class="text-sm text-muted">Réservé à ton compte. « Tout débloquer » monte aussi le niveau à 30 pour dévoiler les cadres.</p>
+        <div class="flex gap-10 flex-wrap">
+          <button id="btn-dev-unlock" class="btn btn-secondary btn-sm" style="width:auto"><i class="fas fa-unlock"></i> Tout débloquer</button>
+          <button id="btn-dev-reset" class="btn btn-ghost btn-sm" style="width:auto;color:var(--red)"><i class="fas fa-eraser"></i> Tout retirer</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════ STATS ══════════════ -->
+  <section id="view-stats" class="tab-view">
+    <div class="pane-head"><h1>Statistiques</h1></div>
+    <div class="page-content">
+      <div class="card flex-col gap-12 hidden" id="stats-section">
+        <h3><i class="fas fa-chart-bar" style="color:var(--orange)"></i> Ton bilan</h3>
+        <div id="stats-rows" class="flex-col"></div>
+      </div>
+      <div id="stats-guest" class="guest-banner hidden">
+        <span style="font-size:1.5rem">📊</span>
+        <div class="flex-col gap-8" style="flex:1">
+          <span class="font-bold">Connecte-toi</span>
+          <span class="text-sm text-muted">Tes statistiques apparaîtront ici une fois connecté.</span>
+        </div>
+        <a href="/login.html" class="btn btn-gold btn-sm" style="white-space:nowrap">Connexion</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ AMIS ══════════════ -->
+  <section id="view-amis" class="tab-view">
+    <div class="pane-head"><h1>Mes amis</h1></div>
+    <div class="page-content">
+      <div id="friends-section" class="card flex-col gap-14 hidden">
+        <div class="flex items-center gap-14">
+          <div id="friend-qr"></div>
+          <div class="flex-col gap-6" style="flex:1">
+            <span class="text-sm text-muted">Ton code d'ami</span>
+            <span id="friend-code" class="font-bold" style="font-size:1.4rem;letter-spacing:.18em;color:var(--gold)">------</span>
+            <button id="btn-copy-friend-code" class="btn btn-secondary btn-sm" style="width:auto"><i class="fas fa-copy"></i> Copier</button>
+            <span class="text-sm text-muted">Fais scanner ce QR à un ami (photo du téléphone) pour qu'il t'ajoute.</span>
+          </div>
+        </div>
+        <div class="input-group">
+          <label>Ajouter un ami par son code</label>
+          <div class="flex gap-8">
+            <input id="friend-code-input" class="input" placeholder="Code d'ami" maxlength="8" autocomplete="off" style="text-transform:uppercase;flex:1">
+            <button id="btn-add-friend" class="btn btn-primary" style="width:auto"><i class="fas fa-user-plus"></i></button>
+          </div>
+        </div>
+        <button id="btn-scan-friend" class="btn btn-secondary" style="width:100%"><i class="fas fa-qrcode"></i> Scanner le QR d'un ami</button>
+        <div id="friend-msg" class="text-sm text-center hidden"></div>
+        <div id="friends-list" class="flex-col gap-8"></div>
+      </div>
+      <div id="amis-guest" class="guest-banner hidden">
+        <span style="font-size:1.5rem">👥</span>
+        <div class="flex-col gap-8" style="flex:1">
+          <span class="font-bold">Connecte-toi</span>
+          <span class="text-sm text-muted">Ajoute des amis et rejoins leurs parties en un tap.</span>
+        </div>
+        <a href="/login.html" class="btn btn-gold btn-sm" style="white-space:nowrap">Connexion</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ RÉGLAGES ══════════════ -->
+  <section id="view-reglages" class="tab-view">
+    <div class="pane-head"><h1>Réglages</h1></div>
+    <div class="page-content">
+      <div class="card flex-col gap-12">
+        <div class="flex items-center justify-between">
+          <div class="flex-col gap-4" style="flex:1">
+            <span class="font-bold" style="font-size:.92rem">Vibrations</span>
+            <span class="text-sm text-muted">Retour haptique sur les boutons et en jeu (Android).</span>
+          </div>
+          <label class="set-toggle"><input type="checkbox" id="set-haptics" checked><span class="set-slider"></span></label>
+        </div>
+      </div>
+      <div id="logout-section" class="hidden">
+        <button id="btn-logout" class="btn btn-ghost"><i class="fas fa-sign-out-alt"></i> Se déconnecter</button>
+      </div>
+      <p class="text-sm text-muted text-center" style="opacity:.6">La Gitanerie · v2</p>
+    </div>
+  </section>
+
+  <!-- Barre d'onglets -->
+  <nav class="tabbar">
+    <button data-tab="accueil" class="active"><i class="fas fa-house"></i><span>Accueil</span></button>
+    <button data-tab="profil"><i class="fas fa-user"></i><span>Profil</span></button>
+    <button data-tab="stats"><i class="fas fa-chart-simple"></i><span>Stats</span></button>
+    <button data-tab="amis"><i class="fas fa-user-group"></i><span>Amis</span></button>
+    <button data-tab="reglages"><i class="fas fa-gear"></i><span>Réglages</span></button>
+  </nav>
+
+  <!-- Scanner QR (caméra dans l'app) -->
+  <div id="scan-overlay" style="display:none;position:fixed;inset:0;z-index:2000;background:#000;flex-direction:column">
+    <video id="scan-video" playsinline muted style="width:100%;height:100%;object-fit:cover;background:#000"></video>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+      <div style="width:66vw;max-width:280px;aspect-ratio:1;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)"></div>
+    </div>
+    <div style="position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;justify-content:space-between;align-items:center">
+      <span style="color:#fff;font-weight:700"><i class="fas fa-qrcode"></i> Scanne le QR de ton ami</span>
+      <button id="btn-scan-close" style="background:rgba(0,0,0,.5);border:none;color:#fff;font-size:1.4rem;width:42px;height:42px;border-radius:50%;cursor:pointer"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="scan-hint" style="position:absolute;bottom:calc(env(safe-area-inset-bottom) + 24px);left:0;right:0;text-align:center;color:#fff;opacity:.85;font-size:.9rem"></div>
   </div>
 
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { auth, getFirestore } from '/js/firebase-config.js';
-    import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-    import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-    import { isPhotoAvatar } from '/js/game/avatar.js';
-    import { BADGES, TITLES } from '/js/game/badges.js';
+    import { auth, db, getFirestore } from '/js/firebase-config.js';
+    import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { ref as dbRef, get as dbGet, set as dbSet, update as dbUpdate, remove as dbRemove, onValue as dbOnValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
+    import { getGuestName, setGuestName, getGuestAvatar, setGuestAvatar, showToast } from '/js/game/utils.js';
+    import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
+    import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
-    // Peint l'entête profil à partir d'un objet { displayName, avatar, activeTitle, activeBadge, activeBorder, xp }
-    function paintUser(d) {
-      const avatarEl = document.getElementById('user-avatar');
-      const btnEl    = document.getElementById('btn-account');
-      document.getElementById('user-name').textContent = d.displayName || 'Joueur';
-      btnEl.textContent = 'Mon profil';
-      btnEl.onclick = () => window.location.href = '/profile.html';
-      document.getElementById('user-title').textContent = (d.activeTitle && TITLES[d.activeTitle]) ? TITLES[d.activeTitle].name : '';
-      const badgeEl = document.getElementById('user-badge');
+    // ══════════ Onglets ══════════
+    const TABS = ['accueil', 'profil', 'stats', 'amis', 'reglages'];
+    function showTab(name) {
+      if (!TABS.includes(name)) name = 'accueil';
+      document.querySelectorAll('.tab-view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
+      document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+      try { history.replaceState(null, '', '#' + name); } catch (e) {}
+      window.scrollTo(0, 0);
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', name === 'accueil' ? '#1b2734' : '#2c3e50');
+    }
+    document.querySelectorAll('.tabbar button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+    document.getElementById('home-chip').onclick = () => showTab(auth.currentUser && !auth.currentUser.isAnonymous ? 'profil' : 'accueil');
+    showTab((location.hash || '').replace('#', '') || 'accueil');
+
+    // ══════════ Puce compte (accueil) ══════════
+    function paintHomeChip(d) {
+      const nameEl = document.getElementById('home-user-name');
+      const av     = document.getElementById('home-user-avatar');
+      const wrap   = document.getElementById('home-user-avatar-wrap');
+      const titleEl= document.getElementById('home-user-title');
+      const badgeEl= document.getElementById('home-user-badge');
+      const acc    = document.getElementById('home-btn-account');
+      nameEl.textContent = d.displayName || 'Joueur';
+      titleEl.textContent = (d.activeTitle && TITLES[d.activeTitle]) ? TITLES[d.activeTitle].name : '';
       if (d.activeBadge && BADGES[d.activeBadge]) {
         const bd = BADGES[d.activeBadge];
         badgeEl.innerHTML = `<span title="${bd.name}" style="display:inline-flex;width:20px;height:20px;border-radius:6px;align-items:center;justify-content:center;background:${bd.bg};box-shadow:0 2px 6px ${bd.glow}"><i class="${bd.icon}" style="color:${bd.textColor};font-size:.72rem"></i></span>`;
-      } else { badgeEl.innerHTML = ''; }
-      const avWrap = document.getElementById('user-avatar-wrap');
-      avWrap.className = d.activeBorder ? `avatar-framed border-${d.activeBorder}` : '';
-      avWrap.style.flexShrink = '0';
-      const av = d.avatar;
-      if (av && isPhotoAvatar(av)) avatarEl.innerHTML = `<img src="${av}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
-      else if (av) avatarEl.textContent = av;
-      else avatarEl.textContent = (d.displayName || 'J')[0].toUpperCase();
+      } else badgeEl.innerHTML = '';
+      wrap.className = d.activeBorder ? `avatar-framed border-${d.activeBorder}` : '';
+      wrap.style.flexShrink = '0';
+      const a = d.avatar;
+      if (a && isPhotoAvatar(a)) av.innerHTML = `<img src="${a}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">`;
+      else if (a) av.textContent = a;
+      else av.textContent = (d.displayName || 'J')[0].toUpperCase();
       const xp = d.xp || 0, lvl = Math.floor(xp / 100);
-      document.getElementById('xp-val').textContent = `Niv. ${lvl} · ${xp} XP`;
-      document.getElementById('xp-bar-fill').style.width = (xp % 100) + '%';
-      document.getElementById('xp-wrap').style.display = 'flex';
+      document.getElementById('home-xp-wrap').style.display = 'flex';
+      document.getElementById('home-xp-val').textContent = `Niv. ${lvl} · ${xp} XP`;
+      document.getElementById('home-xp-bar-fill').style.width = (xp % 100) + '%';
+      if (acc) acc.style.display = 'none';
+    }
+    function paintHomeGuest() {
+      document.getElementById('home-user-name').textContent = 'Invité';
+      document.getElementById('home-user-title').textContent = '';
+      document.getElementById('home-user-badge').innerHTML = '';
+      document.getElementById('home-user-avatar-wrap').className = '';
+      document.getElementById('home-user-avatar').textContent = '👤';
+      document.getElementById('home-xp-wrap').style.display = 'none';
+      const acc = document.getElementById('home-btn-account');
+      if (acc) { acc.style.display = ''; acc.textContent = 'Connexion'; acc.onclick = () => window.location.href = '/login.html'; }
     }
 
-    function paintGuest() {
-      const btnEl = document.getElementById('btn-account');
-      btnEl.textContent = 'Connexion';
-      btnEl.onclick = () => window.location.href = '/login.html';
-      document.getElementById('user-name').textContent = 'Invité';
-      document.getElementById('user-title').textContent = '';
-      document.getElementById('user-badge').innerHTML = '';
-      document.getElementById('user-avatar-wrap').className = '';
-      document.getElementById('user-avatar').textContent = '👤';
-      document.getElementById('xp-wrap').style.display = 'none';
-      try { localStorage.removeItem('profileCache'); } catch (e) {}
+    // Si scan de QR alors qu'on n'est pas encore connecté : on mémorise le code.
+    try {
+      const _a = new URLSearchParams(location.search).get('add');
+      if (_a) { localStorage.setItem('pendingFriendAdd', _a.toUpperCase()); }
+    } catch (e) {}
+
+    const EMOJIS = ['🃏','🎴','🎰','🍺','🥃','🍻','🎭','👑','💀','🔥','⚡','🌙','🎯','🎲','🐍','🦁','🐺','🎸','🤠','🎪'];
+    let selectedAvatar = '';
+    let currentUser    = null;
+    let selectedBadge  = null;
+    let selectedBorder = null;
+    let selectedTitle  = null;
+    let ownedTitles    = [];
+
+    async function saveActive(patch) {
+      if (!currentUser || currentUser.isAnonymous) return;
+      try {
+        const firestore = await getFirestore();
+        await setDoc(doc(firestore, 'users', currentUser.uid), patch, { merge: true });
+      } catch (e) {}
     }
 
-    async function renderUser(user) {
-      if (user && !user.isAnonymous) {
-        try {
-          const firestore = await getFirestore();
-          const snap = await getDoc(doc(firestore, 'users', user.uid));
-          if (snap.exists()) {
-            const d = snap.data();
-            paintUser(d);
-            try { localStorage.setItem('profileCache', JSON.stringify({
-              displayName: d.displayName, avatar: d.avatar, activeTitle: d.activeTitle || null,
-              activeBadge: d.activeBadge || null, activeBorder: d.activeBorder || null, xp: d.xp || 0
-            })); } catch (e) {}
-          }
-        } catch (e) { /* réseau lent : on garde l'affichage optimiste */ }
+    // ── Titres ──
+    function renderTitles(owned = [], active = null) {
+      ownedTitles = owned;
+      const section = document.getElementById('titles-section');
+      const grid = document.getElementById('titles-grid');
+      if (!owned.length) { section.classList.add('hidden'); return; }
+      section.classList.remove('hidden');
+      grid.innerHTML = '';
+      const noneBtn = document.createElement('button');
+      noneBtn.className = 'title-pill' + (!selectedTitle ? ' active' : '');
+      noneBtn.textContent = 'Aucun';
+      noneBtn.onclick = () => { selectedTitle = null; renderTitles(owned, null); updateProfileTitle(); saveActive({ activeTitle: null }); };
+      grid.appendChild(noneBtn);
+      owned.forEach(id => {
+        const def = TITLES[id]; if (!def) return;
+        const pill = document.createElement('button');
+        pill.className = 'title-pill' + (id === selectedTitle ? ' active' : '');
+        pill.textContent = def.name;
+        pill.title = def.desc;
+        pill.onclick = () => { selectedTitle = id; renderTitles(owned, id); updateProfileTitle(); saveActive({ activeTitle: id }); };
+        grid.appendChild(pill);
+      });
+    }
+    function updateProfileTitle() {
+      const el = document.getElementById('profile-title');
+      el.textContent = (selectedTitle && TITLES[selectedTitle]) ? TITLES[selectedTitle].name : '';
+    }
+
+    async function unlockPseudoTitles(pseudo) {
+      const found = checkPseudoTitles(pseudo, ownedTitles);
+      if (!found.length) return;
+      ownedTitles = [...new Set([...ownedTitles, ...found])];
+      renderTitles(ownedTitles, selectedTitle);
+      await saveActive({ titles: ownedTitles });
+      showTitleUnlock(found[0]);
+    }
+
+    function showTitleUnlock(titleId) {
+      const def = TITLES[titleId]; if (!def) return;
+      const ov = document.createElement('div');
+      ov.className = 'title-unlock-ov';
+      ov.innerHTML = `
+        <div class="title-unlock-card">
+          <div class="tu-crown"><i class="fas fa-crown"></i></div>
+          <div class="tu-label">Titre secret débloqué</div>
+          <div class="tu-name">${def.name}</div>
+          <div class="tu-desc">${def.desc}</div>
+          <button class="btn btn-primary tu-ok">${titleId === 'oss117' ? 'Hassoul' : 'Stylé'}</button>
+        </div>`;
+      document.body.appendChild(ov);
+      requestAnimationFrame(() => ov.classList.add('show'));
+      const close = () => { ov.classList.remove('show'); setTimeout(() => ov.remove(), 260); };
+      ov.querySelector('.tu-ok').onclick = close;
+      ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+    }
+
+    // ── Badges ──
+    function renderBadges(earnedIds = [], activeBadge = null) {
+      document.getElementById('badges-section').classList.remove('hidden');
+      const grid = document.getElementById('badges-grid');
+      grid.innerHTML = '';
+      Object.values(BADGES).forEach(def => {
+        const earned  = earnedIds.includes(def.id);
+        const isActive = def.id === activeBadge;
+        const wrap = document.createElement('div');
+        wrap.className = `badge-hex-wrap ${earned ? '' : 'locked'} ${isActive ? 'active-badge' : ''}`;
+        wrap.innerHTML = `
+          <div class="badge-hex" style="${earned ? `background:${def.bg};--badge-glow:${def.glow};box-shadow:0 4px 14px ${def.glow}` : 'background:var(--bg-raised)'}">
+            <i class="${def.icon}" style="color:${earned ? def.textColor : 'var(--text-muted)'}"></i>
+          </div>
+          <span class="badge-hex-label">${def.name}</span>`;
+        if (earned) {
+          wrap.title = def.desc;
+          wrap.onclick = () => selectBadge(def.id, earnedIds);
+        }
+        grid.appendChild(wrap);
+      });
+      updateActiveBadgePreview(activeBadge);
+    }
+
+    function selectBadge(id, earnedIds) {
+      selectedBadge = selectedBadge === id ? null : id;
+      renderBadges(earnedIds, selectedBadge);
+      saveActive({ activeBadge: selectedBadge || null });
+    }
+
+    function updateActiveBadgePreview(id) {
+      const icon = document.getElementById('active-badge-icon');
+      const name = document.getElementById('active-badge-name');
+      const clearBtn = document.getElementById('btn-clear-badge');
+      if (id && BADGES[id]) {
+        const def = BADGES[id];
+        icon.style.background = def.bg;
+        icon.style.boxShadow = `0 3px 10px ${def.glow}`;
+        icon.innerHTML = `<i class="${def.icon}" style="color:${def.textColor};font-size:.9rem"></i>`;
+        name.textContent = def.name;
+        clearBtn.classList.remove('hidden');
+        clearBtn.onclick = () => { selectedBadge = null; updateActiveBadgePreview(null); saveActive({ activeBadge: null }); };
       } else {
-        paintGuest();
+        icon.style.background = 'var(--bg-raised)';
+        icon.style.boxShadow = 'none';
+        icon.innerHTML = '';
+        name.textContent = 'Aucun badge sélectionné';
+        clearBtn.classList.add('hidden');
       }
     }
 
-    // Affichage optimiste : peindre le profil en cache IMMÉDIATEMENT (zéro flash au chargement)
-    try { const _c = JSON.parse(localStorage.getItem('profileCache')); if (_c) paintUser(_c); } catch (e) {}
+    // ── Cadres ──
+    function renderBorders(level, activeBorder = null) {
+      document.getElementById('borders-section').classList.remove('hidden');
+      const grid = document.getElementById('borders-grid');
+      grid.innerHTML = '';
 
-    onAuthStateChanged(auth, (user) => renderUser(user));
-    // Retour arrière (bfcache) : re-render pour refléter les modifs faites dans le profil
-    window.addEventListener('pageshow', (e) => { if (e.persisted) renderUser(auth.currentUser); });
+      const noneEl = document.createElement('div');
+      noneEl.className = `flex-col items-center gap-6 ${activeBorder === null ? 'active-badge' : ''}`;
+      noneEl.style.cssText = 'cursor:pointer;align-items:center;display:flex;flex-direction:column;gap:6px';
+      noneEl.innerHTML = `
+        <div class="border-option ${activeBorder === null ? 'selected' : ''}" style="background:var(--bg-card)">
+          <div class="border-option-inner" style="background:var(--bg-raised)"></div>
+        </div>
+        <span class="badge-hex-label">Aucun</span>`;
+      noneEl.onclick = () => { selectedBorder = null; renderBorders(level, null); applyProfileBorder(null); saveActive({ activeBorder: null }); };
+      grid.appendChild(noneEl);
+
+      Object.values(BORDERS).forEach(b => {
+        const isUnlocked = level >= b.minLevel;
+        const isActive   = b.id === activeBorder;
+        const el = document.createElement('div');
+        el.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer';
+        el.innerHTML = `
+          <div class="border-option ${isUnlocked ? '' : 'locked'} ${isActive ? 'selected' : ''}" style="background:${b.gradient || `conic-gradient(from var(--border-angle),#f39c12,#e74c3c,#9b59b6,#f39c12)`}${b.animated ? ';animation:border-spin 2.5s linear infinite' : ''}">
+            <div class="border-option-inner"></div>
+          </div>
+          <span class="badge-hex-label">${b.name}${!isUnlocked ? `<br>Niv.${b.minLevel}` : ''}</span>`;
+        if (isUnlocked) {
+          el.onclick = () => { selectedBorder = b.id; renderBorders(level, b.id); applyProfileBorder(b.id); saveActive({ activeBorder: b.id }); };
+        }
+        grid.appendChild(el);
+      });
+    }
+
+    // Grille emoji
+    const emojiGrid = document.getElementById('emoji-grid');
+    EMOJIS.forEach(e => {
+      const btn = document.createElement('button');
+      btn.className = 'emoji-btn';
+      btn.textContent = e;
+      btn.onclick = () => { setAvatar(e); };
+      emojiGrid.appendChild(btn);
+    });
+
+    function setAvatar(avatar) {
+      selectedAvatar = avatar;
+      const preview = document.getElementById('photo-preview');
+      const mainAvatar = document.getElementById('profile-avatar');
+      if (isPhotoAvatar(avatar)) {
+        preview.innerHTML = `<img src="${avatar}" style="width:100%;height:100%;object-fit:cover">`;
+        mainAvatar.innerHTML = `<img src="${avatar}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block">`;
+        document.getElementById('btn-remove-photo').classList.remove('hidden');
+        document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+      } else {
+        preview.textContent = avatar;
+        mainAvatar.textContent = avatar;
+        mainAvatar.style.cssText = 'width:64px;height:64px;border-radius:50%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:2.2rem';
+        document.querySelectorAll('.emoji-btn').forEach(b => b.classList.toggle('selected', b.textContent === avatar));
+        document.getElementById('btn-remove-photo').classList.add('hidden');
+      }
+    }
+
+    document.getElementById('btn-photo').onclick = () => document.getElementById('photo-input').click();
+    document.getElementById('photo-input').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        document.getElementById('btn-photo').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Compression...';
+        const base64 = await compressAvatar(file);
+        setAvatar(base64);
+      } catch (err) {
+        showToast('Erreur lors du chargement de la photo', 'error');
+      } finally {
+        document.getElementById('btn-photo').innerHTML = '<i class="fas fa-camera"></i> Prendre / Choisir';
+        e.target.value = '';
+      }
+    });
+    document.getElementById('btn-remove-photo').onclick = () => setAvatar('🃏');
+
+    // ── Outils de test (mon compte uniquement) ──
+    const DEV_EMAILS = ['esthor.pl@gmail.com'];
+    function isDevUser(user) {
+      return user && !user.isAnonymous && DEV_EMAILS.includes((user.email || '').toLowerCase());
+    }
+    function setupDevTools(user) {
+      const section = document.getElementById('dev-section');
+      if (!isDevUser(user)) { section.classList.add('hidden'); return; }
+      section.classList.remove('hidden');
+      document.getElementById('btn-dev-unlock').onclick = async () => {
+        await saveActive({ badges: Object.keys(BADGES), titles: Object.keys(TITLES), xp: 3000 });
+        showToast('Tout débloqué ✓', 'success');
+        setTimeout(() => location.reload(), 500);
+      };
+      document.getElementById('btn-dev-reset').onclick = async () => {
+        if (!confirm('Tout retirer : badges, titres, cadre, XP ET compteurs cumulés (gorgées, parties…) remis à 0. Continuer ?')) return;
+        await saveActive({
+          badges: [], titles: [], xp: 0,
+          activeTitle: null, activeBadge: null, activeBorder: null,
+          totalGames: 0, totalSipsDrunk: 0, totalSipsGiven: 0, bluffSuccess: 0,
+          totalCulSec: 0, topDrinkerStreak: 0, soberStreak: 0, lastRewardedGame: null,
+        });
+        showToast('Tout retiré ✓', 'success');
+        setTimeout(() => location.reload(), 500);
+      };
+    }
+
+    function paintProfile(data) {
+      document.getElementById('guest-banner').classList.add('hidden');
+      document.getElementById('logout-section').classList.remove('hidden');
+      document.getElementById('xp-section').classList.remove('hidden');
+      document.getElementById('level-badge').classList.remove('hidden');
+      document.getElementById('stats-guest').classList.add('hidden');
+      document.getElementById('amis-guest').classList.add('hidden');
+
+      const name   = data.displayName || 'Joueur';
+      const avatar = data.avatar || '🃏';
+      const xp     = data.xp || 0;
+      const level  = Math.floor(xp / 100);
+
+      document.getElementById('profile-name').textContent = name;
+      document.getElementById('edit-name').value          = name;
+      document.getElementById('level-num').textContent    = level;
+      document.getElementById('xp-val').textContent       = xp;
+      document.getElementById('xp-progress').textContent   = `${xp % 100}/100`;
+      document.getElementById('xp-next-level').textContent = level + 2;
+      document.getElementById('xp-fill').style.width      = (xp % 100) + '%';
+      setAvatar(avatar);
+      try { localStorage.setItem('lastProfileAvatar', avatar); } catch (e) {}
+
+      selectedTitle = data.activeTitle || null;
+      renderTitles(data.titles || [], selectedTitle);
+      updateProfileTitle();
+
+      const activeBadge  = data.activeBadge  || null;
+      const activeBorder = data.activeBorder || null;
+      selectedBadge  = activeBadge;
+      selectedBorder = activeBorder;
+      renderBadges(data.badges || [], activeBadge);
+      renderBorders(level, activeBorder);
+      applyProfileBorder(activeBorder);
+
+      renderStats([
+        ['Parties jouées',    data.totalGames      || 0],
+        ['Gorgées bues',      data.totalSipsDrunk  || 0],
+        ['Gorgées données',   data.totalSipsGiven  || 0],
+        ['Bluffs réussis',    data.bluffSuccess    || 0],
+        ['Titres débloqués',  (data.titles || []).length],
+        ['XP total',          xp],
+        ['Niveau',            level],
+      ]);
+
+      // Puce d'accueil
+      paintHomeChip(data);
+      try { localStorage.setItem('profileCache', JSON.stringify({
+        displayName: data.displayName, avatar: data.avatar, activeTitle: data.activeTitle || null,
+        activeBadge: data.activeBadge || null, activeBorder: data.activeBorder || null, xp: data.xp || 0
+      })); } catch (e) {}
+    }
+
+    async function loadProfile(user) {
+      currentUser = user;
+      setupDevTools(user);
+
+      if (user && !user.isAnonymous) {
+        const firestore = await getFirestore();
+        const snap = await getDoc(doc(firestore, 'users', user.uid));
+        const data = snap.exists() ? snap.data() : {};
+        paintProfile(data);
+        try { localStorage.setItem('profileFullCache', JSON.stringify(data)); } catch (e) {}
+        unlockPseudoTitles(data.displayName || user.displayName || 'Joueur');
+        initFriends(user, data);
+      } else {
+        document.getElementById('guest-banner').classList.remove('hidden');
+        document.getElementById('stats-guest').classList.remove('hidden');
+        document.getElementById('amis-guest').classList.remove('hidden');
+        document.getElementById('friends-section').classList.add('hidden');
+        document.getElementById('logout-section').classList.add('hidden');
+        const name   = getGuestName();
+        const avatar = getGuestAvatar();
+        document.getElementById('profile-name').textContent = name;
+        document.getElementById('edit-name').value          = name;
+        setAvatar(avatar);
+        document.getElementById('stats-section').classList.add('hidden');
+        paintHomeGuest();
+      }
+    }
+
+    onAuthStateChanged(auth, (user) => loadProfile(user));
+    window.addEventListener('pageshow', (e) => { if (e.persisted) loadProfile(auth.currentUser); });
+
+    // Affichage optimiste depuis le cache (zéro flash au chargement)
+    try {
+      const _c = JSON.parse(localStorage.getItem('profileFullCache'));
+      if (_c) paintProfile(_c);
+      else {
+        const _chip = JSON.parse(localStorage.getItem('profileCache'));
+        if (_chip) paintHomeChip(_chip);
+        const _lastAv = localStorage.getItem('lastProfileAvatar'); if (_lastAv) setAvatar(_lastAv);
+      }
+    } catch (e) {}
+
+    function renderStats(rows) {
+      const container = document.getElementById('stats-rows');
+      container.innerHTML = '';
+      document.getElementById('stats-section').classList.remove('hidden');
+      rows.forEach(([label, value]) => {
+        const row = document.createElement('div');
+        row.className = 'stat-row';
+        row.innerHTML = `<span class="text-muted">${label}</span><span class="font-bold">${value}</span>`;
+        container.appendChild(row);
+      });
+    }
+
+    function applyProfileBorder(borderId) {
+      const wrap = document.getElementById('profile-avatar-wrap');
+      if (!wrap) return;
+      wrap.className = wrap.className.replace(/border-\w+/g, '').trim();
+      if (borderId) wrap.classList.add('avatar-framed', `border-${borderId}`);
+      else wrap.classList.remove('avatar-framed');
+    }
+
+    document.getElementById('btn-save').onclick = async () => {
+      const name = document.getElementById('edit-name').value.trim();
+      if (!name) return showToast('Entre un pseudo !', 'error');
+      const btn = document.getElementById('btn-save');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sauvegarde…';
+      if (currentUser && !currentUser.isAnonymous) {
+        try {
+          const firestore = await getFirestore();
+          await setDoc(doc(firestore, 'users', currentUser.uid), {
+            displayName:  name,
+            avatar:       selectedAvatar,
+            activeBadge:  selectedBadge  || null,
+            activeBorder: selectedBorder || null,
+            activeTitle:  selectedTitle  || null,
+          }, { merge: true });
+          document.getElementById('profile-name').textContent = name;
+          applyProfileBorder(selectedBorder);
+          updateProfileTitle();
+          paintHomeChip({ displayName: name, avatar: selectedAvatar, activeTitle: selectedTitle, activeBadge: selectedBadge, activeBorder: selectedBorder, xp: (JSON.parse(localStorage.getItem('profileFullCache') || '{}').xp) || 0 });
+          try { localStorage.setItem('lastProfileAvatar', selectedAvatar); } catch (e) {}
+          showToast('Profil sauvegardé', 'success');
+          unlockPseudoTitles(name);
+        } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
+      } else {
+        setGuestName(name);
+        setGuestAvatar(selectedAvatar);
+        document.getElementById('profile-name').textContent = name;
+        showToast('Profil mis à jour', 'success');
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save"></i> Sauvegarder';
+    };
+
+    // Réglages — vibrations
+    (function () {
+      const cb = document.getElementById('set-haptics');
+      if (!cb) return;
+      cb.checked = localStorage.getItem('gita_haptics') !== '0';
+      cb.addEventListener('change', () => {
+        localStorage.setItem('gita_haptics', cb.checked ? '1' : '0');
+        if (cb.checked && window.gitaVibrate) window.gitaVibrate(20);
+      });
+    })();
+
+    // ══════════ Système d'amis (RTDB) ══════════
+    function genFriendCode() {
+      const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let s = ''; for (let i = 0; i < 6; i++) s += A[Math.floor(Math.random() * A.length)];
+      return s;
+    }
+
+    async function ensureFriendCode(user, data) {
+      const metaRef = dbRef(db, `userMeta/${user.uid}`);
+      const meta = (await dbGet(metaRef)).val() || {};
+      let code = meta.code;
+      if (!code) {
+        for (let t = 0; t < 6 && !code; t++) {
+          const c = genFriendCode();
+          const exists = (await dbGet(dbRef(db, `friendCodes/${c}`))).exists();
+          if (!exists) code = c;
+        }
+        if (!code) code = genFriendCode();
+        await dbSet(dbRef(db, `friendCodes/${code}`), user.uid);
+      }
+      await dbUpdate(metaRef, { code, name: data.displayName || 'Joueur', avatar: data.avatar || '🃏' });
+      return code;
+    }
+
+    function renderFriendQR(code) {
+      const el = document.getElementById('friend-qr');
+      if (!el || !window.qrcode) { if (el) el.textContent = ''; return; }
+      try {
+        const qr = window.qrcode(0, 'M');
+        qr.addData(`${location.origin}/?add=${code}`);
+        qr.make();
+        el.innerHTML = qr.createImgTag(3, 4);
+      } catch (e) { el.textContent = ''; }
+    }
+
+    function friendMsg(txt, ok) {
+      const el = document.getElementById('friend-msg');
+      if (!el) return;
+      el.textContent = txt;
+      el.style.color = ok ? 'var(--green)' : 'var(--red)';
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    async function addFriendByCode(user, code, myCode) {
+      code = (code || '').trim().toUpperCase();
+      if (!code) return;
+      if (code === myCode) { friendMsg("C'est ton propre code 🙂", false); return; }
+      try {
+        const fid = (await dbGet(dbRef(db, `friendCodes/${code}`))).val();
+        if (!fid) { friendMsg('Code introuvable', false); return; }
+        if (fid === user.uid) { friendMsg("C'est ton propre code 🙂", false); return; }
+        await dbUpdate(dbRef(db, 'friends'), {
+          [`${user.uid}/${fid}`]: true,
+          [`${fid}/${user.uid}`]: true,
+        });
+        document.getElementById('friend-code-input').value = '';
+        friendMsg('Ami ajouté ✓', true);
+        if (window.gitaVibrate) window.gitaVibrate(20);
+        // La liste se rafraîchit d'elle-même via l'écouteur temps réel.
+      } catch (e) { friendMsg('Erreur — vérifie ta connexion', false); }
+    }
+
+    // Écoute temps réel de la liste d'amis.
+    let _friendsUnsub = null;
+    function loadFriends(user) {
+      if (_friendsUnsub) { try { _friendsUnsub(); } catch (e) {} _friendsUnsub = null; }
+      const list = document.getElementById('friends-list');
+      if (!list) return;
+      _friendsUnsub = dbOnValue(
+        dbRef(db, `friends/${user.uid}`),
+        (snap) => { renderFriends(user, Object.keys(snap.val() || {})); },
+        () => {}
+      );
+    }
+
+    async function renderFriends(user, ids) {
+      const list = document.getElementById('friends-list');
+      if (!list) return;
+      if (!ids.length) {
+        list.innerHTML = '<p class="text-sm text-muted text-center" style="padding:6px">Aucun ami pour l\'instant. Partage ton code ou ton QR !</p>';
+        return;
+      }
+      const metas = await Promise.all(ids.map(async (fid) => {
+        let m = {}; try { m = (await dbGet(dbRef(db, `userMeta/${fid}`))).val() || {}; } catch (e) {}
+        return { fid, name: m.name || 'Joueur', avatar: m.avatar || '🃏' };
+      }));
+      list.innerHTML = '';
+      metas.forEach(({ fid, name, avatar }) => {
+        const row = document.createElement('div');
+        row.className = 'friend-row';
+        row.innerHTML = `${avatarHTML(avatar, 40)}<span class="font-bold" style="flex:1">${name}</span>`;
+        const del = document.createElement('button');
+        del.innerHTML = '<i class="fas fa-user-minus"></i>';
+        del.title = 'Retirer';
+        del.style.cssText = 'background:none;border:none;color:var(--red);font-size:1rem;padding:4px 8px;cursor:pointer';
+        del.onclick = async () => {
+          try {
+            await dbUpdate(dbRef(db, 'friends'), { [`${user.uid}/${fid}`]: null, [`${fid}/${user.uid}`]: null });
+          } catch (e) { friendMsg('Erreur réseau', false); }
+        };
+        row.appendChild(del);
+        list.appendChild(row);
+      });
+    }
+
+    function parseScannedCode(txt) {
+      if (!txt) return '';
+      try {
+        const u = new URL(txt);
+        const c = u.searchParams.get('add');
+        if (c) return c.trim().toUpperCase();
+      } catch (e) {}
+      const m = txt.match(/add=([A-Z0-9]{4,8})/i);
+      if (m) return m[1].toUpperCase();
+      if (/^[A-Z0-9]{4,8}$/i.test(txt.trim())) return txt.trim().toUpperCase();
+      return '';
+    }
+
+    let _jsqrPromise = null;
+    function loadJsQR() {
+      if (window.jsQR) return Promise.resolve(window.jsQR);
+      if (_jsqrPromise) return _jsqrPromise;
+      _jsqrPromise = new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+        s.onload = () => res(window.jsQR);
+        s.onerror = () => rej(new Error('jsQR load failed'));
+        document.head.appendChild(s);
+      });
+      return _jsqrPromise;
+    }
+
+    let _scanStream = null, _scanRAF = null, _scanActive = false;
+    function stopScanner() {
+      _scanActive = false;
+      if (_scanRAF) { cancelAnimationFrame(_scanRAF); _scanRAF = null; }
+      if (_scanStream) { _scanStream.getTracks().forEach(t => t.stop()); _scanStream = null; }
+      const ov = document.getElementById('scan-overlay');
+      if (ov) ov.style.display = 'none';
+      const v = document.getElementById('scan-video');
+      if (v) v.srcObject = null;
+    }
+
+    async function startScanner(user, myCode) {
+      const ov = document.getElementById('scan-overlay');
+      const video = document.getElementById('scan-video');
+      const hint = document.getElementById('scan-hint');
+      if (!ov || !video) return;
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        friendMsg('Caméra non disponible sur cet appareil', false); return;
+      }
+      ov.style.display = 'flex';
+      hint.textContent = 'Autorise la caméra…';
+      try {
+        _scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      } catch (e) {
+        stopScanner(); friendMsg("Accès caméra refusé", false); return;
+      }
+      video.srcObject = _scanStream;
+      try { await video.play(); } catch (e) {}
+      _scanActive = true;
+      hint.textContent = 'Vise le QR de ton ami';
+
+      const onFound = (raw) => {
+        const code = parseScannedCode(raw);
+        if (!code) { hint.textContent = 'QR non reconnu — réessaie'; return; }
+        if (window.gitaVibrate) window.gitaVibrate(20);
+        stopScanner();
+        addFriendByCode(user, code, myCode);
+      };
+
+      let detector = null;
+      if ('BarcodeDetector' in window) {
+        try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (e) {}
+      }
+      if (detector) {
+        const tick = async () => {
+          if (!_scanActive) return;
+          try {
+            const codes = await detector.detect(video);
+            if (codes && codes.length) { onFound(codes[0].rawValue); return; }
+          } catch (e) {}
+          _scanRAF = requestAnimationFrame(tick);
+        };
+        _scanRAF = requestAnimationFrame(tick);
+        return;
+      }
+
+      let jsQR;
+      try { jsQR = await loadJsQR(); }
+      catch (e) { stopScanner(); friendMsg('Scanner indisponible — utilise le code', false); return; }
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const tick = () => {
+        if (!_scanActive) return;
+        if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth) {
+          const w = canvas.width = video.videoWidth;
+          const h = canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, w, h);
+          try {
+            const img = ctx.getImageData(0, 0, w, h);
+            const res = jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+            if (res && res.data) { onFound(res.data); return; }
+          } catch (e) {}
+        }
+        _scanRAF = requestAnimationFrame(tick);
+      };
+      _scanRAF = requestAnimationFrame(tick);
+    }
+
+    let _friendsInit = false;
+    async function initFriends(user, data) {
+      const section = document.getElementById('friends-section');
+      if (!section) return;
+      let myCode;
+      try { myCode = await ensureFriendCode(user, data); }
+      catch (e) { section.classList.add('hidden'); return; }
+      section.classList.remove('hidden');
+      document.getElementById('friend-code').textContent = myCode;
+      renderFriendQR(myCode);
+      loadFriends(user);
+
+      if (!_friendsInit) {
+        _friendsInit = true;
+        document.getElementById('btn-copy-friend-code').onclick = async () => {
+          try { await navigator.clipboard.writeText(myCode); showToast('Code copié', 'success'); }
+          catch { showToast('Copie non supportée', 'error'); }
+        };
+        const addInput = document.getElementById('friend-code-input');
+        document.getElementById('btn-add-friend').onclick = () => addFriendByCode(user, addInput.value, myCode);
+        addInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') addFriendByCode(user, addInput.value, myCode); });
+        document.getElementById('btn-scan-friend').onclick = () => startScanner(user, myCode);
+        document.getElementById('btn-scan-close').onclick = stopScanner;
+      }
+
+      // Ajout en attente (scan de QR hors-ligne)
+      let pending = '';
+      try { pending = localStorage.getItem('pendingFriendAdd') || ''; } catch (e) {}
+      try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
+      if (pending) {
+        try { localStorage.removeItem('pendingFriendAdd'); } catch (e) {}
+        showTab('amis');
+        addFriendByCode(user, pending, myCode);
+      }
+    }
+
+    // Déconnexion
+    document.getElementById('btn-logout')?.addEventListener('click', async () => {
+      try { localStorage.removeItem('profileCache'); localStorage.removeItem('lastProfileAvatar'); localStorage.removeItem('profileFullCache'); } catch (e) {}
+      await signOut(auth);
+      window.location.reload();
+    });
   </script>
 
 </body></html>
