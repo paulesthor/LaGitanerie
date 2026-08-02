@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr"><head>
   <meta charset="UTF-8">
-  <style id="gita-early-bg">html{background:#1b2734}</style>
+  <style id="gita-early-bg">html{background:#141d26}</style>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
@@ -28,7 +28,11 @@
   <link rel="prefetch" href="/loupgarou.html">
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   <style>
-    html, body { background: #1b2734; }
+    /* Le fond du document est de la couleur de la barre : tout ce qui dépasse
+       sous la barre d'onglets (zone de sécurité iOS) prend donc sa couleur. */
+    html, body { background: #141d26; }
+    /* Cache fixe sur la zone de l'indicateur d'accueil iOS, juste derrière la barre. */
+    .safe-fill { position:fixed; left:0; right:0; bottom:0; height:env(safe-area-inset-bottom); background:#141d26; z-index:299; pointer-events:none; }
 
     /* ── Système d'onglets (hub) ── */
     .tab-view { display:none; min-height:100dvh; padding-bottom:calc(76px + env(safe-area-inset-bottom)); }
@@ -384,6 +388,8 @@
       <p class="text-sm text-muted text-center" style="opacity:.6">La Gitanerie · v2</p>
     </div>
   </section>
+
+  <div class="safe-fill"></div>
 
   <!-- Barre d'onglets -->
   <nav class="tabbar">
