@@ -32,7 +32,7 @@
        sous la barre d'onglets (zone de sécurité iOS) prend donc sa couleur. */
     html, body { background: #141d26; }
     /* Cache fixe sur la zone de l'indicateur d'accueil iOS, juste derrière la barre. */
-    .safe-fill { position:fixed; left:0; right:0; bottom:0; height:env(safe-area-inset-bottom); background:#141d26; z-index:299; pointer-events:none; }
+    .safe-fill { position:fixed; left:0; right:0; bottom:0; height:var(--sab, env(safe-area-inset-bottom)); background:#141d26; z-index:299; pointer-events:none; }
 
     /* ── Système d'onglets (hub) ── */
     .tab-view { display:none; min-height:100dvh; padding-bottom:calc(76px + env(safe-area-inset-bottom)); }
@@ -52,10 +52,10 @@
       position:fixed; left:0; right:0; bottom:0; z-index:300;
       display:flex; background:#141d26;                 /* opaque : la bande de sécurité iOS a la même couleur que la barre */
       border-top:1px solid rgba(255,255,255,.08);
-      /* On descend la barre : on ne garde qu'une petite marge au-dessus de
-         l'indicateur d'accueil iOS au lieu de toute la safe area (~34px),
-         pour éviter le gros vide en bas. */
-      padding-bottom:max(6px, calc(env(safe-area-inset-bottom) - 16px));
+      /* Marge sous les icônes : basée sur --sab (safe area FIGÉE au démarrage,
+         cf. JS) et non sur env() en direct — sinon la barre saute quand
+         env() se recalcule au 1er changement d'onglet. */
+      padding-bottom:max(6px, calc(var(--sab, 0px) - 16px));
     }
     .tabbar button {
       flex:1; background:none; border:none; cursor:pointer;
@@ -427,6 +427,24 @@
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
+
+    // ── Fige la safe area du bas dans --sab (mesurée une seule fois) ──
+    // env(safe-area-inset-bottom) vaut souvent 0 au 1er rendu puis se corrige,
+    // ce qui faisait « sauter » la barre au 1er changement d'onglet. On la
+    // mesure via une sonde et on la verrouille : plus aucun recalcul ensuite.
+    (function () {
+      function measureSafe() {
+        const p = document.createElement('div');
+        p.style.cssText = 'position:fixed;left:0;bottom:0;width:0;height:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
+        document.body.appendChild(p);
+        const h = Math.round(p.getBoundingClientRect().height);
+        p.remove();
+        if (h > 0) document.documentElement.style.setProperty('--sab', h + 'px');
+      }
+      measureSafe();
+      window.addEventListener('load', measureSafe);
+      setTimeout(measureSafe, 500);   // dernier filet une fois l'UI stabilisée
+    })();
 
     // ══════════ Onglets ══════════
     const TABS = ['accueil', 'profil', 'stats', 'amis', 'reglages'];
