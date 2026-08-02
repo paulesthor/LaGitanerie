@@ -62,7 +62,7 @@
   <div class="screen">
     <header class="app-header">
       <button class="header-btn" id="btn-leave"><i class="fas fa-arrow-left"></i></button>
-      <div class="header-brand">Salon</div>
+      <div class="header-brand" data-i18n="lw.room">Salon</div>
       <div style="width:36px"></div>
     </header>
 
@@ -70,40 +70,40 @@
 
       <!-- Code -->
       <div class="card code-box flex-col gap-6">
-        <span class="text-sm text-muted">Code de la partie — partage-le</span>
+        <span class="text-sm text-muted" data-i18n="lw.codeShare">Code de la partie — partage-le</span>
         <div class="code-big" id="code-big">····</div>
       </div>
 
       <!-- Joueurs -->
       <div class="card flex-col gap-8">
-        <h3>Joueurs (<span id="player-count">0</span>)</h3>
+        <h3><span data-i18n="lw.players">Joueurs</span> (<span id="player-count">0</span>)</h3>
         <div id="players-list" class="flex-col"></div>
       </div>
 
       <!-- Rôle de l'hôte (hôte uniquement) -->
       <div id="host-mode-card" class="card flex-col gap-8 hidden">
-        <span class="text-sm text-muted">Ton rôle en tant qu'hôte</span>
+        <span class="text-sm text-muted" data-i18n="lw.hostRole">Ton rôle en tant qu'hôte</span>
         <div class="section-tabs">
-          <button class="seg-btn" id="hp-play">Je joue aussi</button>
-          <button class="seg-btn" id="hp-narrate">Narrateur seul</button>
+          <button class="seg-btn" id="hp-play" data-i18n="lw.playToo">Je joue aussi</button>
+          <button class="seg-btn" id="hp-narrate" data-i18n="lw.narratorOnly">Narrateur seul</button>
         </div>
         <p class="text-sm text-muted" id="host-mode-hint" style="font-size:.7rem"></p>
       </div>
 
       <!-- Rythme de la nuit (hôte uniquement) -->
       <div id="pacing-card" class="card flex-col gap-8 hidden">
-        <span class="text-sm text-muted">Rythme de la nuit</span>
+        <span class="text-sm text-muted" data-i18n="lw.nightPace">Rythme de la nuit</span>
         <div class="section-tabs">
-          <button class="seg-btn" id="pace-manual">Manuel</button>
-          <button class="seg-btn" id="pace-auto">Minuteur</button>
+          <button class="seg-btn" id="pace-manual" data-i18n="lw.manual">Manuel</button>
+          <button class="seg-btn" id="pace-auto" data-i18n="lw.timerMode">Minuteur</button>
         </div>
-        <p class="text-sm text-muted" style="font-size:.7rem">Manuel : tu passes chaque rôle toi-même. Minuteur : chaque étape s'enchaîne automatiquement.</p>
+        <p class="text-sm text-muted" style="font-size:.7rem" data-i18n="lw.paceHint">Manuel : tu passes chaque rôle toi-même. Minuteur : chaque étape s'enchaîne automatiquement.</p>
       </div>
 
       <!-- Compteur de cartes -->
       <div class="card counter-card">
         <div class="flex-col gap-4">
-          <span class="text-sm text-muted">Cartes sélectionnées</span>
+          <span class="text-sm text-muted" data-i18n="lw.selectedCards">Cartes sélectionnées</span>
           <span class="text-sm text-muted" id="target-hint">objectif : joueurs + 3</span>
         </div>
         <div class="counter-num" id="counter-num">0 / 0</div>
@@ -111,17 +111,17 @@
 
       <!-- Rôles -->
       <div class="card flex-col gap-4">
-        <h3><i class="fas fa-scroll" style="color:var(--orange)"></i> Rôles</h3>
+        <h3><i class="fas fa-scroll" style="color:var(--orange)"></i> <span data-i18n="lw.roles">Rôles</span></h3>
         <p class="text-sm text-muted" id="roles-subtitle">Configuration…</p>
         <div id="roles-list"></div>
       </div>
 
       <!-- Lancer -->
       <div id="host-controls" class="hidden">
-        <button id="btn-launch" class="btn btn-primary" disabled><i class="fas fa-moon"></i> Lancer la partie</button>
+        <button id="btn-launch" class="btn btn-primary" disabled><i class="fas fa-moon"></i> <span data-i18n="lw.start">Lancer la partie</span></button>
         <p class="text-sm text-muted text-center" id="launch-hint" style="margin-top:8px"></p>
       </div>
-      <div id="guest-note" class="hidden text-sm text-center text-muted">En attente que l'hôte lance la partie…</div>
+      <div id="guest-note" class="hidden text-sm text-center text-muted" data-i18n="lw.waitHost">En attente que l'hôte lance la partie…</div>
 
     </div>
   </div>

@@ -76,8 +76,8 @@
     <div class="pcard-wrap" id="card-section" style="display:none">
       <div class="pcard hidden-card" id="pcard">
         <div class="emoji">🂠</div>
-        <div class="rname">Ta carte</div>
-        <div class="rdesc">Touche pour la voir — garde-la secrète 🤫</div>
+        <div class="rname" data-i18n="ln.yourCard">Ta carte</div>
+        <div class="rdesc" data-i18n="ln.tapToSee">Touche pour la voir — garde-la secrète 🤫</div>
       </div>
     </div>
 
@@ -85,7 +85,7 @@
     <div class="master" id="master-section" style="display:none">
       <div class="card flex-col gap-10">
         <div class="flex items-center gap-8">
-          <h3 style="flex:1">🎙️ Console du maître</h3>
+          <h3 style="flex:1">🎙️ <span data-i18n="ln.console">Console du maître</span></h3>
           <span class="step-pill" id="step-pill"></span>
         </div>
         <div class="ctrl-row">
@@ -97,22 +97,22 @@
       </div>
 
       <div class="card flex-col gap-6" style="margin-top:12px">
-        <h3><i class="fas fa-eye" style="color:var(--orange)"></i> Disposition secrète</h3>
-        <p class="text-sm text-muted">Touche <b>deux cartes</b> pour les échanger (Voleur, Fauteur, Soûlard).</p>
+        <h3><i class="fas fa-eye" style="color:var(--orange)"></i> <span data-i18n="ln.secretLayout">Disposition secrète</span></h3>
+        <p class="text-sm text-muted" data-i18n-html="ln.swapHint">Touche <b>deux cartes</b> pour les échanger (Voleur, Fauteur, Soûlard).</p>
         <div id="layout-list"></div>
-        <span class="text-sm text-muted" style="margin-top:8px">Cartes du centre</span>
+        <span class="text-sm text-muted" style="margin-top:8px" data-i18n="ln.centerCards">Cartes du centre</span>
         <div class="center-cards" id="center-cards"></div>
       </div>
 
       <!-- Vote & résultat -->
       <div class="card flex-col gap-10" id="resolve-card" style="display:none;margin-top:12px">
-        <h3>☀️ Vote &amp; résultat</h3>
-        <p class="text-sm text-muted">Fais voter à l'oral, puis marque qui est éliminé (le plus de voix). Égalité = plusieurs morts.</p>
+        <h3>☀️ <span data-i18n-html="ln.voteResult">Vote &amp; résultat</span></h3>
+        <p class="text-sm text-muted" data-i18n="ln.voteHint">Fais voter à l'oral, puis marque qui est éliminé (le plus de voix). Égalité = plusieurs morts.</p>
         <div id="death-list"></div>
-        <button class="btn btn-primary" id="btn-reveal"><i class="fas fa-trophy"></i> Révéler &amp; résultat</button>
+        <button class="btn btn-primary" id="btn-reveal"><i class="fas fa-trophy"></i> <span data-i18n-html="ln.reveal">Révéler &amp; résultat</span></button>
       </div>
 
-      <button class="btn btn-ghost" id="btn-back" style="margin-top:14px"><i class="fas fa-arrow-left"></i> Nouvelle manche</button>
+      <button class="btn btn-ghost" id="btn-back" style="margin-top:14px"><i class="fas fa-arrow-left"></i> <span data-i18n="ln.newRound">Nouvelle manche</span></button>
     </div>
 
   </div>

@@ -25,7 +25,7 @@
     <!-- Header -->
     <header class="app-header">
       <button class="header-btn" onclick="history.back()"><i class="fas fa-arrow-left"></i></button>
-      <h1>Connexion</h1>
+      <h1 data-i18n="common.login">Connexion</h1>
       <div style="width:32px"></div>
     </header>
 
@@ -33,37 +33,37 @@
 
       <div class="text-center flex-col gap-8" style="padding:12px 0 4px">
         <div style="font-size:3rem">🃏</div>
-        <h2>Rejoins la gitanerie</h2>
-        <p>Un compte pour sauvegarder ton XP et tes stats.<br>Tu peux aussi jouer sans compte.</p>
+        <h2 data-i18n="login.heading">Rejoins la gitanerie</h2>
+        <p><span data-i18n="login.sub">Un compte pour sauvegarder ton XP et tes stats.</span><br><span data-i18n="login.alsoGuest">Tu peux aussi jouer sans compte.</span></p>
       </div>
 
       <!-- Google -->
       <button id="btn-google" class="btn btn-ghost" style="border-color:rgba(255,255,255,0.2)">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" style="width:20px;height:20px">
-        Continuer avec Google
+        <span data-i18n="login.google">Continuer avec Google</span>
       </button>
 
-      <div class="divider">ou</div>
+      <div class="divider" data-i18n="login.or">ou</div>
 
       <!-- Email -->
       <div id="email-section" class="flex-col gap-12">
         <div class="input-group">
-          <label>Email</label>
+          <label data-i18n="login.email">Email</label>
           <input type="email" id="input-email" class="input" placeholder="ton@email.com" autocomplete="email">
         </div>
         <div class="input-group">
-          <label>Mot de passe</label>
+          <label data-i18n="login.password">Mot de passe</label>
           <input type="password" id="input-password" class="input" placeholder="••••••••" autocomplete="current-password">
         </div>
         <div id="error-msg" class="hidden text-sm" style="color:var(--red);text-align:center"></div>
-        <button id="btn-login" class="btn btn-primary">Se connecter</button>
-        <button id="btn-register" class="btn btn-ghost">Créer un compte</button>
+        <button id="btn-login" class="btn btn-primary" data-i18n="login.signIn">Se connecter</button>
+        <button id="btn-register" class="btn btn-ghost" data-i18n="login.createAccount">Créer un compte</button>
       </div>
 
-      <div class="divider">jouer sans compte</div>
+      <div class="divider" data-i18n="login.guestLink">jouer sans compte</div>
 
       <button onclick="window.location.href='/'" class="btn btn-secondary">
-        <i class="fas fa-user-slash"></i> Continuer en invité
+        <i class="fas fa-user-slash"></i> <span data-i18n="login.continueGuest">Continuer en invité</span>
       </button>
 
     </div>

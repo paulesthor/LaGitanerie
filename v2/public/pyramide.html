@@ -47,14 +47,14 @@
     <div class="page-content">
       <div class="flex-col gap-4" style="text-align:center;margin-bottom:4px">
         <h2>🔺 La Pyramide</h2>
-        <p class="text-sm text-muted">Choisis ton mode de jeu</p>
+        <p class="text-sm text-muted" data-i18n="pyr.chooseMode">Choisis ton mode de jeu</p>
       </div>
 
       <button class="mode-card classic" onclick="window.location.href='/lobbypyramide.html?mode=classic'">
         <div class="mode-icon"><i class="fas fa-mobile-screen-button"></i></div>
         <div style="flex:1">
-          <div class="mode-title">Classique</div>
-          <div class="mode-desc">Tout se joue sur le téléphone : donner les gorgées, accuser les menteurs, phase mémoire notée.</div>
+          <div class="mode-title" data-i18n="mode.classic">Classique</div>
+          <div class="mode-desc" data-i18n="mode.classicDesc">Tout se joue sur le téléphone : donner les gorgées, accuser les menteurs, phase mémoire notée.</div>
         </div>
         <div class="mode-arrow">→</div>
       </button>
@@ -62,15 +62,15 @@
       <button class="mode-card oral" onclick="window.location.href='/lobbypyramide.html?mode=oral'">
         <div class="mode-icon"><i class="fas fa-champagne-glasses"></i></div>
         <div style="flex:1">
-          <div class="mode-title">Soirée</div>
-          <div class="mode-desc">Le téléphone montre juste tes cartes ; l'hôte retourne la pyramide carte par carte. Les gorgées se donnent à l'oral.</div>
+          <div class="mode-title" data-i18n="mode.oral">Soirée</div>
+          <div class="mode-desc" data-i18n="mode.oralDesc">Le téléphone montre juste tes cartes ; l'hôte retourne la pyramide carte par carte. Les gorgées se donnent à l'oral.</div>
         </div>
         <div class="mode-arrow">→</div>
       </button>
 
       <!-- Rejoindre rapidement (parties d'amis en attente) -->
       <div id="quick-join" class="card flex-col gap-10 hidden">
-        <h3><i class="fas fa-bolt" style="color:var(--gold)"></i> Parties de tes amis</h3>
+        <h3><i class="fas fa-bolt" style="color:var(--gold)"></i> <span data-i18n="pyr.friendGames">Parties de tes amis</span></h3>
         <div id="quick-join-list" class="flex-col gap-8"></div>
       </div>
     </div>

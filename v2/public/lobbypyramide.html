@@ -72,21 +72,21 @@
 
       <!-- Profil -->
       <div class="card flex-col gap-16">
-        <h3>Ton profil</h3>
+        <h3 data-i18n="lobby.yourProfile">Ton profil</h3>
 
         <div class="flex items-center gap-16">
           <!-- Avatar cliquable -->
           <div class="avatar-circle" id="avatar-display" onclick="document.getElementById('photo-input').click()">📸</div>
           <div class="flex-col gap-8" style="flex:1">
-            <span class="text-sm text-muted">Appuie sur le cercle pour ajouter une photo</span>
+            <span class="text-sm text-muted" data-i18n="lobby.photoHint">Appuie sur le cercle pour ajouter une photo</span>
             <input type="file" id="photo-input" accept="image/*" style="display:none">
           </div>
         </div>
 
         <!-- Nom -->
         <div class="input-group">
-          <label>Nom de joueur</label>
-          <input type="text" id="input-name" class="input" placeholder="Ton pseudo" maxlength="15" autocomplete="off">
+          <label data-i18n="profile.playerName">Nom de joueur</label>
+          <input type="text" id="input-name" class="input" placeholder="Ton pseudo" data-i18n-ph="lobby.namePh" maxlength="15" autocomplete="off">
           <script>
             (function(){try{
               var pc={};try{pc=JSON.parse(localStorage.getItem('profileCache'))||{};}catch(e){}
@@ -102,32 +102,32 @@
 
       <!-- Tabs Créer / Rejoindre -->
       <div class="section-tabs">
-        <button class="tab-btn active" id="tab-create" onclick="switchTab('create')">Créer</button>
-        <button class="tab-btn" id="tab-join" onclick="switchTab('join')">Rejoindre</button>
+        <button class="tab-btn active" id="tab-create" onclick="switchTab('create')" data-i18n="lobby.create">Créer</button>
+        <button class="tab-btn" id="tab-join" onclick="switchTab('join')" data-i18n="lobby.join">Rejoindre</button>
       </div>
 
       <!-- Panel Créer -->
       <div id="panel-create" class="flex-col gap-12">
         <div id="mode-badge" class="flex items-center gap-8" style="padding:10px 12px;background:var(--bg-surface);border-radius:var(--radius-sm)">
           <i id="mode-badge-icon" class="fas fa-mobile-screen-button" style="color:var(--orange)"></i>
-          <span class="text-sm">Mode <strong id="mode-badge-name">Classique</strong></span>
-          <a href="/pyramide.html" class="text-sm" style="margin-left:auto;color:var(--gold)">Changer</a>
+          <span class="text-sm"><span data-i18n="lobby.mode">Mode</span> <strong id="mode-badge-name" data-i18n="mode.classic">Classique</strong></span>
+          <a href="/pyramide.html" class="text-sm" style="margin-left:auto;color:var(--gold)" data-i18n="lobby.change">Changer</a>
         </div>
-        <p class="text-sm">Tu seras l'hôte de la partie. Partage le code avec tes amis.</p>
+        <p class="text-sm" data-i18n="lobby.hostHint">Tu seras l'hôte de la partie. Partage le code avec tes amis.</p>
         <button id="btn-create" class="btn btn-primary">
-          <i class="fas fa-plus-circle"></i> Créer la partie
+          <i class="fas fa-plus-circle"></i> <span data-i18n="lobby.createGame">Créer la partie</span>
         </button>
       </div>
 
       <!-- Panel Rejoindre -->
       <div id="panel-join" class="flex-col gap-12 hidden">
         <div class="input-group">
-          <label>Code de la partie</label>
+          <label data-i18n="lobby.gameCode">Code de la partie</label>
           <input type="text" id="input-code" class="input input-code" placeholder="ABCD" maxlength="4" autocomplete="off" autocapitalize="characters" inputmode="text">
           <div id="code-hint" class="text-sm" style="text-align:center;height:16px;transition:color .2s"></div>
         </div>
         <button id="btn-join" class="btn btn-gold">
-          <i class="fas fa-sign-in-alt"></i> Rejoindre
+          <i class="fas fa-sign-in-alt"></i> <span data-i18n="lobby.joinGame">Rejoindre</span>
         </button>
       </div>
 
