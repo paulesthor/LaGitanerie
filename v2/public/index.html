@@ -30,7 +30,7 @@
   <style>
     /* Le fond du document est de la couleur de la barre : tout ce qui dépasse
        sous la barre d'onglets (zone de sécurité iOS) prend donc sa couleur. */
-    html, body { height: 100%; background: #141d26; }
+    html, body { height: 100%; background: #1b2734; }
 
     /* ── Système d'onglets (hub) ──
        Structure d'app : conteneur pleine hauteur en flex, la barre est un
@@ -49,9 +49,7 @@
     .tab-view { display:none; }
     .tab-view.active {
       display:flex; flex-direction:column;
-      /* Pas de min-height : une page non défilable évite qu'iOS place
-         l'élément fixe contre un viewport de défilement erroné. */
-      padding-bottom:76px;   /* dégage la barre fixe */
+      padding-bottom:104px;   /* dégage la pill flottante */
     }
     #view-accueil { background:#1b2734; padding-top:env(safe-area-inset-top); }
     #view-profil, #view-stats, #view-amis, #view-reglages { background:#2c3e50; }
@@ -63,23 +61,34 @@
     }
     .pane-head .pane-sub { font-size:.78rem; color:rgba(236,240,241,.45); margin-top:6px; }
 
-    /* ── Barre d'onglets fixe en bas ── */
+    /* ── Barre d'onglets : pill flottante ──
+       En PWA iOS, la bande basse de l'écran n'est pas exploitable au
+       démarrage (le viewport y grandit par paliers et rien ne s'y affiche).
+       Plutôt que de lutter, le design l'intègre : la barre flotte au-dessus
+       avec une marge assumée, et le fond de page se prolonge dessous. */
     .tabbar {
-      position:fixed; left:0; right:0; bottom:0; z-index:300;
-      display:flex; background:#141d26;                 /* opaque : la bande de sécurité iOS prend la couleur de la barre */
-      border-top:1px solid rgba(255,255,255,.08);
-      /* Marge constante : ne dépend d'aucun env() → la barre ne bouge jamais. */
-      padding-bottom:10px;
+      position:fixed; left:12px; right:12px; bottom:14px; z-index:300;
+      display:flex;
+      background:rgba(21,30,40,.96);
+      -webkit-backdrop-filter:blur(16px) saturate(160%); backdrop-filter:blur(16px) saturate(160%);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:24px;
+      box-shadow:0 12px 32px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.35);
+      padding:7px 5px;
+      max-width:440px; margin:0 auto;
     }
     .tabbar button {
       flex:1; background:none; border:none; cursor:pointer;
-      display:flex; flex-direction:column; align-items:center; gap:3px;
-      padding:9px 2px 7px; font-family:inherit; font-size:.6rem; font-weight:600;
-      color:rgba(236,240,241,.5); transition:color .15s; letter-spacing:.02em;
+      display:flex; flex-direction:column; align-items:center; gap:4px;
+      padding:8px 2px; border-radius:16px;
+      font-family:inherit; font-size:.58rem; font-weight:600;
+      color:rgba(236,240,241,.5); letter-spacing:.02em;
+      transition:color .18s, background .18s;
     }
-    .tabbar button i { font-size:1.18rem; line-height:1; }
-    .tabbar button.active { color:var(--orange,#f39c12); }
-    .tabbar button:active { color:var(--orange,#f39c12); }
+    .tabbar button i { font-size:1.12rem; line-height:1; transition:transform .18s; }
+    .tabbar button.active { color:var(--orange,#f39c12); background:rgba(243,156,18,.13); }
+    .tabbar button.active i { transform:translateY(-1px) scale(1.06); }
+    .tabbar button:active i { transform:scale(.92); }
 
     /* ── Barre compte (accueil) ── */
     .topbar { display:flex; align-items:center; gap:12px; padding:16px 22px; }
@@ -442,7 +451,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v93';
+    const APP_BUILD = 'v94';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -478,41 +487,14 @@
         return h;
       }
 
-      // ── Alignement de la barre sur le bas PHYSIQUE de l'écran ──
-      // Mesuré sur iPhone : au lancement d'une PWA, le viewport grandit par
-      // paliers (812 → 848 → 874 px pour un écran de 874). La barre, calée sur
-      // bottom:0, suit ce viewport et démarre donc trop haut. L'origine du
-      // viewport coïncide avec le haut de l'écran : il suffit de descendre la
-      // barre de l'écart (écran − viewport) pour qu'elle colle au bas réel.
-      function alignBar() {
-        const bar = document.querySelector('.tabbar');
-        if (!bar) return;
-        const screenH = (window.screen && window.screen.height) || 0;
-        // Paysage ou donnée absente : on ne touche à rien.
-        if (!screenH || window.innerWidth > window.innerHeight) { bar.style.transform = ''; return; }
-        const gap = Math.round(screenH - window.innerHeight);
-        // gap > 120 → clavier ouvert (et non un inset) : surtout ne pas décaler.
-        if (gap <= 0 || gap > 120) { bar.style.transform = ''; return; }
-        bar.style.transform = `translateY(${gap}px)`;
-      }
-      window.__alignBar = alignBar;
-
-      function refresh() { setVH(); measureSafe(); alignBar(); }
+      // La barre flotte au-dessus du bas d'écran : plus aucun décalage à
+      // calculer, elle reste donc toujours visible et bien placée, même
+      // pendant que le viewport iOS s'agrandit au lancement.
+      function refresh() { setVH(); measureSafe(); }
       refresh();
-
-      // Le viewport se stabilise en quelques secondes : on réaligne à chaque
-      // frame pendant ce laps de temps, la barre reste donc collée en bas.
-      const t0 = Date.now();
-      (function tick() {
-        alignBar();
-        if (Date.now() - t0 < 6000) requestAnimationFrame(tick);
-      })();
-
       window.addEventListener('load', refresh);
       window.addEventListener('pageshow', refresh);
-      window.addEventListener('resize', alignBar);
       window.addEventListener('orientationchange', () => setTimeout(refresh, 300));
-      document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     })();
 
     // ══════════ Onglets ══════════
@@ -523,14 +505,18 @@
       document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       try { history.replaceState(null, '', '#' + name); } catch (e) {}
       window.scrollTo(0, 0);
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', name === 'accueil' ? '#1b2734' : '#2c3e50');
+      // Le fond du document suit l'onglet : la bande basse non exploitable
+      // par iOS se fond ainsi dans la page au lieu de trancher.
+      const bg = name === 'accueil' ? '#1b2734' : '#2c3e50';
+      document.documentElement.style.background = bg;
+      document.body.style.background = bg;
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
     }
     document.querySelectorAll('.tabbar button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
     document.getElementById('home-chip').onclick = () => showTab(auth.currentUser && !auth.currentUser.isAnonymous ? 'profil' : 'accueil');
     showTab((location.hash || '').replace('#', '') || 'accueil');
 
 
-    window.__alignBar && window.__alignBar();
 
     // ══════════ Puce compte (accueil) ══════════
     function paintHomeChip(d) {
