@@ -157,7 +157,11 @@
     .lang-menu button .lang-flag { font-size:1.05rem; line-height:1; }
     .lang-menu button.active { color:var(--orange,#f39c12); background:rgba(243,156,18,.12); }
     .lang-menu button .fa-check { margin-left:auto; font-size:.72rem; }
-    .topbar-id { display:flex; align-items:center; gap:11px; flex:1; min-width:0; cursor:pointer; }
+    /* flex:0 1 auto + marge automatique : la zone cliquable s'arrête au texte.
+       Avec flex:1 elle s'étirait jusqu'au bord droit, et comme le bouton
+       Connexion disparaît une fois connecté, un appui dans le coin haut droit
+       tombait sur ce chip invisible et ouvrait le profil. */
+    .topbar-id { display:flex; align-items:center; gap:11px; flex:0 1 auto; margin-right:auto; min-width:0; cursor:pointer; }
     .avatar-sm {
       width:38px; height:38px; border-radius:50%;
       background:var(--bg-surface,#1a2530); border:1px solid rgba(255,255,255,0.08);
@@ -535,7 +539,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v106';
+    const APP_BUILD = 'v107';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
