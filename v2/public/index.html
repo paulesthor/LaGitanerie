@@ -48,8 +48,10 @@
     .app-shell { display:block; }
     .tab-view { display:none; }
     .tab-view.active {
-      display:flex; flex-direction:column; min-height:100dvh;
-      padding-bottom:72px;   /* dégage la barre fixe */
+      display:flex; flex-direction:column;
+      /* Pas de min-height : une page non défilable évite qu'iOS place
+         l'élément fixe contre un viewport de défilement erroné. */
+      padding-bottom:76px;   /* dégage la barre fixe */
     }
     #view-accueil { background:#1b2734; padding-top:env(safe-area-inset-top); }
     #view-profil, #view-stats, #view-amis, #view-reglages { background:#2c3e50; }
@@ -222,6 +224,7 @@
     </nav>
 
     <div class="home-footer">L'abus d'alcool est recommandé par les collègues.</div>
+    <div id="diag" style="padding:0 22px 10px;font-size:.6rem;line-height:1.5;color:rgba(236,240,241,.45);font-family:monospace"></div>
   </section>
 
   <!-- ══════════════ PROFIL ══════════════ -->
@@ -440,7 +443,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v91';
+    const APP_BUILD = 'v92';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -560,6 +563,28 @@
 
     bootRealign(true);
     [120, 400, 900, 1800].forEach(ms => setTimeout(() => bootRealign(false), ms));
+
+    // ── Diagnostic temporaire : ce qu'iOS rapporte réellement ──
+    function diagLine(tag) {
+      const bar = document.querySelector('.tabbar');
+      const r   = bar ? bar.getBoundingClientRect() : { bottom: 0, top: 0 };
+      const sh  = (window.screen && window.screen.height) || 0;
+      const sw  = (window.screen && window.screen.width) || 0;
+      return `${tag} ih=${window.innerHeight} sh=${sh} sw=${sw} dpr=${window.devicePixelRatio}`
+           + ` barTop=${Math.round(r.top)} barBot=${Math.round(r.bottom)}`
+           + ` doc=${document.documentElement.scrollHeight} sy=${Math.round(window.scrollY)}`;
+    }
+    (function () {
+      const el = document.getElementById('diag');
+      if (!el) return;
+      const lines = [diagLine('boot')];
+      el.textContent = lines.join('\n');
+      el.style.whiteSpace = 'pre-wrap';
+      [1500, 4000].forEach((ms, i) => setTimeout(() => {
+        lines.push(diagLine(i === 0 ? '1.5s' : '4s'));
+        el.textContent = lines.join('\n');
+      }, ms));
+    })();
     window.addEventListener('pageshow', () => setTimeout(() => bootRealign(true), 80));
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) setTimeout(() => bootRealign(true), 80);
