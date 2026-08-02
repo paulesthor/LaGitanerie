@@ -76,7 +76,11 @@
     let bx = 0, by = 0, edge = false;
     document.addEventListener('touchstart', (e) => {
       const t = e.touches[0];
-      edge = t.clientX <= 24;
+      // La barre d'onglets touche le bord gauche de l'écran et se pilote au
+      // glissement : un mouvement horizontal parti de dedans ne doit jamais
+      // déclencher le retour arrière.
+      const inDragZone = e.target.closest && e.target.closest('.tabbar, [data-no-back-swipe]');
+      edge = !inDragZone && t.clientX <= 24;
       bx = t.clientX; by = t.clientY;
     }, { passive: true });
     document.addEventListener('touchend', (e) => {
