@@ -224,7 +224,6 @@
     </nav>
 
     <div class="home-footer">L'abus d'alcool est recommandé par les collègues.</div>
-    <div id="diag" style="padding:0 22px 10px;font-size:.6rem;line-height:1.5;color:rgba(236,240,241,.45);font-family:monospace"></div>
   </section>
 
   <!-- ══════════════ PROFIL ══════════════ -->
@@ -443,7 +442,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v92';
+    const APP_BUILD = 'v93';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -479,54 +478,41 @@
         return h;
       }
 
-      // ── Alignement auto de la barre sur le bas PHYSIQUE de l'écran ──
-      // En PWA iOS, la fenêtre de mise en page peut être plus courte que
-      // l'écran : bottom:0 s'arrête alors trop haut. On compare la hauteur de
-      // l'écran à celle de la fenêtre et on décale la barre de la différence.
+      // ── Alignement de la barre sur le bas PHYSIQUE de l'écran ──
+      // Mesuré sur iPhone : au lancement d'une PWA, le viewport grandit par
+      // paliers (812 → 848 → 874 px pour un écran de 874). La barre, calée sur
+      // bottom:0, suit ce viewport et démarre donc trop haut. L'origine du
+      // viewport coïncide avec le haut de l'écran : il suffit de descendre la
+      // barre de l'écart (écran − viewport) pour qu'elle colle au bas réel.
       function alignBar() {
         const bar = document.querySelector('.tabbar');
         if (!bar) return;
-        bar.style.transform = '';
-        // Uniquement en portrait (screen.height reste en valeur portrait sur iOS).
-        if (window.innerWidth > window.innerHeight) return;
-        const screenH = (window.screen && window.screen.height) || window.innerHeight;
-        const safeTop = measureEnv('safe-area-inset-top');
-        const gap = Math.round(screenH - window.innerHeight - safeTop);
-        const shift = Math.max(0, Math.min(gap - 8, 140));   // 8px de garde
-        if (shift > 0) bar.style.transform = `translateY(${shift}px)`;
+        const screenH = (window.screen && window.screen.height) || 0;
+        // Paysage ou donnée absente : on ne touche à rien.
+        if (!screenH || window.innerWidth > window.innerHeight) { bar.style.transform = ''; return; }
+        const gap = Math.round(screenH - window.innerHeight);
+        // gap > 120 → clavier ouvert (et non un inset) : surtout ne pas décaler.
+        if (gap <= 0 || gap > 120) { bar.style.transform = ''; return; }
+        bar.style.transform = `translateY(${gap}px)`;
       }
-      window.__alignBar = alignBar;   // réutilisé par le réalignement au démarrage
+      window.__alignBar = alignBar;
 
-      function nudgeLayout() {
-        const view = document.querySelector('.tab-view.active');
-        if (view) {
-          const prev = view.style.display;
-          view.style.display = 'none';
-          void document.body.offsetHeight;   // force le recalcul
-          view.style.display = prev;
-        }
-        // Micro-défilement : déclencheur le plus fiable pour que iOS
-        // repositionne un élément fixe.
-        const y = window.scrollY || 0;
-        window.scrollTo(0, y + 1);
-        window.scrollTo(0, y);
-      }
-
-      function refresh() { setVH(); measureSafe(); nudgeLayout(); alignBar(); }
+      function refresh() { setVH(); measureSafe(); alignBar(); }
       refresh();
+
+      // Le viewport se stabilise en quelques secondes : on réaligne à chaque
+      // frame pendant ce laps de temps, la barre reste donc collée en bas.
+      const t0 = Date.now();
+      (function tick() {
+        alignBar();
+        if (Date.now() - t0 < 6000) requestAnimationFrame(tick);
+      })();
+
       window.addEventListener('load', refresh);
       window.addEventListener('pageshow', refresh);
-      setTimeout(refresh, 150);       // filets successifs le temps que l'UI iOS se stabilise
-      setTimeout(refresh, 500);
-      setTimeout(refresh, 1200);
-
-      // On ne recalcule que sur rotation / vrai changement d'écran : un resize
-      // dû au clavier ne doit pas écraser la hauteur de l'app.
-      let lastW = window.innerWidth;
+      window.addEventListener('resize', alignBar);
       window.addEventListener('orientationchange', () => setTimeout(refresh, 300));
-      window.addEventListener('resize', () => {
-        if (window.innerWidth !== lastW) { lastW = window.innerWidth; refresh(); }
-      });
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     })();
 
     // ══════════ Onglets ══════════
@@ -543,52 +529,8 @@
     document.getElementById('home-chip').onclick = () => showTab(auth.currentUser && !auth.currentUser.isAnonymous ? 'profil' : 'accueil');
     showTab((location.hash || '').replace('#', '') || 'accueil');
 
-    // ── Réalignement de la barre au démarrage ──
-    // Seul un VRAI changement d'onglet fait qu'iOS repositionne correctement
-    // la barre. On effectue donc un aller-retour showTab() : les deux appels
-    // sont dans le même rendu, donc rien de visible à l'écran.
-    let _userInteracted = false;
-    ['pointerdown', 'touchstart', 'wheel'].forEach(ev =>
-      window.addEventListener(ev, () => { _userInteracted = true; }, { once: true, passive: true }));
 
-    function bootRealign(force) {
-      if (_userInteracted && !force) return;   // ne pas perturber l'utilisateur
-      const cur   = document.querySelector('.tabbar button.active')?.dataset.tab || 'accueil';
-      const other = cur === 'accueil' ? 'profil' : 'accueil';
-      showTab(other);
-      void document.body.offsetHeight;         // force le recalcul iOS
-      showTab(cur);
-      window.__alignBar && window.__alignBar();
-    }
-
-    bootRealign(true);
-    [120, 400, 900, 1800].forEach(ms => setTimeout(() => bootRealign(false), ms));
-
-    // ── Diagnostic temporaire : ce qu'iOS rapporte réellement ──
-    function diagLine(tag) {
-      const bar = document.querySelector('.tabbar');
-      const r   = bar ? bar.getBoundingClientRect() : { bottom: 0, top: 0 };
-      const sh  = (window.screen && window.screen.height) || 0;
-      const sw  = (window.screen && window.screen.width) || 0;
-      return `${tag} ih=${window.innerHeight} sh=${sh} sw=${sw} dpr=${window.devicePixelRatio}`
-           + ` barTop=${Math.round(r.top)} barBot=${Math.round(r.bottom)}`
-           + ` doc=${document.documentElement.scrollHeight} sy=${Math.round(window.scrollY)}`;
-    }
-    (function () {
-      const el = document.getElementById('diag');
-      if (!el) return;
-      const lines = [diagLine('boot')];
-      el.textContent = lines.join('\n');
-      el.style.whiteSpace = 'pre-wrap';
-      [1500, 4000].forEach((ms, i) => setTimeout(() => {
-        lines.push(diagLine(i === 0 ? '1.5s' : '4s'));
-        el.textContent = lines.join('\n');
-      }, ms));
-    })();
-    window.addEventListener('pageshow', () => setTimeout(() => bootRealign(true), 80));
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) setTimeout(() => bootRealign(true), 80);
-    });
+    window.__alignBar && window.__alignBar();
 
     // ══════════ Puce compte (accueil) ══════════
     function paintHomeChip(d) {
