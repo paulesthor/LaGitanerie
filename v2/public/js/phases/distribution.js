@@ -6,16 +6,19 @@ import { ref, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/
 import { showToast, SUIT_SYMBOL, checkPrediction, clearGameSession, cardFaceInner } from '/js/game/utils.js';
 import { avatarHTML, isPhotoAvatar } from '/js/game/avatar.js';
 
+// Raccourci de traduction (window.t vient de /js/i18n.js, chargé dans le <head>)
+const t = (k, v) => (window.t ? window.t(k, v) : k);
+
 const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate?.(p));
 
 const VIEW = `
   <div class="screen">
     <header class="app-header">
       <div class="flex items-center gap-8">
-        <span class="text-sm text-muted">Partie</span>
+        <span class="text-sm text-muted" data-i18n="game.game">Partie</span>
         <span id="header-code" class="font-bold" style="color:var(--gold)">----</span>
       </div>
-      <h1 style="font-size:0.95rem">Phase 1 — Distribution</h1>
+      <h1 style="font-size:0.95rem" data-i18n="game.phase1">Phase 1 — Distribution</h1>
       <button class="header-btn" id="btn-menu"><i class="fas fa-bars"></i></button>
     </header>
     <div class="page-content">
@@ -23,16 +26,16 @@ const VIEW = `
         <div class="avatar-wrap" id="turn-avatar">🃏</div>
         <div class="flex-col gap-8" style="flex:1">
           <span id="turn-name" class="font-bold">...</span>
-          <span id="turn-sub" class="text-sm" style="opacity:.8">C'est son tour</span>
+          <span id="turn-sub" class="text-sm" style="opacity:.8" data-i18n="game.theirTurn">C'est son tour</span>
         </div>
       </div>
       <div class="card flex-col gap-12">
-        <h3>Mes cartes</h3>
+        <h3 data-i18n="mem.myCards">Mes cartes</h3>
         <div id="hand-container" class="hand-container"></div>
       </div>
       <div id="action-area"></div>
       <div id="oral-chat" class="oral-chat hidden">
-        <div class="oral-chat-head"><i class="fas fa-comments"></i> Historique de la partie</div>
+        <div class="oral-chat-head"><i class="fas fa-comments"></i> <span data-i18n="game.history">Historique de la partie</span></div>
         <div id="oral-chat-log" class="oral-chat-log"></div>
       </div>
     </div>
@@ -41,7 +44,7 @@ const VIEW = `
   <div id="modal-target" class="modal-overlay">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <h3 class="text-center">Donner <span id="modal-sips">0</span> gorgée(s) à&nbsp;:</h3>
+      <h3 class="text-center"><span data-i18n="game.give">Donner</span> <span id="modal-sips">0</span> <span data-i18n="game.sipsTo">gorgée(s) à&nbsp;:</span></h3>
       <div id="target-grid" class="target-grid"></div>
     </div>
   </div>
@@ -54,7 +57,7 @@ const VIEW = `
     </div>
     <div class="notif-text">
       <div class="notif-who" id="reveal-who">Joueur</div>
-      <div class="notif-sub">révèle sa carte</div>
+      <div class="notif-sub" data-i18n="game.revealsCard">révèle sa carte</div>
     </div>
   </div>
 
@@ -67,10 +70,10 @@ const VIEW = `
   <div id="modal-menu" class="modal-overlay">
     <div class="modal-sheet flex-col gap-12">
       <div class="modal-handle"></div>
-      <h3>Menu</h3>
+      <h3 data-i18n="game.menu">Menu</h3>
       <div id="sidebar-players" class="flex-col gap-8"></div>
       <button id="btn-leave" class="btn btn-danger" style="margin-top:8px">
-        <i class="fas fa-door-open"></i> Quitter la partie
+        <i class="fas fa-door-open"></i> <span data-i18n="game.leave">Quitter la partie</span>
       </button>
     </div>
   </div>`;
@@ -78,6 +81,7 @@ const VIEW = `
 export function mount(root, api) {
   const { gameId, playerId } = api;
   root.innerHTML = VIEW;
+  window.I18N && window.I18N.apply(root);
   const $ = (id) => root.querySelector('#' + id);
   const gameRef = ref(db, `games/${gameId}`);
 
@@ -194,18 +198,18 @@ export function mount(root, api) {
       const sym    = SUIT_SYMBOL[ev.suit] || '';
       const colCls = ['hearts', 'diamonds'].includes(ev.suit) ? 'red' : 'black';
       const tag = ev.correct
-        ? '<span class="ocl-tag good">réussi</span>'
-        : `<span class="ocl-tag bad">raté · boit ${ev.sips}</span>`;
+        ? `<span class="ocl-tag good">${t('game.hit')}</span>`
+        : `<span class="ocl-tag bad">${t('game.missDrinks', { n: ev.sips })}</span>`;
       return `<div class="ocl-line">
         <span class="ocl-card ${colCls}">${ev.value ?? ''}${sym}</span>
-        <span class="ocl-body"><strong>${ev.byName || 'Joueur'}</strong> révèle ${tag}</span>
+        <span class="ocl-body"><strong>${ev.byName || t('game.player')}</strong> ${t('game.reveals')} ${tag}</span>
       </div>`;
     }
     if (ev.type === 'sips_given') {
-      const amt = `${ev.amount} gorgée${ev.amount > 1 ? 's' : ''}`;
+      const amt = t(ev.amount > 1 ? 'game.sipsN' : 'game.sip1', { n: ev.amount });
       return `<div class="ocl-line">
         <span class="ocl-ic drink"><i class="fas fa-beer-mug-empty"></i></span>
-        <span class="ocl-body"><strong>${ev.fromName || 'Joueur'}</strong> → <strong>${ev.toName || '?'}</strong> · <span class="ocl-amt">${amt}</span></span>
+        <span class="ocl-body"><strong>${ev.fromName || t('game.player')}</strong> → <strong>${ev.toName || '?'}</strong> · <span class="ocl-amt">${amt}</span></span>
       </div>`;
     }
     return '';
@@ -218,7 +222,7 @@ export function mount(root, api) {
     banner.classList.remove('hidden');
     $('turn-avatar').innerHTML = avatarHTML(currentP.avatar, 44);
     const isMyTurn_ = game.currentTurn === playerId;
-    $('turn-name').textContent = isMyTurn_ ? 'Ton tour !' : currentP.name;
+    $('turn-name').textContent = isMyTurn_ ? t('game.yourTurn') : currentP.name;
     $('turn-sub').style.display = isMyTurn_ ? 'none' : '';
     banner.style.background = isMyTurn_ ? 'var(--red)' : 'var(--bg-surface)';
     banner.classList.toggle('mine', isMyTurn_);
@@ -255,29 +259,29 @@ export function mount(root, api) {
     if (isMyTurn && nextIdx !== -1) {
       renderPrediction(area, nextIdx, myCards);
     } else if (isMyTurn && nextIdx === -1) {
-      area.innerHTML = `<div class="waiting-msg">✅ Tu as révélé toutes tes cartes !</div>`;
+      area.innerHTML = `<div class="waiting-msg">✅ ${t('game.allRevealed')}</div>`;
     } else {
       const cur = game.players?.[game.currentTurn];
-      area.innerHTML = `<div class="waiting-msg">En attente de <strong>${cur?.name || '...'}</strong>...</div>`;
+      area.innerHTML = `<div class="waiting-msg">${t('game.waitingFor')} <strong>${cur?.name || '...'}</strong>...</div>`;
     }
   }
 
   function renderPrediction(area, stepIdx) {
-    const titles   = ['Rouge ou Noir ?', 'Plus ou Moins ?', 'Intérieur ou Extérieur ?', 'Quelle famille ?'];
-    const sipsText = `${stepIdx + 1} gorgée${stepIdx + 1 > 1 ? 's' : ''}`;
+    const titles   = [t('pred.redBlack'), t('pred.higherLower'), t('pred.insideOutside'), t('pred.whichSuit')];
+    const sipsText = t(stepIdx + 1 > 1 ? 'game.sipsN' : 'game.sip1', { n: stepIdx + 1 });
     let btnsHTML = '';
     if (stepIdx === 0) {
       btnsHTML = `
-        <button class="pred-btn red-opt" data-pred="red">♥ Rouge</button>
-        <button class="pred-btn black-opt" data-pred="black">♠ Noir</button>`;
+        <button class="pred-btn red-opt" data-pred="red">♥ ${t('pred.red')}</button>
+        <button class="pred-btn black-opt" data-pred="black">♠ ${t('pred.black')}</button>`;
     } else if (stepIdx === 1) {
       btnsHTML = `
-        <button class="pred-btn higher" data-pred="higher">⬆ Plus</button>
-        <button class="pred-btn lower" data-pred="lower">⬇ Moins</button>`;
+        <button class="pred-btn higher" data-pred="higher">⬆ ${t('pred.higher')}</button>
+        <button class="pred-btn lower" data-pred="lower">⬇ ${t('pred.lower')}</button>`;
     } else if (stepIdx === 2) {
       btnsHTML = `
-        <button class="pred-btn inside" data-pred="inside">↔ Intérieur</button>
-        <button class="pred-btn outside" data-pred="outside">↕ Extérieur</button>`;
+        <button class="pred-btn inside" data-pred="inside">↔ ${t('pred.inside')}</button>
+        <button class="pred-btn outside" data-pred="outside">↕ ${t('pred.outside')}</button>`;
     } else {
       btnsHTML = `
         <button class="pred-btn hearts suit" data-pred="hearts">♥</button>
@@ -287,7 +291,7 @@ export function mount(root, api) {
     }
     area.innerHTML = `
       <div class="prediction-area">
-        <p class="phase-label">Carte ${stepIdx + 1} / 4 — ${sipsText} en jeu</p>
+        <p class="phase-label">${t('game.cardOf', { n: stepIdx + 1 })} — ${t('game.atStake', { sips: sipsText })}</p>
         <div class="prediction-title">${titles[stepIdx]}</div>
         <div class="prediction-btns">${btnsHTML}</div>
       </div>`;
@@ -305,7 +309,7 @@ export function mount(root, api) {
       el.className = 'player-row flex items-center gap-12 card-sm';
       el.innerHTML = `
         ${avatarHTML(p.avatar, 36)}
-        <span class="font-bold" style="flex:1">${p.name}${id === playerId ? ' (toi)' : ''}</span>
+        <span class="font-bold" style="flex:1">${p.name}${id === playerId ? ` (${t('wait.you')})` : ''}</span>
         <span class="badge badge-muted">${revealed}/4</span>`;
       container.appendChild(el);
     });
@@ -334,10 +338,10 @@ export function mount(root, api) {
     setTimeout(async () => {
       isAnimating = false;
       if (correct) {
-        if (!isOral()) showToast(`Bonne réponse — donne ${sips} gorgée(s)`, 'success');
+        if (!isOral()) showToast(t('game.goodGive', { n: sips }), 'success');
         showTargetModal(sips);
       } else {
-        if (!isOral()) showToast(`Raté — tu bois ${sips} gorgée(s)`, 'error');
+        if (!isOral()) showToast(t('game.missDrink', { n: sips }), 'error');
         const current = game.players[playerId].sipsToDrink || 0;
         await passTurn({ [`players/${playerId}/sipsToDrink`]: current + sips });
       }
@@ -388,12 +392,12 @@ export function mount(root, api) {
     const isMeFrom = event.fromId === playerId;
     const isMeTo   = event.toId   === playerId;
     let accent = 'spectate', icon = 'fa-arrow-right-arrow-left', msg = '';
-    if (isMeFrom)      { accent = 'me-give';  icon = 'fa-hand-holding-droplet'; msg = `Tu donnes à <strong>${event.toName}</strong>`; }
-    else if (isMeTo)   { accent = 'me-drink'; icon = 'fa-beer-mug-empty';       msg = `<strong>${event.fromName}</strong> te donne`; }
+    if (isMeFrom)      { accent = 'me-give';  icon = 'fa-hand-holding-droplet'; msg = t('game.youGiveTo', { name: `<strong>${event.toName}</strong>` }); }
+    else if (isMeTo)   { accent = 'me-drink'; icon = 'fa-beer-mug-empty';       msg = t('game.givesYou', { name: `<strong>${event.fromName}</strong>` }); }
     else               { accent = 'spectate'; icon = 'fa-arrow-right-arrow-left'; msg = `<strong>${event.fromName}</strong> → <strong>${event.toName}</strong>`; }
     iconEl.innerHTML = `<i class="fas ${icon}"></i>`;
     text.innerHTML = msg;
-    amount.textContent = `${event.amount} gorgée${event.amount > 1 ? 's' : ''}`;
+    amount.textContent = t(event.amount > 1 ? 'game.sipsN' : 'game.sip1', { n: event.amount });
     amount.classList.toggle('red', isMeTo);
     banner.className = `sips-banner ${accent} show`;
     clearTimeout(sipsBannerTimer);

@@ -4,6 +4,9 @@ import { ref, update, get } from 'https://www.gstatic.com/firebasejs/10.12.0/fir
 import { showToast, SUIT_SYMBOL, cardFaceInner } from '/js/game/utils.js';
 import { avatarHTML } from '/js/game/avatar.js';
 
+// Raccourci de traduction (window.t vient de /js/i18n.js, chargé dans le <head>)
+const t = (k, v) => (window.t ? window.t(k, v) : k);
+
 const TIMER_DURATION = 60;
 
 const VIEW = `
@@ -25,21 +28,21 @@ const VIEW = `
           </div>
         </div>
         <div class="flex-col gap-8" style="flex:1">
-          <p class="font-bold">La pyramide démarre dans&nbsp;:</p>
-          <p class="text-sm text-muted">Mémorise bien tes 4 cartes, tu ne pourras plus les voir pendant la pyramide.</p>
+          <p class="font-bold" data-i18n="mem.startsIn">La pyramide démarre dans&nbsp;:</p>
+          <p class="text-sm text-muted" data-i18n="mem.hint">Mémorise bien tes 4 cartes, tu ne pourras plus les voir pendant la pyramide.</p>
         </div>
       </div>
       <div class="card flex-col gap-14">
-        <h3>Mes cartes</h3>
+        <h3 data-i18n="mem.myCards">Mes cartes</h3>
         <div id="cards-row" class="cards-row"></div>
       </div>
       <div class="card flex-col gap-12">
-        <h3>Joueurs</h3>
+        <h3 data-i18n="lw.players">Joueurs</h3>
         <div id="players-ready" class="players-ready"></div>
       </div>
       <div class="mt-auto">
         <button id="btn-ready" class="btn btn-primary" style="font-size:1.1rem;padding:18px">
-          <i class="fas fa-check"></i> Je suis prêt !
+          <i class="fas fa-check"></i> <span data-i18n="wait.imReady">Je suis prêt !</span>
         </button>
       </div>
     </div>
@@ -48,6 +51,7 @@ const VIEW = `
 export function mount(root, api) {
   const { gameId, playerId, isHost } = api;
   root.innerHTML = VIEW;
+  window.I18N && window.I18N.apply(root);
   const $ = (id) => root.querySelector('#' + id);
   const gameRef = ref(db, `games/${gameId}`);
 
@@ -85,9 +89,9 @@ export function mount(root, api) {
       el.className = 'ready-row';
       el.innerHTML = `
         ${avatarHTML(p.avatar, 36)}
-        <span class="font-bold" style="flex:1">${p.name}${id === playerId ? ' (toi)' : ''}</span>
+        <span class="font-bold" style="flex:1">${p.name}${id === playerId ? ` (${t('wait.you')})` : ''}</span>
         <div class="ready-indicator ${p.memorizeReady ? 'ready' : ''}"></div>
-        <span class="text-sm text-muted">${p.memorizeReady ? 'Prêt' : 'En attente'}</span>`;
+        <span class="text-sm text-muted">${p.memorizeReady ? t('wait.ready') : t('wait.pending')}</span>`;
       container.appendChild(el);
     });
   }
@@ -153,16 +157,16 @@ export function mount(root, api) {
   btnReady.onclick = async () => {
     if (isReady) return;
     btnReady.disabled = true;
-    btnReady.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Envoi…';
+    btnReady.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('mem.sending')}`;
     try {
       await update(ref(db, `games/${gameId}/players/${playerId}`), { memorizeReady: true });
       isReady = true;
-      btnReady.innerHTML = '<i class="fas fa-check"></i> Prêt !';
+      btnReady.innerHTML = `<i class="fas fa-check"></i> ${t('wait.ready')}`;
       btnReady.className = 'btn btn-secondary';
     } catch (e) {
       btnReady.disabled = false;
-      btnReady.innerHTML = '<i class="fas fa-check"></i> Je suis prêt !';
-      showToast('Erreur réseau — réessaie', 'error');
+      btnReady.innerHTML = `<i class="fas fa-check"></i> ${t('wait.imReady')}`;
+      showToast(t('err.network'), 'error');
     }
   };
 

@@ -7,6 +7,10 @@ import {
 } from '/js/game/utils.js';
 import { avatarHTML } from '/js/game/avatar.js';
 
+// Raccourci de traduction : window.t est défini par /js/i18n.js, chargé dans
+// le <head> de play.html avant ce module.
+const t = (k, v) => (window.t ? window.t(k, v) : k);
+
 const VIEW = `
   <div class="screen">
     <header class="app-header">
@@ -16,34 +20,34 @@ const VIEW = `
     </header>
     <div class="page-content">
       <div class="card flex-col gap-8 text-center">
-        <p class="text-sm text-muted">Code de la partie</p>
+        <p class="text-sm text-muted" data-i18n="lobby.gameCode">Code de la partie</p>
         <div class="game-code-display" id="game-code">----</div>
         <div class="flex gap-8" style="justify-content:center">
-          <button id="btn-copy-code" class="btn btn-secondary btn-sm" style="width:auto;gap:6px"><i class="fas fa-copy"></i> Copier</button>
-          <button id="btn-share-code" class="btn btn-secondary btn-sm" style="width:auto;gap:6px"><i class="fas fa-share-alt"></i> Partager</button>
+          <button id="btn-copy-code" class="btn btn-secondary btn-sm" style="width:auto;gap:6px"><i class="fas fa-copy"></i> <span data-i18n="common.copy">Copier</span></button>
+          <button id="btn-share-code" class="btn btn-secondary btn-sm" style="width:auto;gap:6px"><i class="fas fa-share-alt"></i> <span data-i18n="common.share">Partager</span></button>
         </div>
       </div>
       <div class="card flex-col gap-12">
         <div class="flex items-center justify-between">
-          <h3>Joueurs</h3>
+          <h3 data-i18n="lw.players">Joueurs</h3>
           <span id="player-count" class="badge badge-muted">0</span>
         </div>
-        <div id="players-list" class="players-list"><div class="text-muted text-sm text-center">En attente...</div></div>
+        <div id="players-list" class="players-list"><div class="text-muted text-sm text-center" data-i18n="wait.waiting">En attente...</div></div>
       </div>
       <div id="rules-section" class="hidden">
         <div class="rules-accordion" id="rules-accordion">
-          <div class="rules-header" id="rules-toggle"><h3>⚙️ Règles de la partie</h3><i class="fas fa-chevron-down chevron"></i></div>
+          <div class="rules-header" id="rules-toggle"><h3>⚙️ <span data-i18n="rules.title">Règles de la partie</span></h3><i class="fas fa-chevron-down chevron"></i></div>
           <div class="rules-body">
             <div class="rule-row">
-              <div class="rule-info"><div class="rule-name">Rangées de la pyramide</div><div class="rule-desc">Nombre de rangées (haut = Cul Sec)</div></div>
+              <div class="rule-info"><div class="rule-name" data-i18n="rules.rows">Rangées de la pyramide</div><div class="rule-desc" data-i18n="rules.rowsDesc">Nombre de rangées (haut = Cul Sec)</div></div>
               <div class="stepper"><button class="stepper-btn" id="rows-minus">−</button><span class="stepper-val" id="val-rows">5</span><button class="stepper-btn" id="rows-plus">+</button></div>
             </div>
             <div class="rule-row">
-              <div class="rule-info"><div class="rule-name">Cartes visibles (phase 1)</div><div class="rule-desc">Les autres voient la carte révélée pendant 3s</div></div>
+              <div class="rule-info"><div class="rule-name" data-i18n="rules.showPhase1">Cartes visibles (phase 1)</div><div class="rule-desc" data-i18n="rules.showPhase1Desc">Les autres voient la carte révélée pendant 3s</div></div>
               <label class="toggle"><input type="checkbox" id="rule-showPhase1" checked><span class="toggle-slider"></span></label>
             </div>
             <div class="rule-row" id="row-oral-interval" style="display:none">
-              <div class="rule-info"><div class="rule-name">Temps par carte</div><div class="rule-desc">Délai avant que la pyramide retourne la carte suivante</div></div>
+              <div class="rule-info"><div class="rule-name" data-i18n="rules.cardTime">Temps par carte</div><div class="rule-desc" data-i18n="rules.cardTimeDesc">Délai avant que la pyramide retourne la carte suivante</div></div>
               <div class="segmented" data-seg="oralInterval">
                 <button class="seg-btn" data-val="8">8s</button>
                 <button class="seg-btn active" data-val="12">12s</button>
@@ -51,19 +55,19 @@ const VIEW = `
               </div>
             </div>
             <div class="rule-row" id="row-cardStyle" style="display:none">
-              <div class="rule-info"><div class="rule-name">Style des cartes</div><div class="rule-desc">Habillage des cartes pendant la partie</div></div>
+              <div class="rule-info"><div class="rule-name" data-i18n="rules.cardStyle">Style des cartes</div><div class="rule-desc" data-i18n="rules.cardStyleDesc">Habillage des cartes pendant la partie</div></div>
               <div class="segmented" data-seg="cardStyle">
-                <button class="seg-btn active" data-val="classic">Classique</button>
-                <button class="seg-btn" data-val="neon">Néon</button>
-                <button class="seg-btn" data-val="gold">Or</button>
+                <button class="seg-btn active" data-val="classic" data-i18n="mode.classic">Classique</button>
+                <button class="seg-btn" data-val="neon" data-i18n="rules.neon">Néon</button>
+                <button class="seg-btn" data-val="gold" data-i18n="rules.gold">Or</button>
               </div>
             </div>
             <div class="rule-row" id="row-showProof">
-              <div class="rule-info"><div class="rule-name">Preuve visible pour tous</div><div class="rule-desc">Quand quelqu'un prouve au Menteur, tous voient la carte</div></div>
+              <div class="rule-info"><div class="rule-name" data-i18n="rules.showProof">Preuve visible pour tous</div><div class="rule-desc" data-i18n="rules.showProofDesc">Quand quelqu'un prouve au Menteur, tous voient la carte</div></div>
               <label class="toggle"><input type="checkbox" id="rule-showProof" checked><span class="toggle-slider"></span></label>
             </div>
             <div class="rule-row" id="row-mult">
-              <div class="rule-info"><div class="rule-name">Multiplicateur de gorgées</div><div class="rule-desc">Multiplie toutes les gorgées de la pyramide</div></div>
+              <div class="rule-info"><div class="rule-name" data-i18n="rules.mult">Multiplicateur de gorgées</div><div class="rule-desc" data-i18n="rules.multDesc">Multiplie toutes les gorgées de la pyramide</div></div>
               <div class="segmented" data-seg="mult">
                 <button class="seg-btn active" data-val="1">×1</button>
                 <button class="seg-btn" data-val="2">×2</button>
@@ -71,7 +75,7 @@ const VIEW = `
               </div>
             </div>
             <div class="rule-row" id="row-timer">
-              <div class="rule-info"><div class="rule-name">Timer par carte</div><div class="rule-desc">Délai avant que l'hôte puisse forcer le tour</div></div>
+              <div class="rule-info"><div class="rule-name" data-i18n="rules.timer">Timer par carte</div><div class="rule-desc" data-i18n="rules.timerDesc">Délai avant que l'hôte puisse forcer le tour</div></div>
               <div class="segmented" data-seg="timer">
                 <button class="seg-btn" data-val="20">20s</button>
                 <button class="seg-btn active" data-val="30">30s</button>
@@ -82,16 +86,16 @@ const VIEW = `
         </div>
       </div>
       <div id="invite-tip" class="hidden" style="padding:12px 16px;background:rgba(243,156,18,.07);border:1px solid rgba(243,156,18,.2);border-radius:var(--radius);text-align:center">
-        <p class="text-sm text-muted" style="line-height:1.5">Partage le code ci-dessus pour inviter tes amis.<br>Min. 2 joueurs pour lancer.</p>
+        <p class="text-sm text-muted" style="line-height:1.5" data-i18n-html="wait.inviteTip">Partage le code ci-dessus pour inviter tes amis.<br>Min. 2 joueurs pour lancer.</p>
       </div>
       <div class="flex-col gap-12 mt-auto">
         <div id="host-section" class="hidden flex-col gap-8">
-          <p class="text-sm text-muted text-center"><i class="fas fa-crown" style="color:var(--gold)"></i> Tu es l'hôte. Lance quand tout le monde est prêt.</p>
-          <button id="btn-start" class="btn btn-primary"><i class="fas fa-play"></i> Lancer la partie</button>
+          <p class="text-sm text-muted text-center"><i class="fas fa-crown" style="color:var(--gold)"></i> <span data-i18n="wait.hostHint">Tu es l'hôte. Lance quand tout le monde est prêt.</span></p>
+          <button id="btn-start" class="btn btn-primary"><i class="fas fa-play"></i> <span data-i18n="lw.start">Lancer la partie</span></button>
         </div>
         <div id="guest-section" class="hidden flex-col gap-8">
-          <button id="btn-ready" class="btn btn-primary"><i class="fas fa-check"></i> Je suis prêt !</button>
-          <p class="text-sm text-muted text-center">L'hôte lancera la partie.</p>
+          <button id="btn-ready" class="btn btn-primary"><i class="fas fa-check"></i> <span data-i18n="wait.imReady">Je suis prêt !</span></button>
+          <p class="text-sm text-muted text-center" data-i18n="wait.hostWillStart">L'hôte lancera la partie.</p>
         </div>
         <div id="error-msg" class="hidden text-sm text-center" style="color:var(--red)"></div>
       </div>
@@ -101,6 +105,7 @@ const VIEW = `
 export function mount(root, api) {
   const { gameId, playerId, isHost } = api;
   root.innerHTML = VIEW;
+  window.I18N && window.I18N.apply(root);
   const $ = (id) => root.querySelector('#' + id);
   const gameRef   = ref(db, `games/${gameId}`);
   const playerRef = ref(db, `games/${gameId}/players/${playerId}`);
@@ -144,18 +149,18 @@ export function mount(root, api) {
     if (!code || code === '----') return;
     try {
       await navigator.clipboard.writeText(code);
-      $('btn-copy-code').innerHTML = '<i class="fas fa-check"></i> Copié !';
-      setTimeout(() => { $('btn-copy-code').innerHTML = '<i class="fas fa-copy"></i> Copier'; }, 2000);
-    } catch { showToast('Copie non supportée sur ce navigateur', 'error'); }
+      $('btn-copy-code').innerHTML = `<i class="fas fa-check"></i> ${t('common.copied')}`;
+      setTimeout(() => { $('btn-copy-code').innerHTML = `<i class="fas fa-copy"></i> ${t('common.copy')}`; }, 2000);
+    } catch { showToast(t('wait.copyUnsupported'), 'error'); }
   };
   $('btn-share-code').onclick = async () => {
     const code = $('game-code').textContent;
     if (!code || code === '----') return;
     if (navigator.share) {
-      try { await navigator.share({ title: 'La Gitanerie', text: `Rejoins ma partie ! Code : ${code}\nhttps://la-gitanerie.web.app` }); } catch {}
+      try { await navigator.share({ title: 'La Gitanerie', text: `${t('wait.shareText', { code })}\nhttps://la-gitanerie.web.app` }); } catch {}
     } else {
       await navigator.clipboard.writeText(code).catch(() => {});
-      showToast(`Code copié : ${code}`, 'success');
+      showToast(t('wait.codeCopied', { code }), 'success');
     }
   };
 
@@ -182,7 +187,7 @@ export function mount(root, api) {
       window.location.href = '/lobbypyramide.html';
     } catch (e) {
       btn.disabled = false;
-      showToast('Erreur lors de la sortie', 'error');
+      showToast(t('wait.leaveError'), 'error');
     }
   };
 
@@ -254,16 +259,16 @@ export function mount(root, api) {
       row.innerHTML = `
         ${avatarHTML(p.avatar, 40, borderClass)}
         <div class="flex-col" style="flex:1">
-          <span class="font-bold">${p.name}${isMe ? ' (toi)' : ''}</span>
-          ${isHost_ ? '<span class="host-crown"><i class="fas fa-crown"></i> Hôte</span>' : ''}
+          <span class="font-bold">${p.name}${isMe ? ` (${t('wait.you')})` : ''}</span>
+          ${isHost_ ? `<span class="host-crown"><i class="fas fa-crown"></i> ${t('wait.host')}</span>` : ''}
         </div>
-        <span class="badge ${p.ready ? 'badge-gold' : 'badge-muted'}">${p.ready ? 'Prêt' : 'En attente'}</span>`;
+        <span class="badge ${p.ready ? 'badge-gold' : 'badge-muted'}">${p.ready ? t('wait.ready') : t('wait.pending')}</span>`;
       if (isHost && !isMe && !isHost_) {
         const kick = document.createElement('button');
         kick.innerHTML = '<i class="fas fa-times"></i>';
-        kick.title = 'Expulser';
+        kick.title = t('wait.kick');
         kick.style.cssText = 'background:none;border:none;color:var(--red);font-size:1rem;padding:4px 10px;cursor:pointer;margin-left:4px;opacity:.7';
-        kick.onclick = async () => { await remove(ref(db, `games/${gameId}/players/${id}`)); showToast(`${p.name} a été expulsé`, 'info'); };
+        kick.onclick = async () => { await remove(ref(db, `games/${gameId}/players/${id}`)); showToast(t('wait.kicked', { name: p.name }), 'info'); };
         row.appendChild(kick);
       }
       list.appendChild(row);
@@ -277,13 +282,13 @@ export function mount(root, api) {
       const canStart   = entries.length >= 2 && allReady;
       btnStart.disabled = !canStart;
       btnStart.innerHTML = canStart
-        ? '<i class="fas fa-play"></i> Lancer la partie'
-        : '<i class="fas fa-hourglass-half"></i> En attente des joueurs…';
+        ? `<i class="fas fa-play"></i> ${t('lw.start')}`
+        : `<i class="fas fa-hourglass-half"></i> ${t('wait.waitingPlayers')}`;
     }
     const btnReady = $('btn-ready');
     if (btnReady) {
       btnReady.className = isReady ? 'btn btn-secondary' : 'btn btn-primary';
-      btnReady.innerHTML = isReady ? '<i class="fas fa-times"></i> Pas prêt' : '<i class="fas fa-check"></i> Je suis prêt !';
+      btnReady.innerHTML = isReady ? `<i class="fas fa-times"></i> ${t('wait.notReady')}` : `<i class="fas fa-check"></i> ${t('wait.imReady')}`;
     }
   }
 
@@ -292,10 +297,10 @@ export function mount(root, api) {
     const game    = snap.val();
     const players = game.players || {};
     const ids     = Object.keys(players);
-    if (ids.length < 2) return showError('Il faut au moins 2 joueurs');
+    if (ids.length < 2) return showError(t('wait.need2'));
     const nonHostIds = ids.filter(id => id !== playerId);
     const allReady   = nonHostIds.every(id => players[id]?.ready);
-    if (!allReady) return showError('Tout le monde doit être prêt !');
+    if (!allReady) return showError(t('wait.allMustBeReady'));
 
     const deck    = createDeck();
     const numRows = rules.rows;
