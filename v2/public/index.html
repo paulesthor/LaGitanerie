@@ -484,7 +484,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v99';
+    const APP_BUILD = 'v100';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -589,17 +589,26 @@
       if (!bar || !ind) return;
       const btns = Array.from(bar.querySelectorAll('button'));
       let pending = null;   // dernière position de doigt en attente de rendu
-      let startX = 0, moved = false;
+      let startX = 0, moved = false, wasDrag = false;
 
-      const tabAt = (x) => btns.find(b => {
-        const r = b.getBoundingClientRect();
-        return x >= r.left && x <= r.right;
-      });
+      // Onglet dont le centre est le plus proche du doigt. Plus tolérant qu'un
+      // test « le doigt est-il dans le rectangle ? » : plus de zones mortes
+      // dans les marges de la barre, et la bascule se fait à mi-chemin entre
+      // deux onglets — pas besoin de s'arrêter pile dessus.
+      const tabAt = (x) => {
+        let best = btns[0], bestD = Infinity;
+        for (const b of btns) {
+          const r = b.getBoundingClientRect();
+          const d = Math.abs(x - (r.left + r.width / 2));
+          if (d < bestD) { bestD = d; best = b; }
+        }
+        return best;
+      };
 
-      // Sélectionne l'onglet sous l'abscisse donnée (sans toucher à la pastille
-      // quand on glisse : elle est déjà collée au doigt).
+      // Sélectionne l'onglet le plus proche de l'abscisse donnée (sans toucher
+      // à la pastille quand on glisse : elle est déjà collée au doigt).
       function pick(x) {
-        const b = tabAt(x) || (x < bar.getBoundingClientRect().left ? btns[0] : btns[btns.length - 1]);
+        const b = tabAt(x);
         if (!b || b.classList.contains('active')) return;
         showTab(b.dataset.tab);
         if (window.gitaVibrate) window.gitaVibrate(8);
@@ -638,15 +647,26 @@
         if (!moved && Math.abs(e.clientX - startX) > 4) moved = true;
         schedule(e.clientX);
       });
-      const end = () => {
+      const end = (e) => {
         if (!indDragging) return;
-        indDragging = false; pending = null; moved = false;
+        // L'onglet retenu est celui le plus proche du point de relâchement :
+        // la dernière frame de suivi a pu ne pas avoir été rendue.
+        if (e && typeof e.clientX === 'number' && e.type === 'pointerup') pick(e.clientX);
+        indDragging = false; pending = null;
+        wasDrag = moved; moved = false;
         bar.classList.remove('dragging');
         moveIndicator();     // recale en douceur sur l'onglet retenu
       };
       bar.addEventListener('pointerup', end);
       bar.addEventListener('pointercancel', end);
       bar.addEventListener('lostpointercapture', end);
+      // Un glissement ne doit pas produire, en plus, un clic sur le bouton
+      // survolé au relâchement.
+      bar.addEventListener('click', (e) => {
+        if (!wasDrag) return;
+        wasDrag = false;
+        e.preventDefault(); e.stopPropagation();
+      }, true);
 
       // Repositionnement si la largeur change (rotation, redimensionnement)
       window.addEventListener('resize', () => moveIndicator(false));
