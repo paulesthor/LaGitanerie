@@ -14,7 +14,7 @@ const t = (k, v) => (window.t ? window.t(k, v) : k);
 const VIEW = `
   <div class="screen">
     <header class="app-header">
-      <button class="header-btn" id="btn-leave"><i class="fas fa-door-open"></i></button>
+      <button class="header-btn" id="btn-leave" data-i18n-aria="game.leave" aria-label="Quitter la partie"><i class="fas fa-door-open"></i></button>
       <div class="header-brand"><i class="fas fa-guitar" style="color:var(--red);margin-right:6px;font-size:.9rem"></i>La <span class="brand-accent">Gitanerie</span></div>
       <div style="width:36px"></div>
     </header>

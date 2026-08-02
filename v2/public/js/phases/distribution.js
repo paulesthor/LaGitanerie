@@ -19,7 +19,7 @@ const VIEW = `
         <span id="header-code" class="font-bold" style="color:var(--gold)">----</span>
       </div>
       <h1 style="font-size:0.95rem" data-i18n="game.phase1">Phase 1 — Distribution</h1>
-      <button class="header-btn" id="btn-menu"><i class="fas fa-bars"></i></button>
+      <button class="header-btn" id="btn-menu" data-i18n-aria="game.menu" aria-label="Menu"><i class="fas fa-bars"></i></button>
     </header>
     <div class="page-content">
       <div id="turn-banner" class="turn-banner hidden">

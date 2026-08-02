@@ -586,3 +586,46 @@ p  { font-size: 0.9rem; line-height: 1.55; color: var(--text-muted); }
    supprimer. Constaté sur iPhone. Ne pas réactiver sans pouvoir tester sur
    l'appareil — le fond sombre peint dès l'en-tête du document suffit à rendre
    la navigation nette. */
+
+/* ══════════ Lisibilité & confort visuel ══════════ */
+
+/* ── Débordement des pseudos ──
+   Les pseudos vont jusqu'à 15 caractères et se placent dans une colonne
+   flexible : sans min-width:0 un flex-item refuse de rétrécir sous la largeur
+   de son texte, et le pseudo pousse le badge (Prêt / compteur) hors de la
+   ligne. On force la troncature avec points de suspension. */
+.player-row > .flex-col,
+.ready-row  > .flex-col { min-width: 0; }
+.player-row .font-bold,
+.ready-row  .font-bold,
+.mem-prog-row .font-bold,
+.layout-row > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Zone tactile des boutons d'en-tête ──
+   32 px de large, c'est nettement sous les 44 px recommandés sur mobile :
+   le retour et le menu se ratent facilement. On agrandit la zone SENSIBLE
+   sans changer la taille visible de l'icône. */
+.header-btn {
+  width: 44px;
+  height: 44px;
+  margin: 0 -6px;   /* compense l'élargissement pour ne pas décaler la mise en page */
+}
+
+/* ── Mouvement réduit ──
+   Réglage système « Réduire les animations » (iOS et Android). On neutralise
+   les animations décoratives — ressorts, retournements de cartes, confettis —
+   sans casser les changements d'état : les éléments arrivent directement à
+   leur position finale au lieu d'être supprimés. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

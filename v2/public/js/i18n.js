@@ -436,6 +436,9 @@
       'end.myGiven': 'Mes gorgées données',
       'end.playerCount': 'Nombre de joueurs',
 
+
+      'ln.previous': 'Précédent',
+
       'settings.build': 'La Gitanerie · build',
     },
 
@@ -947,6 +950,9 @@
       'end.myDrunk': 'My sips drunk',
       'end.myGiven': 'My sips given',
       'end.playerCount': 'Number of players',
+
+
+      'ln.previous': 'Previous',
 
       'settings.build': 'La Gitanerie · build',
     },
@@ -1460,6 +1466,9 @@
       'end.myGiven': 'I miei sorsi dati',
       'end.playerCount': 'Numero di giocatori',
 
+
+      'ln.previous': 'Precedente',
+
       'settings.build': 'La Gitanerie · build',
     },
 
@@ -1971,6 +1980,9 @@
       'end.myDrunk': 'Mis tragos bebidos',
       'end.myGiven': 'Mis tragos dados',
       'end.playerCount': 'Numero de jugadores',
+
+
+      'ln.previous': 'Anterior',
 
       'settings.build': 'La Gitanerie · build',
     },

@@ -16,7 +16,7 @@ const REVEAL_MS = 2500;  // durée d'affichage (carte montrée + notif) puis re-
 
 const VIEW = `
   <div class="oral-screen">
-    <button class="oral-leave" id="btn-leave" data-i18n-title="oral.quit"><i class="fas fa-door-open"></i></button>
+    <button class="oral-leave" id="btn-leave" data-i18n-title="oral.quit" data-i18n-aria="oral.quit" aria-label="Quitter"><i class="fas fa-door-open"></i></button>
     <div class="oral-code"><span data-i18n="game.game">Partie</span> <span id="oral-code-val" style="color:var(--gold)">----</span></div>
 
     <div class="oral-stage">
