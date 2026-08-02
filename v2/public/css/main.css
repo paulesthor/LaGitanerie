@@ -12,7 +12,7 @@
   --green: #2ecc71;
 
   /* Fond — bleu nuit de l'ancien site */
-  --bg: #2c3e50;
+  --bg: #243242;   /* teinte unique : milieu entre l'ancien accueil et le reste */
   --bg-card: #2f3f51;      /* légèrement plus clair que bg */
   --bg-raised: #3a4f63;    /* sections surélevées */
   --bg-input: #243343;     /* inputs plus sombres */

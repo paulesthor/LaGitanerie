@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="fr"><head>
   <meta charset="UTF-8">
-  <style id="gita-early-bg">html{background:#1b2734}</style>
+  <style id="gita-early-bg">html{background:#243242}</style>
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="La Gitanerie">
-  <meta name="theme-color" content="#1b2734">
+  <meta name="theme-color" content="#243242">
   <title>La Gitanerie</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
@@ -32,7 +32,7 @@
   <style>
     /* Le fond du document est de la couleur de la barre : tout ce qui dépasse
        sous la barre d'onglets (zone de sécurité iOS) prend donc sa couleur. */
-    html, body { height: 100%; background: #1b2734; }
+    html, body { height: 100%; background: #243242; }
 
     /* ── Système d'onglets (hub) ──
        Structure d'app : conteneur pleine hauteur en flex, la barre est un
@@ -49,7 +49,7 @@
        bottom:0 tombe toujours pile sur le bord bas, sans calcul. */
     #app-bg {
       position:fixed; left:-100px; right:-100px; top:-100px; bottom:-200px;
-      z-index:-1; background:#1b2734; pointer-events:none;
+      z-index:-1; background:#243242; pointer-events:none;
     }
     .app-shell { display:block; position:relative; }
     .tab-view { display:none; }
@@ -541,7 +541,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v112';
+    const APP_BUILD = 'v113';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -610,7 +610,9 @@
       window.scrollTo(0, 0);
       // Le fond du document suit l'onglet : la bande basse non exploitable
       // par iOS se fond ainsi dans la page au lieu de trancher.
-      const bg = name === 'accueil' ? '#1b2734' : '#2c3e50';
+      // Teinte unique sur toute l'app : l'accueil et les autres onglets
+      // avaient deux bleus différents, la bascule se voyait.
+      const bg = '#243242';
       const bgEl = document.getElementById('app-bg');
       if (bgEl) bgEl.style.background = bg;
       document.documentElement.style.background = bg;
