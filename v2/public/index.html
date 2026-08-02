@@ -18,6 +18,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
+  <!-- Traductions : script bloquant, il doit s'exécuter avant le premier rendu -->
+  <script src="/js/i18n.js"></script>
   <!-- Perf : charger le SDK Firebase en parallèle du HTML (init plus rapide) -->
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js">
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js">
@@ -118,7 +120,43 @@
     .tabbar button.active i { transform:translateY(-1px) scale(1.08); }
 
     /* ── Barre compte (accueil) ── */
-    .topbar { display:flex; align-items:center; gap:12px; padding:16px 22px; }
+    .topbar { display:flex; align-items:center; gap:12px; padding:16px 22px; position:relative; }
+    .topbar-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    /* ── Sélecteur de langue ── */
+    .lang-btn {
+      display:flex; align-items:center; gap:5px;
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10);
+      border-radius:999px; padding:5px 9px; cursor:pointer;
+      font-family:inherit; font-size:.95rem; line-height:1;
+      color:rgba(236,240,241,.75);
+      -webkit-tap-highlight-color:transparent;
+      transition:background .2s, border-color .2s;
+    }
+    .lang-btn i { font-size:.6rem; opacity:.7; transition:transform .2s; }
+    .lang-btn.open { background:rgba(243,156,18,.14); border-color:rgba(243,156,18,.30); }
+    .lang-btn.open i { transform:rotate(180deg); }
+    .lang-menu {
+      position:absolute; top:calc(100% - 6px); right:22px; z-index:400;
+      min-width:170px; padding:6px;
+      background:rgba(24,34,45,.98);
+      -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px);
+      border:1px solid rgba(255,255,255,.10); border-radius:16px;
+      box-shadow:0 10px 28px rgba(0,0,0,.42);
+      transform-origin:top right;
+      animation:lang-menu-in .16s cubic-bezier(.34,1.3,.5,1);
+    }
+    @keyframes lang-menu-in { from { opacity:0; transform:scale(.94) translateY(-4px); } }
+    .lang-menu button {
+      display:flex; align-items:center; gap:10px; width:100%;
+      background:none; border:none; cursor:pointer;
+      padding:9px 11px; border-radius:11px;
+      font-family:inherit; font-size:.85rem; font-weight:600; text-align:left;
+      color:rgba(236,240,241,.72);
+      -webkit-tap-highlight-color:transparent;
+    }
+    .lang-menu button .lang-flag { font-size:1.05rem; line-height:1; }
+    .lang-menu button.active { color:var(--orange,#f39c12); background:rgba(243,156,18,.12); }
+    .lang-menu button .fa-check { margin-left:auto; font-size:.72rem; }
     .topbar-id { display:flex; align-items:center; gap:11px; flex:1; min-width:0; cursor:pointer; }
     .avatar-sm {
       width:38px; height:38px; border-radius:50%;
@@ -226,7 +264,7 @@
         <div id="home-user-avatar-wrap" style="flex-shrink:0"><div class="avatar-sm" id="home-user-avatar">👤</div></div>
         <div class="id-text">
           <div class="id-name-row">
-            <span class="user-name" id="home-user-name">Invité</span>
+            <span class="user-name" id="home-user-name" data-i18n="common.guest">Invité</span>
             <span id="home-user-badge" style="display:inline-flex"></span>
           </div>
           <div class="user-title" id="home-user-title"></div>
@@ -236,7 +274,14 @@
           </div>
         </div>
       </div>
-      <button id="home-btn-account" class="link-btn">Connexion</button>
+      <div class="topbar-actions">
+        <!-- Sélecteur de langue : le drapeau seul, le menu s'ouvre en dessous -->
+        <button id="lang-btn" class="lang-btn" aria-haspopup="true" aria-expanded="false">
+          <span id="lang-btn-flag">🇫🇷</span><i class="fas fa-chevron-down"></i>
+        </button>
+        <button id="home-btn-account" class="link-btn" data-i18n="common.login">Connexion</button>
+      </div>
+      <div id="lang-menu" class="lang-menu hidden"></div>
     </div>
 
     <div class="hero">
@@ -244,41 +289,41 @@
     </div>
 
     <nav class="games">
-      <div class="games-label">Choisis ton poison</div>
+      <div class="games-label" data-i18n="home.tagline">Choisis ton poison</div>
       <a href="/pyramide.html" class="game">
         <span class="game-num">01</span>
         <span class="game-body">
-          <span class="game-name">La Pyramide</span>
-          <span class="game-desc">Cartes, gorgées et mensonges. Le classique des gitans.</span>
+          <span class="game-name" data-i18n="home.pyramid">La Pyramide</span>
+          <span class="game-desc" data-i18n="home.pyramidDesc">Cartes, gorgées et mensonges. Le classique des gitans.</span>
         </span>
         <span class="game-go" aria-hidden="true">→</span>
       </a>
       <a href="/loupgarou.html" class="game">
         <span class="game-num">02</span>
         <span class="game-body">
-          <span class="game-name">Chien Garou de tierce endroit</span>
-          <span class="game-desc" style="font-style:italic;opacity:.65">(deso j'avais pas les droits pour le vrai nom)</span>
-          <span class="game-desc">Une seule nuit, un seul vote. Démasquez les loups… ou survivez.</span>
+          <span class="game-name" data-i18n="home.wolf">Chien Garou de tierce endroit</span>
+          <span class="game-desc" style="font-style:italic;opacity:.65" data-i18n="home.wolfNote">(deso j'avais pas les droits pour le vrai nom)</span>
+          <span class="game-desc" data-i18n="home.wolfDesc">Une seule nuit, un seul vote. Démasquez les loups… ou survivez.</span>
         </span>
         <span class="game-go" aria-hidden="true">→</span>
       </a>
     </nav>
 
-    <div class="home-footer">L'abus d'alcool est recommandé par les collègues.</div>
+    <div class="home-footer" data-i18n="home.disclaimer">L'abus d'alcool est recommandé par les collègues.</div>
   </section>
 
   <!-- ══════════════ PROFIL ══════════════ -->
   <section id="view-profil" class="tab-view">
-    <div class="pane-head"><h1>Profil</h1></div>
+    <div class="pane-head"><h1 data-i18n="profile.title">Profil</h1></div>
     <div class="page-content">
 
       <div id="guest-banner" class="guest-banner hidden">
         <span style="font-size:1.5rem">👤</span>
         <div class="flex-col gap-8" style="flex:1">
-          <span class="font-bold">Mode invité</span>
-          <span class="text-sm text-muted">Connecte-toi pour sauvegarder ton XP et tes stats.</span>
+          <span class="font-bold" data-i18n="profile.guestMode">Mode invité</span>
+          <span class="text-sm text-muted" data-i18n="profile.guestDesc">Connecte-toi pour sauvegarder ton XP et tes stats.</span>
         </div>
-        <a href="/login.html" class="btn btn-gold btn-sm" style="white-space:nowrap">Connexion</a>
+        <a href="/login.html" class="btn btn-gold btn-sm" style="white-space:nowrap" data-i18n="common.login">Connexion</a>
       </div>
 
       <!-- Identité -->
@@ -288,85 +333,85 @@
             <div style="width:64px;height:64px;border-radius:50%;background:var(--bg-surface);border:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;font-size:2.2rem" id="profile-avatar">🃏</div>
           </div>
           <div class="flex-col gap-8" style="flex:1">
-            <span id="profile-name" class="font-bold" style="font-size:1.2rem">Invité</span>
+            <span id="profile-name" class="font-bold" style="font-size:1.2rem" data-i18n="common.guest">Invité</span>
             <span id="profile-title" class="text-sm" style="color:var(--gold);font-weight:600"></span>
             <div id="level-badge" class="level-badge hidden">
-              <i class="fas fa-star"></i> Niveau <span id="level-num">0</span>
+              <i class="fas fa-star"></i> <span data-i18n="common.level">Niveau</span> <span id="level-num">0</span>
             </div>
           </div>
         </div>
         <div id="xp-section" class="flex-col gap-6 hidden">
           <div class="flex justify-between text-sm text-muted">
-            <span>XP : <strong id="xp-val">0</strong></span>
-            <span><strong id="xp-progress">0/100</strong> pour Niv. <span id="xp-next-level">2</span></span>
+            <span><span data-i18n="profile.xp">XP :</span> <strong id="xp-val">0</strong></span>
+            <span><strong id="xp-progress">0/100</strong> <span data-i18n="profile.forLevel">pour Niv.</span> <span id="xp-next-level">2</span></span>
           </div>
           <div class="xp-bar-wrap" style="height:8px">
             <div class="xp-bar-fill" id="xp-fill" style="width:0%"></div>
           </div>
-          <p class="text-sm text-muted" style="font-style:italic;font-size:.72rem">+10 XP par partie jouée · +1 XP par gorgée donnée · −1 XP par gorgée bue</p>
+          <p class="text-sm text-muted" style="font-style:italic;font-size:.72rem" data-i18n="profile.xpRule">+10 XP par partie jouée · +1 XP par gorgée donnée · −1 XP par gorgée bue</p>
         </div>
       </div>
 
       <!-- Éditer -->
       <div class="card flex-col gap-16">
-        <h3>Modifier</h3>
+        <h3 data-i18n="common.edit">Modifier</h3>
         <div class="input-group">
-          <label>Nom de joueur</label>
-          <input type="text" id="edit-name" class="input" placeholder="Ton pseudo" maxlength="15">
+          <label data-i18n="profile.playerName">Nom de joueur</label>
+          <input type="text" id="edit-name" class="input" placeholder="Ton pseudo" data-i18n-ph="profile.playerName" maxlength="15">
         </div>
         <div class="flex-col gap-10">
-          <span class="text-sm text-muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Photo de profil</span>
+          <span class="text-sm text-muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em" data-i18n="profile.photo">Photo de profil</span>
           <div class="flex items-center gap-14">
             <div id="photo-preview" style="width:72px;height:72px;border-radius:50%;background:var(--bg-surface);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:2rem;overflow:hidden;flex-shrink:0">🃏</div>
             <div class="flex-col gap-8" style="flex:1">
-              <button id="btn-photo" class="btn btn-secondary btn-sm"><i class="fas fa-camera"></i> Prendre / Choisir</button>
-              <button id="btn-remove-photo" class="btn btn-ghost btn-sm hidden" style="color:var(--red)"><i class="fas fa-trash"></i> Supprimer la photo</button>
+              <button id="btn-photo" class="btn btn-secondary btn-sm"><i class="fas fa-camera"></i> <span data-i18n="profile.takePhoto">Prendre / Choisir</span></button>
+              <button id="btn-remove-photo" class="btn btn-ghost btn-sm hidden" style="color:var(--red)"><i class="fas fa-trash"></i> <span data-i18n="profile.deletePhoto">Supprimer la photo</span></button>
             </div>
           </div>
           <input type="file" id="photo-input" accept="image/*" style="display:none">
         </div>
         <div id="emoji-section" class="flex-col gap-8">
-          <span class="text-sm text-muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em">Ou choisis un emoji</span>
+          <span class="text-sm text-muted" style="font-weight:600;text-transform:uppercase;letter-spacing:.05em" data-i18n="profile.orEmoji">Ou choisis un emoji</span>
           <div id="emoji-grid" class="emoji-grid"></div>
         </div>
-        <button id="btn-save" class="btn btn-primary"><i class="fas fa-save"></i> Sauvegarder</button>
+        <button id="btn-save" class="btn btn-primary"><i class="fas fa-save"></i> <span data-i18n="common.save">Sauvegarder</span></button>
       </div>
 
       <!-- Titres -->
       <div id="titles-section" class="card flex-col gap-14 hidden">
-        <h3><i class="fas fa-award" style="color:var(--orange)"></i> Mes titres</h3>
-        <p class="text-sm text-muted">Le titre équipé s'affiche à côté de ton pseudo.</p>
+        <h3><i class="fas fa-award" style="color:var(--orange)"></i> <span data-i18n="profile.myTitles">Mes titres</span></h3>
+        <p class="text-sm text-muted" data-i18n="profile.titleHint">Le titre équipé s'affiche à côté de ton pseudo.</p>
         <div id="titles-grid" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       </div>
 
       <!-- Badges -->
       <div id="badges-section" class="card flex-col gap-14 hidden">
-        <h3><i class="fas fa-medal" style="color:var(--orange)"></i> Mes badges</h3>
+        <h3><i class="fas fa-medal" style="color:var(--orange)"></i> <span data-i18n="profile.myBadges">Mes badges</span></h3>
         <div id="badges-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px"></div>
         <div class="flex-col gap-8">
-          <span class="label-caps">Badge affiché en jeu</span>
+          <span class="label-caps" data-i18n="profile.badgeShown">Badge affiché en jeu</span>
           <div id="active-badge-preview" class="flex items-center gap-12 card-sm">
             <div id="active-badge-icon" class="badge-hex" style="width:40px;height:40px;background:var(--bg-raised)"></div>
-            <span id="active-badge-name" class="text-sm text-muted">Aucun</span>
-            <button id="btn-clear-badge" class="btn btn-ghost btn-sm hidden" style="width:auto;margin-left:auto">Retirer</button>
+            <span id="active-badge-name" class="text-sm text-muted" data-i18n="common.none">Aucun</span>
+            <button id="btn-clear-badge" class="btn btn-ghost btn-sm hidden" style="width:auto;margin-left:auto" data-i18n="common.remove">Retirer</button>
           </div>
         </div>
       </div>
 
       <!-- Cadres -->
       <div id="borders-section" class="card flex-col gap-14 hidden">
-        <h3><i class="fas fa-circle-half-stroke" style="color:var(--orange)"></i> Cadre de profil</h3>
+        <h3><i class="fas fa-circle-half-stroke" style="color:var(--orange)"></i> <span data-i18n="profile.frame">Cadre de profil</span></h3>
         <div id="borders-grid" class="flex gap-14 flex-wrap"></div>
-        <p class="text-sm text-muted">Les cadres se débloquent par niveau. Niv. 5 Bronze · Niv. 10 Argent · Niv. 20 Or · Niv. 30 Légende</p>
+        <p class="text-sm text-muted" data-i18n="profile.frameHint">Les cadres se débloquent par niveau. Niv. 5 Bronze · Niv. 10 Argent · Niv. 20 Or · Niv. 30 Légende</p>
       </div>
 
       <!-- Outils de test (dev) -->
       <div id="dev-section" class="card flex-col gap-12 hidden" style="border:1px dashed var(--orange)">
-        <h3><i class="fas fa-flask" style="color:var(--orange)"></i> Outils de test</h3>
-        <p class="text-sm text-muted">Réservé à ton compte. « Tout débloquer » monte aussi le niveau à 30 pour dévoiler les cadres.</p>
+        <h3><i class="fas fa-flask" style="color:var(--orange)"></i> <span data-i18n="profile.testTools">Outils de test</span></h3>
+        <p class="text-sm text-muted" data-i18n="profile.testHint">Réservé à ton compte. « Tout débloquer » monte aussi le niveau à 30 pour dévoiler les cadres.</p>
         <div class="flex gap-10 flex-wrap">
-          <button id="btn-dev-unlock" class="btn btn-secondary btn-sm" style="width:auto"><i class="fas fa-unlock"></i> Tout débloquer</button>
-          <button id="btn-dev-reset" class="btn btn-ghost btn-sm" style="width:auto;color:var(--red)"><i class="fas fa-eraser"></i> Tout retirer</button>
+          <button id="btn-dev-unlock" class="btn btn-secondary btn-sm" style="width:auto"><i class="fas fa-unlock"></i> <span data-i18n="profile.unlockAll">Tout débloquer</span></button>
+          <button id="btn-dev-reset" class="btn btn-ghost btn-sm" style="width:auto;color:var(--red)"><i class="fas fa-eraser"></i> <span data-i18n="profile.removeAll">Tout retirer</span></button>
         </div>
       </div>
 
@@ -375,87 +420,93 @@
 
   <!-- ══════════════ STATS ══════════════ -->
   <section id="view-stats" class="tab-view">
-    <div class="pane-head"><h1>Statistiques</h1></div>
+    <div class="pane-head"><h1 data-i18n="stats.title">Statistiques</h1></div>
     <div class="page-content">
       <div class="card flex-col gap-12 hidden" id="stats-section">
-        <h3><i class="fas fa-chart-bar" style="color:var(--orange)"></i> Ton bilan</h3>
+        <h3><i class="fas fa-chart-bar" style="color:var(--orange)"></i> <span data-i18n="stats.yourRecord">Ton bilan</span></h3>
         <div id="stats-rows" class="flex-col"></div>
       </div>
       <div id="stats-guest" class="guest-banner hidden">
         <span style="font-size:1.5rem">📊</span>
         <div class="flex-col gap-8" style="flex:1">
-          <span class="font-bold">Connecte-toi</span>
-          <span class="text-sm text-muted">Tes statistiques apparaîtront ici une fois connecté.</span>
+          <span class="font-bold" data-i18n="stats.loginPrompt">Connecte-toi</span>
+          <span class="text-sm text-muted" data-i18n="stats.loginDesc">Tes statistiques apparaîtront ici une fois connecté.</span>
         </div>
-        <a href="/login.html" class="btn btn-gold btn-sm" style="white-space:nowrap">Connexion</a>
+        <a href="/login.html" class="btn btn-gold btn-sm" style="white-space:nowrap" data-i18n="common.login">Connexion</a>
       </div>
     </div>
   </section>
 
   <!-- ══════════════ AMIS ══════════════ -->
   <section id="view-amis" class="tab-view">
-    <div class="pane-head"><h1>Mes amis</h1></div>
+    <div class="pane-head"><h1 data-i18n="friends.title">Mes amis</h1></div>
     <div class="page-content">
       <div id="friends-section" class="card flex-col gap-14 hidden">
         <div class="flex items-center gap-14">
           <div id="friend-qr"></div>
           <div class="flex-col gap-6" style="flex:1">
-            <span class="text-sm text-muted">Ton code d'ami</span>
+            <span class="text-sm text-muted" data-i18n="friends.yourCode">Ton code d'ami</span>
             <span id="friend-code" class="font-bold" style="font-size:1.4rem;letter-spacing:.18em;color:var(--gold)">------</span>
-            <button id="btn-copy-friend-code" class="btn btn-secondary btn-sm" style="width:auto"><i class="fas fa-copy"></i> Copier</button>
-            <span class="text-sm text-muted">Fais scanner ce QR à un ami (photo du téléphone) pour qu'il t'ajoute.</span>
+            <button id="btn-copy-friend-code" class="btn btn-secondary btn-sm" style="width:auto"><i class="fas fa-copy"></i> <span data-i18n="common.copy">Copier</span></button>
+            <span class="text-sm text-muted" data-i18n="friends.qrHint">Fais scanner ce QR à un ami (photo du téléphone) pour qu'il t'ajoute.</span>
           </div>
         </div>
         <div class="input-group">
-          <label>Ajouter un ami par son code</label>
+          <label data-i18n="friends.addByCode">Ajouter un ami par son code</label>
           <div class="flex gap-8">
-            <input id="friend-code-input" class="input" placeholder="Code d'ami" maxlength="8" autocomplete="off" style="text-transform:uppercase;flex:1">
+            <input id="friend-code-input" class="input" placeholder="Code d'ami" data-i18n-ph="friends.codePh" maxlength="8" autocomplete="off" style="text-transform:uppercase;flex:1">
             <button id="btn-add-friend" class="btn btn-primary" style="width:auto"><i class="fas fa-user-plus"></i></button>
           </div>
         </div>
-        <button id="btn-scan-friend" class="btn btn-secondary" style="width:100%"><i class="fas fa-qrcode"></i> Scanner le QR d'un ami</button>
+        <button id="btn-scan-friend" class="btn btn-secondary" style="width:100%"><i class="fas fa-qrcode"></i> <span data-i18n="friends.scanQr">Scanner le QR d'un ami</span></button>
         <div id="friend-msg" class="text-sm text-center hidden"></div>
         <div id="friends-list" class="flex-col gap-8"></div>
       </div>
       <div id="amis-guest" class="guest-banner hidden">
         <span style="font-size:1.5rem">👥</span>
         <div class="flex-col gap-8" style="flex:1">
-          <span class="font-bold">Connecte-toi</span>
-          <span class="text-sm text-muted">Ajoute des amis et rejoins leurs parties en un tap.</span>
+          <span class="font-bold" data-i18n="stats.loginPrompt">Connecte-toi</span>
+          <span class="text-sm text-muted" data-i18n="friends.loginDesc">Ajoute des amis et rejoins leurs parties en un tap.</span>
         </div>
-        <a href="/login.html" class="btn btn-gold btn-sm" style="white-space:nowrap">Connexion</a>
+        <a href="/login.html" class="btn btn-gold btn-sm" style="white-space:nowrap" data-i18n="common.login">Connexion</a>
       </div>
     </div>
   </section>
 
   <!-- ══════════════ RÉGLAGES ══════════════ -->
   <section id="view-reglages" class="tab-view">
-    <div class="pane-head"><h1>Réglages</h1></div>
+    <div class="pane-head"><h1 data-i18n="settings.title">Réglages</h1></div>
     <div class="page-content">
       <div class="card flex-col gap-12">
         <div class="flex items-center justify-between">
           <div class="flex-col gap-4" style="flex:1">
-            <span class="font-bold" style="font-size:.92rem">Vibrations</span>
-            <span class="text-sm text-muted">Retour haptique sur les boutons et en jeu (Android).</span>
+            <span class="font-bold" style="font-size:.92rem" data-i18n="settings.haptics">Vibrations</span>
+            <span class="text-sm text-muted" data-i18n="settings.hapticsDesc">Retour haptique sur les boutons et en jeu (Android).</span>
           </div>
           <label class="set-toggle"><input type="checkbox" id="set-haptics" checked><span class="set-slider"></span></label>
         </div>
       </div>
-      <div id="logout-section" class="hidden">
-        <button id="btn-logout" class="btn btn-ghost"><i class="fas fa-sign-out-alt"></i> Se déconnecter</button>
+      <div class="card flex-col gap-12">
+        <div class="flex items-center justify-between">
+          <span class="font-bold" style="font-size:.92rem" data-i18n="settings.language">Langue</span>
+          <div id="lang-radios" class="flex gap-8 flex-wrap" style="justify-content:flex-end"></div>
+        </div>
       </div>
-      <p class="text-sm text-muted text-center" style="opacity:.6">La Gitanerie · build <span id="app-build">—</span></p>
+      <div id="logout-section" class="hidden">
+        <button id="btn-logout" class="btn btn-ghost"><i class="fas fa-sign-out-alt"></i> <span data-i18n="settings.logout">Se déconnecter</span></button>
+      </div>
+      <p class="text-sm text-muted text-center" style="opacity:.6"><span data-i18n="settings.build">La Gitanerie · build</span> <span id="app-build">—</span></p>
     </div>
   </section>
 
   <!-- Barre d'onglets -->
   <nav class="tabbar">
     <span class="tab-ind"></span>
-    <button data-tab="accueil" class="active"><i class="fas fa-house"></i><span>Accueil</span></button>
-    <button data-tab="profil"><i class="fas fa-user"></i><span>Profil</span></button>
-    <button data-tab="stats"><i class="fas fa-chart-simple"></i><span>Stats</span></button>
-    <button data-tab="amis"><i class="fas fa-user-group"></i><span>Amis</span></button>
-    <button data-tab="reglages"><i class="fas fa-gear"></i><span>Réglages</span></button>
+    <button data-tab="accueil" class="active"><i class="fas fa-house"></i><span data-i18n="tab.home">Accueil</span></button>
+    <button data-tab="profil"><i class="fas fa-user"></i><span data-i18n="tab.profile">Profil</span></button>
+    <button data-tab="stats"><i class="fas fa-chart-simple"></i><span data-i18n="tab.stats">Stats</span></button>
+    <button data-tab="amis"><i class="fas fa-user-group"></i><span data-i18n="tab.friends">Amis</span></button>
+    <button data-tab="reglages"><i class="fas fa-gear"></i><span data-i18n="tab.settings">Réglages</span></button>
   </nav>
 
   </div><!-- /.app-shell -->
@@ -467,7 +518,7 @@
       <div style="width:66vw;max-width:280px;aspect-ratio:1;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)"></div>
     </div>
     <div style="position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px;display:flex;justify-content:space-between;align-items:center">
-      <span style="color:#fff;font-weight:700"><i class="fas fa-qrcode"></i> Scanne le QR de ton ami</span>
+      <span style="color:#fff;font-weight:700"><i class="fas fa-qrcode"></i> <span data-i18n="friends.scanTitle">Scanne le QR de ton ami</span></span>
       <button id="btn-scan-close" style="background:rgba(0,0,0,.5);border:none;color:#fff;font-size:1.4rem;width:42px;height:42px;border-radius:50%;cursor:pointer"><i class="fas fa-times"></i></button>
     </div>
     <div id="scan-hint" style="position:absolute;bottom:calc(env(safe-area-inset-bottom) + 24px);left:0;right:0;text-align:center;color:#fff;opacity:.85;font-size:.9rem"></div>
@@ -484,7 +535,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v105';
+    const APP_BUILD = 'v106';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -687,6 +738,66 @@
       window.addEventListener('resize', () => moveIndicator(false));
       requestAnimationFrame(() => moveIndicator(false));
     })();
+    // ══════════ Sélecteur de langue ══════════
+    (function () {
+      const I18N = window.I18N;
+      const btn   = document.getElementById('lang-btn');
+      const flag  = document.getElementById('lang-btn-flag');
+      const menu  = document.getElementById('lang-menu');
+      const radios = document.getElementById('lang-radios');
+      if (!I18N || !btn || !menu) return;
+
+      const syncFlag = () => { flag.textContent = I18N.flags[I18N.lang]; };
+
+      // Menu déroulant de la barre du haut
+      function buildMenu() {
+        menu.innerHTML = I18N.langs.map(l =>
+          `<button data-lang="${l}" class="${l === I18N.lang ? 'active' : ''}">` +
+          `<span class="lang-flag">${I18N.flags[l]}</span>${I18N.names[l]}` +
+          (l === I18N.lang ? '<i class="fas fa-check"></i>' : '') + '</button>'
+        ).join('');
+      }
+      // Boutons compacts dans l'onglet Réglages
+      function buildRadios() {
+        if (!radios) return;
+        radios.innerHTML = I18N.langs.map(l =>
+          `<button data-lang="${l}" class="btn btn-sm ${l === I18N.lang ? 'btn-primary' : 'btn-secondary'}" ` +
+          `style="width:auto;padding:6px 10px">${I18N.flags[l]}</button>`
+        ).join('');
+      }
+
+      const closeMenu = () => { menu.classList.add('hidden'); btn.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); };
+      const openMenu  = () => { buildMenu(); menu.classList.remove('hidden'); btn.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); };
+
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        menu.classList.contains('hidden') ? openMenu() : closeMenu();
+      };
+      // Un clic n'importe où ailleurs referme le menu
+      document.addEventListener('click', (e) => {
+        if (!menu.classList.contains('hidden') && !menu.contains(e.target)) closeMenu();
+      });
+
+      const onPick = (e) => {
+        const b = e.target.closest('button[data-lang]');
+        if (!b) return;
+        I18N.setLang(b.dataset.lang);
+        closeMenu();
+        if (window.gitaVibrate) window.gitaVibrate(8);
+      };
+      menu.addEventListener('click', onPick);
+      if (radios) radios.addEventListener('click', onPick);
+
+      // Après un changement de langue : rafraîchir le drapeau, les listes, et
+      // les écrans dont le contenu est construit en JS.
+      window.addEventListener('gita:langchange', () => {
+        syncFlag(); buildRadios();
+        if (auth.currentUser) loadProfile(auth.currentUser);
+      });
+
+      syncFlag(); buildRadios();
+    })();
+
     document.getElementById('home-chip').onclick = () => showTab(auth.currentUser && !auth.currentUser.isAnonymous ? 'profil' : 'accueil');
     showTab((location.hash || '').replace('#', '') || 'accueil');
 
