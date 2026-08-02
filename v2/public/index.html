@@ -31,11 +31,14 @@
     /* Le fond du document est de la couleur de la barre : tout ce qui dépasse
        sous la barre d'onglets (zone de sécurité iOS) prend donc sa couleur. */
     html, body { background: #141d26; }
-    /* Cache fixe sur la zone de l'indicateur d'accueil iOS, juste derrière la barre. */
-    .safe-fill { position:fixed; left:0; right:0; bottom:0; height:var(--sab, env(safe-area-inset-bottom)); background:#141d26; z-index:299; pointer-events:none; }
 
-    /* ── Système d'onglets (hub) ── */
-    .tab-view { display:none; min-height:100dvh; padding-bottom:calc(76px + env(safe-area-inset-bottom)); }
+    /* ── Système d'onglets (hub) ──
+       Structure d'app : conteneur pleine hauteur en flex, la barre est un
+       vrai pied de page (flux normal). On n'utilise PLUS position:fixed pour
+       la barre : iOS la plaçait trop haut au 1er rendu puis la « faisait
+       tomber » au 1er reflow. Ici elle est toujours au bas du conteneur. */
+    .app-shell { display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden; }
+    .tab-view { display:none; flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
     .tab-view.active { display:flex; flex-direction:column; }
     #view-accueil { background:#1b2734; padding-top:env(safe-area-inset-top); }
     #view-profil, #view-stats, #view-amis, #view-reglages { background:#2c3e50; }
@@ -49,12 +52,11 @@
 
     /* ── Barre d'onglets fixe en bas ── */
     .tabbar {
-      position:fixed; left:0; right:0; bottom:0; z-index:300;
+      flex-shrink:0;
       display:flex; background:#141d26;                 /* opaque : la bande de sécurité iOS a la même couleur que la barre */
       border-top:1px solid rgba(255,255,255,.08);
       /* Marge sous les icônes : basée sur --sab (safe area FIGÉE au démarrage,
-         cf. JS) et non sur env() en direct — sinon la barre saute quand
-         env() se recalcule au 1er changement d'onglet. */
+         cf. JS) et non sur env() en direct — la barre ne bouge plus jamais. */
       padding-bottom:max(6px, calc(var(--sab, 0px) - 16px));
     }
     .tabbar button {
@@ -161,6 +163,8 @@
   </style>
 </head>
 <body>
+
+  <div class="app-shell">
 
   <!-- ══════════════ ACCUEIL ══════════════ -->
   <section id="view-accueil" class="tab-view active">
@@ -391,8 +395,6 @@
     </div>
   </section>
 
-  <div class="safe-fill"></div>
-
   <!-- Barre d'onglets -->
   <nav class="tabbar">
     <button data-tab="accueil" class="active"><i class="fas fa-house"></i><span>Accueil</span></button>
@@ -401,6 +403,8 @@
     <button data-tab="amis"><i class="fas fa-user-group"></i><span>Amis</span></button>
     <button data-tab="reglages"><i class="fas fa-gear"></i><span>Réglages</span></button>
   </nav>
+
+  </div><!-- /.app-shell -->
 
   <!-- Scanner QR (caméra dans l'app) -->
   <div id="scan-overlay" style="display:none;position:fixed;inset:0;z-index:2000;background:#000;flex-direction:column">
@@ -453,7 +457,8 @@
       document.querySelectorAll('.tab-view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
       document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       try { history.replaceState(null, '', '#' + name); } catch (e) {}
-      window.scrollTo(0, 0);
+      const active = document.getElementById('view-' + name);
+      if (active) active.scrollTop = 0;
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', name === 'accueil' ? '#1b2734' : '#2c3e50');
     }
     document.querySelectorAll('.tabbar button').forEach(b => b.onclick = () => showTab(b.dataset.tab));

@@ -1,4 +1,4 @@
-const CACHE = 'gitanerie-v81';
+const CACHE = 'gitanerie-v82';
 
 // Assets à pré-cacher à l'installation
 const PRECACHE = [
