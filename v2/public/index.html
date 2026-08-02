@@ -401,7 +401,7 @@
       <div id="logout-section" class="hidden">
         <button id="btn-logout" class="btn btn-ghost"><i class="fas fa-sign-out-alt"></i> Se déconnecter</button>
       </div>
-      <p class="text-sm text-muted text-center" style="opacity:.6">La Gitanerie · v2</p>
+      <p class="text-sm text-muted text-center" style="opacity:.6">La Gitanerie · build <span id="app-build">—</span></p>
     </div>
   </section>
 
@@ -440,6 +440,9 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
+    const APP_BUILD = 'v89';
+    document.getElementById('app-build').textContent = APP_BUILD;
+
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
     // ── Fige la safe area du bas dans --sab (mesurée une seule fois) ──
@@ -465,11 +468,24 @@
       // recalculer la position de la barre dès le démarrage.
       function nudgeLayout() {
         const view = document.querySelector('.tab-view.active');
-        if (!view) return;
-        const prev = view.style.display;
-        view.style.display = 'none';
-        void document.body.offsetHeight;   // force le recalcul
-        view.style.display = prev;
+        if (view) {
+          const prev = view.style.display;
+          view.style.display = 'none';
+          void document.body.offsetHeight;   // force le recalcul
+          view.style.display = prev;
+        }
+        // Micro-défilement : déclencheur le plus fiable pour que iOS
+        // repositionne un élément fixe.
+        const y = window.scrollY || 0;
+        window.scrollTo(0, y + 1);
+        window.scrollTo(0, y);
+        // Recomposition du calque de la barre.
+        const bar = document.querySelector('.tabbar');
+        if (bar) {
+          bar.style.transform = 'translateZ(0)';
+          void bar.offsetHeight;
+          bar.style.transform = '';
+        }
       }
 
       function refresh() { setVH(); measureSafe(); nudgeLayout(); }
