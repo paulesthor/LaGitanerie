@@ -440,7 +440,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v89';
+    const APP_BUILD = 'v90';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -466,6 +466,33 @@
       // corrige qu'au 1er changement d'onglet. Ce changement masque/réaffiche
       // la vue active : on reproduit exactement ce geste pour forcer iOS à
       // recalculer la position de la barre dès le démarrage.
+      // Mesure une valeur env() (safe-area) en px.
+      function measureEnv(prop) {
+        const p = document.createElement('div');
+        p.style.cssText = `position:fixed;left:0;top:0;width:0;height:env(${prop});visibility:hidden;pointer-events:none;`;
+        document.body.appendChild(p);
+        const h = Math.round(p.getBoundingClientRect().height);
+        p.remove();
+        return h;
+      }
+
+      // ── Alignement auto de la barre sur le bas PHYSIQUE de l'écran ──
+      // En PWA iOS, la fenêtre de mise en page peut être plus courte que
+      // l'écran : bottom:0 s'arrête alors trop haut. On compare la hauteur de
+      // l'écran à celle de la fenêtre et on décale la barre de la différence.
+      function alignBar() {
+        const bar = document.querySelector('.tabbar');
+        if (!bar) return;
+        bar.style.transform = '';
+        // Uniquement en portrait (screen.height reste en valeur portrait sur iOS).
+        if (window.innerWidth > window.innerHeight) return;
+        const screenH = (window.screen && window.screen.height) || window.innerHeight;
+        const safeTop = measureEnv('safe-area-inset-top');
+        const gap = Math.round(screenH - window.innerHeight - safeTop);
+        const shift = Math.max(0, Math.min(gap - 8, 140));   // 8px de garde
+        if (shift > 0) bar.style.transform = `translateY(${shift}px)`;
+      }
+
       function nudgeLayout() {
         const view = document.querySelector('.tab-view.active');
         if (view) {
@@ -479,16 +506,9 @@
         const y = window.scrollY || 0;
         window.scrollTo(0, y + 1);
         window.scrollTo(0, y);
-        // Recomposition du calque de la barre.
-        const bar = document.querySelector('.tabbar');
-        if (bar) {
-          bar.style.transform = 'translateZ(0)';
-          void bar.offsetHeight;
-          bar.style.transform = '';
-        }
       }
 
-      function refresh() { setVH(); measureSafe(); nudgeLayout(); }
+      function refresh() { setVH(); measureSafe(); nudgeLayout(); alignBar(); }
       refresh();
       window.addEventListener('load', refresh);
       window.addEventListener('pageshow', refresh);
