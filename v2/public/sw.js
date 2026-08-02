@@ -1,4 +1,4 @@
-const CACHE = 'gitanerie-v115';
+const CACHE = 'gitanerie-v116';
 
 // Assets à pré-cacher à l'installation
 const PRECACHE = [
@@ -17,6 +17,8 @@ const PRECACHE = [
   '/end.html',
   '/login.html',
   '/profile.html',
+  '/confidentialite.html',
+  '/conditions.html',
   '/css/main.css',
   '/js/firebase-config.js',
   '/js/i18n.js',

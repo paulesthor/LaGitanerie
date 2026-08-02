@@ -499,6 +499,23 @@
       <div id="logout-section" class="hidden">
         <button id="btn-logout" class="btn btn-ghost"><i class="fas fa-sign-out-alt"></i> <span data-i18n="settings.logout">Se déconnecter</span></button>
       </div>
+
+      <!-- Mentions légales : obligatoires pour le RGPD, et exigées par les
+           boutiques d'applications. -->
+      <div class="card flex-col gap-10">
+        <span class="label-caps" data-i18n="legal.title">Informations légales</span>
+        <a href="/confidentialite.html" class="btn btn-ghost btn-sm" style="width:100%"><i class="fas fa-shield-halved"></i> <span data-i18n="legal.privacy">Politique de confidentialité</span></a>
+        <a href="/conditions.html" class="btn btn-ghost btn-sm" style="width:100%"><i class="fas fa-file-lines"></i> <span data-i18n="legal.terms">Conditions d'utilisation</span></a>
+      </div>
+
+      <!-- Suppression de compte : exigée par le RGPD (droit à l'effacement) et
+           par la règle 5.1.1(v) de l'App Store dès qu'un compte peut être créé. -->
+      <div id="delete-section" class="card flex-col gap-10 hidden" style="border:1px solid rgba(231,76,60,.35)">
+        <span class="label-caps" style="color:var(--red)" data-i18n="account.dangerZone">Zone sensible</span>
+        <p class="text-sm text-muted" data-i18n="account.deleteDesc">Supprime définitivement ton compte : profil, XP, statistiques, badges, titres et liste d'amis. Cette action est irréversible.</p>
+        <button id="btn-delete-account" class="btn btn-ghost btn-sm" style="width:100%;color:var(--red);border-color:rgba(231,76,60,.45)"><i class="fas fa-user-xmark"></i> <span data-i18n="account.delete">Supprimer mon compte</span></button>
+        <div id="delete-msg" class="text-sm text-center hidden"></div>
+      </div>
       <p class="text-sm text-muted text-center" style="opacity:.6"><span data-i18n="settings.build">La Gitanerie · build</span> <span id="app-build">—</span></p>
     </div>
   </section>
@@ -531,9 +548,9 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { auth, db, getFirestore } from '/js/firebase-config.js';
-    import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-    import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { auth, db, getFirestore, friendlyError } from '/js/firebase-config.js';
+    import { onAuthStateChanged, signOut, deleteUser, reauthenticateWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+    import { doc, getDoc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { ref as dbRef, get as dbGet, set as dbSet, update as dbUpdate, remove as dbRemove, onValue as dbOnValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
     import { getGuestName, setGuestName, getGuestAvatar, setGuestAvatar, showToast } from '/js/game/utils.js';
     // Alias de traduction (window.t vient de /js/i18n.js)
@@ -541,7 +558,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v115';
+    const APP_BUILD = 'v116';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -1086,6 +1103,7 @@
     function paintProfile(data) {
       document.getElementById('guest-banner').classList.add('hidden');
       document.getElementById('logout-section').classList.remove('hidden');
+      document.getElementById('delete-section')?.classList.remove('hidden');
       document.getElementById('xp-section').classList.remove('hidden');
       document.getElementById('level-badge').classList.remove('hidden');
       document.getElementById('stats-guest').classList.add('hidden');
@@ -1154,6 +1172,7 @@
         document.getElementById('amis-guest').classList.remove('hidden');
         document.getElementById('friends-section').classList.add('hidden');
         document.getElementById('logout-section').classList.add('hidden');
+        document.getElementById('delete-section')?.classList.add('hidden');
         const name   = getGuestName();
         const avatar = getGuestAvatar();
         document.getElementById('profile-name').textContent = name;
@@ -1491,6 +1510,88 @@
     }
 
     // Déconnexion
+
+    // ══════════ Suppression de compte ══════════
+    // Efface les données de l'utilisateur AVANT le compte lui-même : une fois
+    // le compte supprimé, les règles de sécurité refusent toute écriture et les
+    // données resteraient orphelines.
+    (function () {
+      const btn = document.getElementById('btn-delete-account');
+      const msg = document.getElementById('delete-msg');
+      if (!btn) return;
+
+      function say(text, ok) {
+        msg.textContent = text;
+        msg.style.color = ok ? 'var(--green)' : 'var(--red)';
+        msg.classList.remove('hidden');
+      }
+
+      async function eraseUserData(uid) {
+        // 1. Liste d'amis : retirer le lien des deux côtés, sinon l'ami garde
+        //    une entrée pointant vers un compte disparu.
+        try {
+          const fids = Object.keys((await dbGet(dbRef(db, `friends/${uid}`))).val() || {});
+          const updates = {};
+          fids.forEach((fid) => { updates[`${uid}/${fid}`] = null; updates[`${fid}/${uid}`] = null; });
+          if (Object.keys(updates).length) await dbUpdate(dbRef(db, 'friends'), updates);
+        } catch (e) {}
+        // 2. Code d'ami (index inversé) puis métadonnées publiques
+        try {
+          const meta = (await dbGet(dbRef(db, `userMeta/${uid}`))).val() || {};
+          if (meta.code) await dbRemove(dbRef(db, `friendCodes/${meta.code}`));
+        } catch (e) {}
+        try { await dbRemove(dbRef(db, `userMeta/${uid}`)); } catch (e) {}
+        // 3. Partie en attente publiée pour les amis
+        try { await dbRemove(dbRef(db, `activeGames/${uid}`)); } catch (e) {}
+        // 4. Profil, XP, stats, badges et titres
+        try {
+          const firestore = await getFirestore();
+          await deleteDoc(doc(firestore, 'users', uid));
+        } catch (e) {}
+      }
+
+      btn.onclick = async () => {
+        const user = auth.currentUser;
+        if (!user) return;
+        // Double confirmation : l'action est irréversible.
+        if (!confirm(T('account.confirm1'))) return;
+        if (!confirm(T('account.confirm2'))) return;
+
+        btn.disabled = true;
+        const label = btn.innerHTML;
+        btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${T('account.deleting')}`;
+        try {
+          await eraseUserData(user.uid);
+          try {
+            await deleteUser(user);
+          } catch (e) {
+            // Firebase exige une connexion récente pour supprimer un compte.
+            if (e && e.code === 'auth/requires-recent-login') {
+              const providers = (user.providerData || []).map(p => p.providerId);
+              if (providers.includes('google.com')) {
+                await reauthenticateWithPopup(user, new GoogleAuthProvider());
+                await deleteUser(user);
+              } else {
+                say(T('account.reloginNeeded'), false);
+                btn.disabled = false; btn.innerHTML = label;
+                return;
+              }
+            } else { throw e; }
+          }
+          try {
+            localStorage.removeItem('profileCache');
+            localStorage.removeItem('lastProfileAvatar');
+            localStorage.removeItem('profileFullCache');
+          } catch (e) {}
+          say(T('account.deleted'), true);
+          setTimeout(() => window.location.replace('/'), 1500);
+        } catch (e) {
+          say(friendlyError ? friendlyError(e) : T('err.generic'), false);
+          btn.disabled = false; btn.innerHTML = label;
+        }
+      };
+    })();
+
     document.getElementById('btn-logout')?.addEventListener('click', async () => {
       try { localStorage.removeItem('profileCache'); localStorage.removeItem('lastProfileAvatar'); localStorage.removeItem('profileFullCache'); } catch (e) {}
       await signOut(auth);
