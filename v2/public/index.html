@@ -52,8 +52,10 @@
       position:fixed; left:0; right:0; bottom:0; z-index:300;
       display:flex; background:#141d26;                 /* opaque : la bande de sécurité iOS a la même couleur que la barre */
       border-top:1px solid rgba(255,255,255,.08);
-      /* Remplit la zone de l'indicateur d'accueil iOS (sinon bande vide en bas) */
-      padding-bottom:env(safe-area-inset-bottom);
+      /* On descend la barre : on ne garde qu'une petite marge au-dessus de
+         l'indicateur d'accueil iOS au lieu de toute la safe area (~34px),
+         pour éviter le gros vide en bas. */
+      padding-bottom:max(6px, calc(env(safe-area-inset-bottom) - 16px));
     }
     .tabbar button {
       flex:1; background:none; border:none; cursor:pointer;
