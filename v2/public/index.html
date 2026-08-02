@@ -85,23 +85,35 @@
       box-shadow:0 4px 16px rgba(0,0,0,.32);
       padding:7px 5px;
       max-width:440px; margin:0 auto;
+      touch-action:none;   /* le glissement pilote le menu, pas le défilement */
       /* Masquée tant que le viewport iOS n'est pas stabilisé : elle apparaît
          directement à sa place définitive, sans glisser sous les yeux. */
       opacity:0; transition:opacity .3s ease;
     }
     .tabbar.ready { opacity:1; }
+    /* Indicateur glissant : une seule pastille qui se déplace d'un onglet à
+       l'autre, et qui suit le doigt quand on maintient en glissant. */
+    .tab-ind {
+      position:absolute; top:7px; bottom:7px; left:0; width:0;
+      border-radius:17px; background:rgba(243,156,18,.15);
+      border:1px solid rgba(243,156,18,.22);
+      pointer-events:none; z-index:0;
+      transition:transform .3s cubic-bezier(.34,1.35,.5,1), width .3s cubic-bezier(.34,1.35,.5,1);
+    }
+    .tabbar.dragging .tab-ind { transition:transform .09s linear, width .09s linear; }
     .tabbar button {
+      position:relative; z-index:1;
       flex:1; background:none; border:none; cursor:pointer;
       display:flex; flex-direction:column; align-items:center; gap:4px;
       padding:8px 2px; border-radius:16px;
       font-family:inherit; font-size:.58rem; font-weight:600;
       color:rgba(236,240,241,.5); letter-spacing:.02em;
-      transition:color .18s, background .18s;
+      transition:color .2s;
+      -webkit-tap-highlight-color:transparent;
     }
-    .tabbar button i { font-size:1.12rem; line-height:1; transition:transform .18s; }
-    .tabbar button.active { color:var(--orange,#f39c12); background:rgba(243,156,18,.13); }
-    .tabbar button.active i { transform:translateY(-1px) scale(1.06); }
-    .tabbar button:active i { transform:scale(.92); }
+    .tabbar button i { font-size:1.12rem; line-height:1; transition:transform .2s cubic-bezier(.34,1.5,.5,1); }
+    .tabbar button.active { color:var(--orange,#f39c12); }
+    .tabbar button.active i { transform:translateY(-1px) scale(1.08); }
 
     /* ── Barre compte (accueil) ── */
     .topbar { display:flex; align-items:center; gap:12px; padding:16px 22px; }
@@ -436,6 +448,7 @@
 
   <!-- Barre d'onglets -->
   <nav class="tabbar">
+    <span class="tab-ind"></span>
     <button data-tab="accueil" class="active"><i class="fas fa-house"></i><span>Accueil</span></button>
     <button data-tab="profil"><i class="fas fa-user"></i><span>Profil</span></button>
     <button data-tab="stats"><i class="fas fa-chart-simple"></i><span>Stats</span></button>
@@ -469,7 +482,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v97';
+    const APP_BUILD = 'v98';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -544,8 +557,59 @@
       document.documentElement.style.background = bg;
       document.body.style.background = bg;
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
+      moveIndicator();
     }
-    document.querySelectorAll('.tabbar button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+
+    // ── Indicateur glissant (façon iOS) ──
+    // On peut taper un onglet, ou maintenir et glisser : la pastille suit le
+    // doigt et l'onglet change au passage.
+    function moveIndicator(animate = true) {
+      const bar = document.querySelector('.tabbar');
+      const ind = document.querySelector('.tab-ind');
+      const btn = document.querySelector('.tabbar button.active');
+      if (!bar || !ind || !btn) return;
+      const br = bar.getBoundingClientRect();
+      const r  = btn.getBoundingClientRect();
+      if (!animate) ind.style.transition = 'none';
+      ind.style.width = r.width + 'px';
+      ind.style.transform = `translateX(${Math.round(r.left - br.left)}px)`;
+      if (!animate) requestAnimationFrame(() => { ind.style.transition = ''; });
+    }
+
+    (function () {
+      const bar = document.querySelector('.tabbar');
+      if (!bar) return;
+      const btns = Array.from(bar.querySelectorAll('button'));
+      let dragging = false;
+
+      const tabAt = (x) => btns.find(b => {
+        const r = b.getBoundingClientRect();
+        return x >= r.left && x <= r.right;
+      });
+
+      function pick(x) {
+        const b = tabAt(x);
+        if (!b || b.classList.contains('active')) return;
+        showTab(b.dataset.tab);
+        if (window.gitaVibrate) window.gitaVibrate(8);
+        else navigator.vibrate?.(8);
+      }
+
+      bar.addEventListener('pointerdown', (e) => {
+        dragging = true;
+        bar.classList.add('dragging');
+        try { bar.setPointerCapture(e.pointerId); } catch (err) {}
+        pick(e.clientX);
+      });
+      bar.addEventListener('pointermove', (e) => { if (dragging) pick(e.clientX); });
+      const end = () => { dragging = false; bar.classList.remove('dragging'); moveIndicator(); };
+      bar.addEventListener('pointerup', end);
+      bar.addEventListener('pointercancel', end);
+
+      // Repositionnement si la largeur change (rotation, redimensionnement)
+      window.addEventListener('resize', () => moveIndicator(false));
+      requestAnimationFrame(() => moveIndicator(false));
+    })();
     document.getElementById('home-chip').onclick = () => showTab(auth.currentUser && !auth.currentUser.isAnonymous ? 'profil' : 'accueil');
     showTab((location.hash || '').replace('#', '') || 'accueil');
 
