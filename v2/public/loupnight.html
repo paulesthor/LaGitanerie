@@ -120,11 +120,13 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
+    // Alias de traduction : « t » est déjà pris comme nom de variable ici.
+    const T = (k, v) => (window.t ? window.t(k, v) : k);
     import { auth, db, withRetry, friendlyError } from '/js/firebase-config.js';
     import { ref, onValue, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
     import { getGameSession, clearGameSession, showToast } from '/js/game/utils.js';
     import { avatarHTML } from '/js/game/avatar.js';
-    import { ROLE_BY_ID, NIGHT_ORDER } from '/js/game/loup.js';
+    import { roleName, roleDesc, ROLE_BY_ID, NIGHT_ORDER } from '/js/game/loup.js';
 
     const STEP_SECONDS = 8;
 
@@ -152,10 +154,10 @@
     }
 
     function narrFor(idx) {
-      if (idx < 0) return { t: '🌙 La nuit tombe…', s: 'Tout le monde ferme les yeux.', say: 'La nuit tombe. Tout le monde ferme les yeux.' };
-      if (idx >= order.length) return { t: '☀️ Le jour se lève', s: 'Réveillez-vous ! Débattez, puis votez à l’oral.', say: 'Le jour se lève. Tout le monde se réveille.' };
+      if (idx < 0) return { t: `🌙 ${T('ln.nightFalls')}`, s: T('ln.eyesClosed'), say: T('ln.sayNight') };
+      if (idx >= order.length) return { t: `☀️ ${T('ln.dayBreaks')}`, s: T('ln.debateVote'), say: T('ln.sayDay') };
       const r = ROLE_BY_ID[order[idx]];
-      return { t: `${r.emoji} ${r.name}`, s: r.desc, say: `${r.name}, réveille-toi.` };
+      return { t: `${r.emoji} ${roleName(r)}`, s: roleDesc(r), say: T('ln.sayWake', { role: roleName(r) }) };
     }
 
     function renderNarration() {
@@ -217,8 +219,8 @@
 
       const isDay = game.status === 'day';
       if (isDay) {
-        document.getElementById('narr-title').textContent = game.reveal ? '🏁 Partie terminée' : '☀️ Débat & vote';
-        document.getElementById('narr-sub').textContent = game.reveal ? '' : 'Débattez, votez à l’oral, puis le maître marque les éliminés.';
+        document.getElementById('narr-title').textContent = game.reveal ? `🏁 ${T('ln.gameOver')}` : `☀️ ${T('ln.debateAndVote')}`;
+        document.getElementById('narr-sub').textContent = game.reveal ? '' : T('ln.debateHint');
       }
       // Panneau résolution (maître, en journée, tant que pas révélé)
       const resolveCard = document.getElementById('resolve-card');
@@ -246,14 +248,14 @@
       const el = document.getElementById('pcard');
       if (!cardRevealed) {
         el.className = 'pcard hidden-card';
-        el.innerHTML = `<div class="emoji">🂠</div><div class="rname">Ta carte</div><div class="rdesc">Touche pour la voir — garde-la secrète 🤫</div>`;
+        el.innerHTML = `<div class="emoji">🂠</div><div class="rname">${T('ln.yourCard')}</div><div class="rdesc">${T('ln.tapToSee')}</div>`;
       } else {
         el.className = 'pcard';
         const teamCls = r.team === 'loup' ? 'team-loup' : r.team === 'solo' ? 'team-solo' : 'team-village';
-        const teamLbl = r.team === 'loup' ? 'Loups' : r.team === 'solo' ? 'Solo' : 'Village';
-        el.innerHTML = `<div class="emoji">${r.emoji}</div><div class="rname">${r.name}</div>
+        const teamLbl = r.team === 'loup' ? T('ln.teamWolves') : r.team === 'solo' ? T('ln.teamSolo') : T('ln.teamVillage');
+        el.innerHTML = `<div class="emoji">${r.emoji}</div><div class="rname">${roleName(r)}</div>
           <span class="team ${teamCls}">${teamLbl}</span>
-          <div class="rdesc">${r.desc}</div>`;
+          <div class="rdesc">${roleDesc(r)}</div>`;
       }
     }
     document.getElementById('pcard').onclick = () => { if (!myRole) return; cardRevealed = !cardRevealed; paintCard(); };
@@ -277,8 +279,8 @@
         const row = document.createElement('div'); row.className = 'layout-row'; row.style.cursor = 'pointer';
         if (sel) row.style.background = 'rgba(243,156,18,.14)';
         row.innerHTML = `${avatarHTML(p.avatar, 30)}
-          <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name || 'Joueur'}</span>
-          <span class="role-chip">${r.emoji || ''} ${r.name || s.assignments[id]}</span>`;
+          <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name || T('game.player')}</span>
+          <span class="role-chip">${r.emoji || ''} ${roleName(r) || s.assignments[id]}</span>`;
         row.onclick = () => pickSlot({ type: 'player', id });
         list.appendChild(row);
       }
@@ -288,7 +290,7 @@
         const sel = selSlot && selSlot.type === 'center' && selSlot.idx === idx;
         const d = document.createElement('div'); d.className = 'center-card'; d.style.cursor = 'pointer';
         if (sel) d.style.outline = '2px solid var(--orange)';
-        d.innerHTML = `<div class="ce">${r.emoji || '🂠'}</div><div class="cn">${r.name || rid}</div>`;
+        d.innerHTML = `<div class="ce">${r.emoji || '🂠'}</div><div class="cn">${roleName(r) || rid}</div>`;
         d.onclick = () => pickSlot({ type: 'center', idx });
         cc.appendChild(d);
       });
@@ -316,7 +318,7 @@
         const p = players[id] || {}; const dead = deadSel.has(id);
         const row = document.createElement('div'); row.className = 'layout-row'; row.style.cursor = 'pointer';
         if (dead) row.style.background = 'rgba(192,57,43,.15)';
-        row.innerHTML = `<span style="flex:1;min-width:0">${p.name || 'Joueur'}</span><span>${dead ? '☠️ éliminé' : 'toucher pour éliminer'}</span>`;
+        row.innerHTML = `<span style="flex:1;min-width:0">${p.name || T('game.player')}</span><span>${dead ? `☠️ ${T('ln.eliminated')}` : T('ln.tapToEliminate')}</span>`;
         row.onclick = () => { dead ? deadSel.delete(id) : deadSel.add(id); renderDeathList(); };
         el.appendChild(row);
       }
@@ -347,21 +349,21 @@
       if (!reveal) { sec.style.display = 'none'; return; }
       sec.style.display = 'block';
       const teams = reveal.teams || [];
-      const label = t => ({ loups: 'les Loups 🐺', village: 'le Village 🧑‍🌾', tanneur: 'le Tanneur 💀' })[t] || t;
+      const label = k => ({ loups: `${T('ln.theWolves')} 🐺`, village: `${T('ln.theVillage')} 🧑‍🌾`, tanneur: `${T('ln.theTanner')} 💀` })[k] || k;
       document.getElementById('reveal-winner').textContent =
-        teams.length ? `🏆 Victoire : ${teams.map(label).join(' + ')}` : '🤝 Personne ne gagne';
+        teams.length ? `🏆 ${T('ln.victory')} : ${teams.map(label).join(' + ')}` : `🤝 ${T('ln.nobodyWins')}`;
       const list = document.getElementById('reveal-list'); list.innerHTML = '';
       for (const id of Object.keys(reveal.assignments || {})) {
         const p = players[id] || {}; const r = ROLE_BY_ID[reveal.assignments[id]] || {};
         const dead = (reveal.dead || []).includes(id);
         const row = document.createElement('div'); row.className = 'layout-row';
-        row.innerHTML = `<span style="flex:1;min-width:0">${p.name || 'Joueur'} ${dead ? '☠️' : ''}</span>
-          <span class="role-chip">${r.emoji || ''} ${r.name || ''}</span>`;
+        row.innerHTML = `<span style="flex:1;min-width:0">${p.name || T('game.player')} ${dead ? '☠️' : ''}</span>
+          <span class="role-chip">${r.emoji || ''} ${roleName(r) || ''}</span>`;
         list.appendChild(row);
       }
-      const cen = (reveal.center || []).map(rid => { const r = ROLE_BY_ID[rid] || {}; return `${r.emoji || ''}${r.name || rid}`; }).join(' · ');
+      const cen = (reveal.center || []).map(rid => { const r = ROLE_BY_ID[rid] || {}; return `${r.emoji || ''}${roleName(r) || rid}`; }).join(' · ');
       const crow = document.createElement('div'); crow.className = 'layout-row';
-      crow.innerHTML = `<span style="flex:1" class="text-muted">Centre</span><span class="role-chip">${cen}</span>`;
+      crow.innerHTML = `<span style="flex:1" class="text-muted">${T('ln.center')}</span><span class="role-chip">${cen}</span>`;
       list.appendChild(crow);
     }
 

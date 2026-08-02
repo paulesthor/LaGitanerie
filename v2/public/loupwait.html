@@ -133,7 +133,9 @@
     import { ref, onValue, update, set } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
     import { getGameSession, clearGameSession, showToast } from '/js/game/utils.js';
     import { avatarHTML } from '/js/game/avatar.js';
-    import { LOUP_ROLES, ROLE_BY_ID, totalCards, targetCards } from '/js/game/loup.js';
+    import { LOUP_ROLES, ROLE_BY_ID, totalCards, targetCards, roleName, roleDesc } from '/js/game/loup.js';
+    // Alias de traduction
+    const T = (k, v) => (window.t ? window.t(k, v) : k);
 
     // --- Session (loup uniquement) ---
     const session = getGameSession();
@@ -163,8 +165,8 @@
       row.className = 'role-row';
       row.innerHTML = `
         <div class="role-info">
-          <div class="role-name">${r.name}</div>
-          <div class="role-desc">${r.desc}</div>
+          <div class="role-name">${roleName(r)}</div>
+          <div class="role-desc">${roleDesc(r)}</div>
         </div>
         <div class="stepper">
           <button data-act="dec" data-role="${r.id}">−</button>
@@ -199,15 +201,15 @@
       const ok = total === target && play >= 3;
       el.className = 'counter-num ' + (ok ? 'counter-ok' : 'counter-bad');
       document.getElementById('target-hint').textContent =
-        hostPlays ? 'objectif : joueurs + 3' : 'objectif : joueurs (hors narrateur) + 3';
+        hostPlays ? T('lw.target') : T('lw.targetNarrator');
       // Bouton lancer
       const launchBtn = document.getElementById('btn-launch');
       const hint = document.getElementById('launch-hint');
       if (isHost && launchBtn) {
         launchBtn.disabled = !ok;
-        hint.textContent = play < 3 ? `Il faut au moins 3 joueurs${hostPlays ? '' : ' (hors narrateur)'}.`
-          : total !== target ? `Ajuste les rôles : ${total} carte(s) pour ${target} attendues.`
-          : 'Prêt à lancer !';
+        hint.textContent = play < 3 ? (hostPlays ? T('lw.need3') : T('lw.need3Narrator'))
+          : total !== target ? T('lw.adjustRoles', { total, target })
+          : T('lw.readyToStart');
       }
     }
 
@@ -270,8 +272,8 @@
       rolesList.querySelectorAll('button').forEach(b => b.disabled = !isHost);
 
       document.getElementById('roles-subtitle').textContent = isHost
-        ? 'Choisis les rôles. Total = nombre de joueurs + 3.'
-        : "Rôles choisis par l'hôte.";
+        ? T('lw.pickRoles')
+        : T('lw.rolesByHost');
       document.getElementById('host-controls').classList.toggle('hidden', !isHost);
       document.getElementById('guest-note').classList.toggle('hidden', isHost);
 

@@ -21,6 +21,17 @@ export const LOUP_ROLES = [
 ];
 
 // Ordre de réveil de la nuit
+// ── Libellés traduits ──────────────────────────────────────
+// Le catalogue reste en français (source de vérité) ; roleName/roleDesc
+// cherchent 'loup.role.<id>.name' et retombent sur le français si absent.
+function tr(key, fallback) {
+  if (!window.t) return fallback;
+  const v = window.t(key);
+  return v === key ? fallback : v;
+}
+export const roleName = (r) => (r ? tr(`loup.role.${r.id}.name`, r.name) : '');
+export const roleDesc = (r) => (r ? tr(`loup.role.${r.id}.desc`, r.desc) : '');
+
 export const NIGHT_ORDER = ['sosie','loup','sbire','macon','voyante','voleur','fauteur','soulard','insomniaque'];
 
 export const ROLE_BY_ID = Object.fromEntries(LOUP_ROLES.map(r => [r.id, r]));
