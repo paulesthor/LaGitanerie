@@ -558,7 +558,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v116';
+    const APP_BUILD = 'v117';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -619,11 +619,34 @@
 
     // ══════════ Onglets ══════════
     const TABS = ['accueil', 'profil', 'stats', 'amis', 'reglages'];
+    // Vrai le temps d'un retour arrière : évite d'empiler une entrée pour une
+    // navigation qui vient justement de l'historique.
+    let _navBack = false;
+    window.addEventListener('popstate', (e) => {
+      const tab = (e.state && e.state.tab) || (location.hash || '').replace('#', '') || 'accueil';
+      _navBack = true;
+      showTab(tab);
+      _navBack = false;
+    });
     function showTab(name) {
       if (!TABS.includes(name)) name = 'accueil';
       document.querySelectorAll('.tab-view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
       document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-      try { history.replaceState(null, '', '#' + name); } catch (e) {}
+      // Bouton retour Android : sans entrée d'historique, un appui depuis
+      // n'importe quel onglet quittait l'app d'un coup. On empile un état pour
+      // les onglets secondaires, et on remplace pour l'accueil — le retour
+      // ramène donc à l'accueil, puis quitte, comme dans une app native.
+      try {
+        if (_navBack) {
+          // Navigation déclenchée par le bouton retour : ne pas réempiler.
+        } else if (name === 'accueil') {
+          history.replaceState({ tab: name }, '', '#' + name);
+        } else if ((history.state || {}).tab === name) {
+          history.replaceState({ tab: name }, '', '#' + name);
+        } else {
+          history.pushState({ tab: name }, '', '#' + name);
+        }
+      } catch (e) {}
       window.scrollTo(0, 0);
       // Le fond du document suit l'onglet : la bande basse non exploitable
       // par iOS se fond ainsi dans la page au lieu de trancher.

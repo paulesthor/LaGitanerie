@@ -8,9 +8,11 @@
   },
   "hosting": {
     "public": "public",
+    "_comment_ignore": "On n'exclut PAS **/.* : le dossier .well-known doit etre deploye pour que le TWA Android verifie le lien (sinon barre d'URL visible).",
     "ignore": [
       "firebase.json",
-      "**/.*",
+      "**/.git/**",
+      "**/.DS_Store",
       "**/node_modules/**"
     ],
     "rewrites": [
@@ -24,6 +26,13 @@
         "source": "/sw.js",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/.well-known/assetlinks.json",
+        "headers": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Cache-Control", "value": "no-cache" }
         ]
       },
       {

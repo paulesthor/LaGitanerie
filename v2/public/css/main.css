@@ -629,3 +629,22 @@ p  { font-size: 0.9rem; line-height: 1.55; color: var(--text-muted); }
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Focus clavier ──
+   Les états de focus n'étaient définis que sur les champs de saisie. Sans
+   repère visible, la navigation au clavier ou au pavé directionnel (manette,
+   clavier Bluetooth, accessibilité Android) est impossible à suivre.
+   :focus-visible ne s'active PAS au doigt : rien ne change au toucher. */
+.btn:focus-visible,
+.tabbar button:focus-visible,
+.header-btn:focus-visible,
+.pred-btn:focus-visible,
+.action-btn:focus-visible,
+.target-btn:focus-visible,
+.seg-btn:focus-visible,
+.stepper-btn:focus-visible,
+.lang-menu button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
