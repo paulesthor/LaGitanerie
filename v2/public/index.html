@@ -45,7 +45,11 @@
        courts, 100vh trop grand, innerHeight trop court). On laisse donc le
        document couler normalement et on ancre la barre au bas de la FENÊTRE :
        bottom:0 tombe toujours pile sur le bord bas, sans calcul. */
-    .app-shell { display:block; }
+    #app-bg {
+      position:fixed; left:-100px; right:-100px; top:-100px; bottom:-200px;
+      z-index:-1; background:#1b2734; pointer-events:none;
+    }
+    .app-shell { display:block; position:relative; }
     .tab-view { display:none; }
     .tab-view.active {
       display:flex; flex-direction:column;
@@ -76,7 +80,9 @@
       -webkit-backdrop-filter:blur(16px) saturate(160%); backdrop-filter:blur(16px) saturate(160%);
       border:1px solid rgba(255,255,255,.10);
       border-radius:24px;
-      box-shadow:0 12px 32px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.35);
+      /* Ombre douce et peu étalée : elle ne doit pas assombrir la bande
+         sous la barre, sinon deux teintes apparaissent. */
+      box-shadow:0 4px 16px rgba(0,0,0,.32);
       padding:7px 5px;
       max-width:440px; margin:0 auto;
       /* Masquée tant que le viewport iOS n'est pas stabilisé : elle apparaît
@@ -191,6 +197,11 @@
   </style>
 </head>
 <body>
+
+  <!-- Fond unique : couvre tout l'écran (et déborde largement) quelle que
+       soit la longueur du contenu, pour qu'aucune autre teinte ne
+       transparaisse sous la barre sur les pages courtes. -->
+  <div id="app-bg"></div>
 
   <div class="app-shell">
 
@@ -458,7 +469,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v96';
+    const APP_BUILD = 'v97';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -528,6 +539,8 @@
       // Le fond du document suit l'onglet : la bande basse non exploitable
       // par iOS se fond ainsi dans la page au lieu de trancher.
       const bg = name === 'accueil' ? '#1b2734' : '#2c3e50';
+      const bgEl = document.getElementById('app-bg');
+      if (bgEl) bgEl.style.background = bg;
       document.documentElement.style.background = bg;
       document.body.style.background = bg;
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
