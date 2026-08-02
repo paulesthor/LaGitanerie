@@ -134,7 +134,7 @@
     document.getElementById('photo-input').addEventListener('change', async (e) => {
       const file = e.target.files[0]; if (!file) return;
       try { const b64 = await compressAvatar(file); selectedAvatar = b64; setGuestAvatar(b64); showAvatarPreview(b64); }
-      catch { showToast('Erreur chargement photo', 'error'); }
+      catch { showToast(T('lobby.photoError'), 'error'); }
       e.target.value = '';
     });
 
@@ -149,9 +149,9 @@
         try {
           await authReady;
           const snap = await withRetry(() => get(ref(db, `loupCodes/${code}`)), { retries: 3, base: 400 });
-          if (snap.exists()) { hint.textContent = 'Partie trouvée'; hint.style.color = 'var(--orange)'; }
-          else { hint.textContent = 'Code introuvable'; hint.style.color = 'var(--red)'; }
-        } catch { hint.textContent = 'Réseau instable, réessaie'; hint.style.color = 'var(--red)'; }
+          if (snap.exists()) { hint.textContent = T('lobby.gameFound'); hint.style.color = 'var(--orange)'; }
+          else { hint.textContent = T('lobby.codeNotFound'); hint.style.color = 'var(--red)'; }
+        } catch { hint.textContent = T('lobby.unstableNetwork'); hint.style.color = 'var(--red)'; }
       }, 400);
     });
 
@@ -187,7 +187,7 @@
 
     function getPlayerInfo() {
       const name = nameInput.value.trim();
-      if (!name) { showError('Entre un pseudo !'); return null; }
+      if (!name) { showError(T('profile.enterName')); return null; }
       setGuestName(name);
       return { name, avatar: selectedAvatar || '🎴' };
     }
@@ -225,17 +225,17 @@
     document.getElementById('btn-join').onclick = async () => {
       const player = getPlayerInfo(); if (!player) return;
       const code = document.getElementById('input-code').value.trim().toUpperCase();
-      if (code.length !== 4) return showError('Le code fait 4 caractères');
+      if (code.length !== 4) return showError(T('lobby.code4'));
       const btn = document.getElementById('btn-join'); btn.disabled = true;
       try {
         await authReady;
         const codeSnap = await withRetry(() => get(ref(db, `loupCodes/${code}`)));
-        if (!codeSnap.exists()) return (() => { showError('Code incorrect'); btn.disabled = false; })();
+        if (!codeSnap.exists()) return (() => { showError(T('lobby.wrongCode')); btn.disabled = false; })();
         const gameId = codeSnap.val().gameId;
         const gameSnap = await withRetry(() => get(ref(db, `loupGames/${gameId}`)));
-        if (!gameSnap.exists()) return (() => { showError('Partie introuvable'); btn.disabled = false; })();
+        if (!gameSnap.exists()) return (() => { showError(T('lobby.gameNotFound')); btn.disabled = false; })();
         const game = gameSnap.val();
-        if (game.status !== 'waiting') return (() => { showError('La partie a déjà commencé'); btn.disabled = false; })();
+        if (game.status !== 'waiting') return (() => { showError(T('lobby.alreadyStarted')); btn.disabled = false; })();
 
         let user = await authReady; if (!user) user = (await signInAnonymously(auth)).user;
         const playerId = user.uid;

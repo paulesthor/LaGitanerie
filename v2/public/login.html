@@ -72,6 +72,8 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
+    // Alias de traduction (window.t vient de /js/i18n.js)
+    const T = (k, v) => (window.t ? window.t(k, v) : k);
     import { auth, getFirestore, withRetry, friendlyError, logError } from '/js/firebase-config.js';
     import {
       signInWithEmailAndPassword,
@@ -143,7 +145,7 @@
           try { await signInWithRedirect(auth, provider); } catch (e2) { showError(friendlyError(e2)); }
           return;
         }
-        showError('Erreur Google : ' + (friendlyError(e) || e.message));
+        showError(T('login.googleError') + (friendlyError(e) || e.message));
       }
     };
 
@@ -151,14 +153,14 @@
     document.getElementById('btn-login').onclick = async () => {
       const email = document.getElementById('input-email').value.trim();
       const pass  = document.getElementById('input-password').value;
-      if (!email || !pass) return showError('Remplis tous les champs');
+      if (!email || !pass) return showError(T('login.fillAll'));
       try {
         const result = await signInWithEmailAndPassword(auth, email, pass);
         await ensureUserProfile(result.user);
         window.location.href = '/';
       } catch (e) {
         logError('login.email', e);
-        showError(e.code === 'auth/network-request-failed' ? friendlyError(e) : 'Email ou mot de passe incorrect');
+        showError(e.code === 'auth/network-request-failed' ? friendlyError(e) : T('login.badLogin'));
       }
     };
 
@@ -167,15 +169,15 @@
       const email = document.getElementById('input-email').value.trim();
       const pass  = document.getElementById('input-password').value;
       if (!email || !pass) return showError('Remplis tous les champs');
-      if (pass.length < 6) return showError('Mot de passe trop court (6 min)');
+      if (pass.length < 6) return showError(T('login.passTooShort'));
       try {
         const result = await createUserWithEmailAndPassword(auth, email, pass);
         await ensureUserProfile(result.user);
         window.location.href = '/';
       } catch (e) {
         logError('login.register', e);
-        if (e.code === 'auth/email-already-in-use') showError('Email déjà utilisé');
-        else showError(friendlyError(e) || ('Erreur : ' + e.message));
+        if (e.code === 'auth/email-already-in-use') showError(T('login.emailInUse'));
+        else showError(friendlyError(e) || (T('profile.errorPrefix') + e.message));
       }
     };
   </script>

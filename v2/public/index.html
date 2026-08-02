@@ -536,10 +536,12 @@
     import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { ref as dbRef, get as dbGet, set as dbSet, update as dbUpdate, remove as dbRemove, onValue as dbOnValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
     import { getGuestName, setGuestName, getGuestAvatar, setGuestAvatar, showToast } from '/js/game/utils.js';
+    // Alias de traduction (window.t vient de /js/i18n.js)
+    const T = (k, v) => (window.t ? window.t(k, v) : k);
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v111';
+    const APP_BUILD = 'v112';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -834,14 +836,14 @@
       if (acc) acc.style.display = 'none';
     }
     function paintHomeGuest() {
-      document.getElementById('home-user-name').textContent = 'Invité';
+      document.getElementById('home-user-name').textContent = T('common.guest');
       document.getElementById('home-user-title').textContent = '';
       document.getElementById('home-user-badge').innerHTML = '';
       document.getElementById('home-user-avatar-wrap').className = '';
       document.getElementById('home-user-avatar').textContent = '👤';
       document.getElementById('home-xp-wrap').style.display = 'none';
       const acc = document.getElementById('home-btn-account');
-      if (acc) { acc.style.display = ''; acc.textContent = 'Connexion'; acc.onclick = () => window.location.href = '/login.html'; }
+      if (acc) { acc.style.display = ''; acc.textContent = T('common.login'); acc.onclick = () => window.location.href = '/login.html'; }
     }
 
     // Si scan de QR alors qu'on n'est pas encore connecté : on mémorise le code.
@@ -876,7 +878,7 @@
       grid.innerHTML = '';
       const noneBtn = document.createElement('button');
       noneBtn.className = 'title-pill' + (!selectedTitle ? ' active' : '');
-      noneBtn.textContent = 'Aucun';
+      noneBtn.textContent = T('common.none');
       noneBtn.onclick = () => { selectedTitle = null; renderTitles(owned, null); updateProfileTitle(); saveActive({ activeTitle: null }); };
       grid.appendChild(noneBtn);
       owned.forEach(id => {
@@ -968,7 +970,7 @@
         icon.style.background = 'var(--bg-raised)';
         icon.style.boxShadow = 'none';
         icon.innerHTML = '';
-        name.textContent = 'Aucun badge sélectionné';
+        name.textContent = T('profile.noBadge');
         clearBtn.classList.add('hidden');
       }
     }
@@ -1040,13 +1042,13 @@
       const file = e.target.files[0];
       if (!file) return;
       try {
-        document.getElementById('btn-photo').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Compression...';
+        document.getElementById('btn-photo').innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${T('profile.compressing')}`;
         const base64 = await compressAvatar(file);
         setAvatar(base64);
       } catch (err) {
-        showToast('Erreur lors du chargement de la photo', 'error');
+        showToast(T('profile.photoError'), 'error');
       } finally {
-        document.getElementById('btn-photo').innerHTML = '<i class="fas fa-camera"></i> Prendre / Choisir';
+        document.getElementById('btn-photo').innerHTML = `<i class="fas fa-camera"></i> ${T('profile.takePhoto')}`;
         e.target.value = '';
       }
     });
@@ -1063,7 +1065,7 @@
       section.classList.remove('hidden');
       document.getElementById('btn-dev-unlock').onclick = async () => {
         await saveActive({ badges: Object.keys(BADGES), titles: Object.keys(TITLES), xp: 3000 });
-        showToast('Tout débloqué ✓', 'success');
+        showToast(`${T('profile.unlockAll')} ✓`, 'success');
         setTimeout(() => location.reload(), 500);
       };
       document.getElementById('btn-dev-reset').onclick = async () => {
@@ -1074,7 +1076,7 @@
           totalGames: 0, totalSipsDrunk: 0, totalSipsGiven: 0, bluffSuccess: 0,
           totalCulSec: 0, topDrinkerStreak: 0, soberStreak: 0, lastRewardedGame: null,
         });
-        showToast('Tout retiré ✓', 'success');
+        showToast(`${T('profile.removeAll')} ✓`, 'success');
         setTimeout(() => location.reload(), 500);
       };
     }
@@ -1115,13 +1117,13 @@
       applyProfileBorder(activeBorder);
 
       renderStats([
-        ['Parties jouées',    data.totalGames      || 0],
-        ['Gorgées bues',      data.totalSipsDrunk  || 0],
-        ['Gorgées données',   data.totalSipsGiven  || 0],
-        ['Bluffs réussis',    data.bluffSuccess    || 0],
-        ['Titres débloqués',  (data.titles || []).length],
-        ['XP total',          xp],
-        ['Niveau',            level],
+        [T('stats.games'),        data.totalGames      || 0],
+        [T('stats.sipsDrunk'),    data.totalSipsDrunk  || 0],
+        [T('stats.sipsGiven'),    data.totalSipsGiven  || 0],
+        [T('stats.bluffs'),       data.bluffSuccess    || 0],
+        [T('stats.titles'),       (data.titles || []).length],
+        [T('stats.xpTotal'),      xp],
+        [T('common.level'),       level],
       ]);
 
       // Puce d'accueil
@@ -1196,10 +1198,10 @@
 
     document.getElementById('btn-save').onclick = async () => {
       const name = document.getElementById('edit-name').value.trim();
-      if (!name) return showToast('Entre un pseudo !', 'error');
+      if (!name) return showToast(T('profile.enterName'), 'error');
       const btn = document.getElementById('btn-save');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sauvegarde…';
+      btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${T('profile.saving')}`;
       if (currentUser && !currentUser.isAnonymous) {
         try {
           const firestore = await getFirestore();
@@ -1215,17 +1217,17 @@
           updateProfileTitle();
           paintHomeChip({ displayName: name, avatar: selectedAvatar, activeTitle: selectedTitle, activeBadge: selectedBadge, activeBorder: selectedBorder, xp: (JSON.parse(localStorage.getItem('profileFullCache') || '{}').xp) || 0 });
           try { localStorage.setItem('lastProfileAvatar', selectedAvatar); } catch (e) {}
-          showToast('Profil sauvegardé', 'success');
+          showToast(T('profile.saved'), 'success');
           unlockPseudoTitles(name);
-        } catch (e) { showToast('Erreur : ' + e.message, 'error'); }
+        } catch (e) { showToast(T('profile.errorPrefix') + e.message, 'error'); }
       } else {
         setGuestName(name);
         setGuestAvatar(selectedAvatar);
         document.getElementById('profile-name').textContent = name;
-        showToast('Profil mis à jour', 'success');
+        showToast(T('profile.updated'), 'success');
       }
       btn.disabled = false;
-      btn.innerHTML = '<i class="fas fa-save"></i> Sauvegarder';
+      btn.innerHTML = `<i class="fas fa-save"></i> ${T('common.save')}`;
     };
 
     // Réglages — vibrations
@@ -1286,20 +1288,20 @@
     async function addFriendByCode(user, code, myCode) {
       code = (code || '').trim().toUpperCase();
       if (!code) return;
-      if (code === myCode) { friendMsg("C'est ton propre code 🙂", false); return; }
+      if (code === myCode) { friendMsg(T('friends.ownCode'), false); return; }
       try {
         const fid = (await dbGet(dbRef(db, `friendCodes/${code}`))).val();
-        if (!fid) { friendMsg('Code introuvable', false); return; }
-        if (fid === user.uid) { friendMsg("C'est ton propre code 🙂", false); return; }
+        if (!fid) { friendMsg(T('friends.notFound'), false); return; }
+        if (fid === user.uid) { friendMsg(T('friends.ownCode'), false); return; }
         await dbUpdate(dbRef(db, 'friends'), {
           [`${user.uid}/${fid}`]: true,
           [`${fid}/${user.uid}`]: true,
         });
         document.getElementById('friend-code-input').value = '';
-        friendMsg('Ami ajouté ✓', true);
+        friendMsg(`${T('friends.added')} ✓`, true);
         if (window.gitaVibrate) window.gitaVibrate(20);
         // La liste se rafraîchit d'elle-même via l'écouteur temps réel.
-      } catch (e) { friendMsg('Erreur — vérifie ta connexion', false); }
+      } catch (e) { friendMsg(T('friends.checkConnection'), false); }
     }
 
     // Écoute temps réel de la liste d'amis.
@@ -1319,7 +1321,7 @@
       const list = document.getElementById('friends-list');
       if (!list) return;
       if (!ids.length) {
-        list.innerHTML = '<p class="text-sm text-muted text-center" style="padding:6px">Aucun ami pour l\'instant. Partage ton code ou ton QR !</p>';
+        list.innerHTML = `<p class="text-sm text-muted text-center" style="padding:6px">${T('friends.none')}</p>`;
         return;
       }
       const metas = await Promise.all(ids.map(async (fid) => {
@@ -1338,7 +1340,7 @@
         del.onclick = async () => {
           try {
             await dbUpdate(dbRef(db, 'friends'), { [`${user.uid}/${fid}`]: null, [`${fid}/${user.uid}`]: null });
-          } catch (e) { friendMsg('Erreur réseau', false); }
+          } catch (e) { friendMsg(T('err.network'), false); }
         };
         row.appendChild(del);
         list.appendChild(row);
@@ -1389,23 +1391,23 @@
       const hint = document.getElementById('scan-hint');
       if (!ov || !video) return;
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        friendMsg('Caméra non disponible sur cet appareil', false); return;
+        friendMsg(T('friends.noCamera'), false); return;
       }
       ov.style.display = 'flex';
-      hint.textContent = 'Autorise la caméra…';
+      hint.textContent = T('friends.allowCamera');
       try {
         _scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
       } catch (e) {
-        stopScanner(); friendMsg("Accès caméra refusé", false); return;
+        stopScanner(); friendMsg(T('friends.cameraDenied'), false); return;
       }
       video.srcObject = _scanStream;
       try { await video.play(); } catch (e) {}
       _scanActive = true;
-      hint.textContent = 'Vise le QR de ton ami';
+      hint.textContent = T('friends.aimQr');
 
       const onFound = (raw) => {
         const code = parseScannedCode(raw);
-        if (!code) { hint.textContent = 'QR non reconnu — réessaie'; return; }
+        if (!code) { hint.textContent = T('friends.qrUnreadable'); return; }
         if (window.gitaVibrate) window.gitaVibrate(20);
         stopScanner();
         addFriendByCode(user, code, myCode);
@@ -1430,7 +1432,7 @@
 
       let jsQR;
       try { jsQR = await loadJsQR(); }
-      catch (e) { stopScanner(); friendMsg('Scanner indisponible — utilise le code', false); return; }
+      catch (e) { stopScanner(); friendMsg(T('friends.scannerUnavailable'), false); return; }
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       const tick = () => {
@@ -1465,8 +1467,8 @@
       if (!_friendsInit) {
         _friendsInit = true;
         document.getElementById('btn-copy-friend-code').onclick = async () => {
-          try { await navigator.clipboard.writeText(myCode); showToast('Code copié', 'success'); }
-          catch { showToast('Copie non supportée', 'error'); }
+          try { await navigator.clipboard.writeText(myCode); showToast(T('friends.codeCopied'), 'success'); }
+          catch { showToast(T('wait.copyUnsupported'), 'error'); }
         };
         const addInput = document.getElementById('friend-code-input');
         document.getElementById('btn-add-friend').onclick = () => addFriendByCode(user, addInput.value, myCode);

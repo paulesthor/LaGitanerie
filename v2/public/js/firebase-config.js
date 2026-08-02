@@ -134,30 +134,47 @@ export function waitForAuth(timeoutMs = 8000) {
  *  Usage dans tes pages : catch (e) { alert(friendlyError(e)); }
  * ------------------------------------------------------------------------- */
 const ERROR_MESSAGES = {
-  'auth/network-request-failed': "Connexion internet trop faible. Vérifie ta réception puis réessaie.",
-  'auth/too-many-requests':      "Trop de tentatives. Attends quelques instants puis réessaie.",
-  'auth/user-token-expired':     "Ta session a expiré. Reconnecte-toi.",
-  'auth/invalid-credential':     "Identifiants invalides. Vérifie et réessaie.",
-  'unavailable':        "Serveur injoignable (réseau instable). Nouvelle tentative en cours…",
-  'deadline-exceeded':  "La connexion est très lente. On réessaie…",
-  'permission-denied':  "Accès refusé. Reconnecte-toi et réessaie.",
-  'failed-precondition':"Données hors-ligne indisponibles pour le moment.",
+  'auth/network-request-failed': 'err.weakNetwork',
+  'auth/too-many-requests':      'err.tooManyTries',
+  'auth/user-token-expired':     'err.sessionExpired',
+  'auth/invalid-credential':     'err.badCredentials',
+  'unavailable':        'err.serverUnreachable',
+  'deadline-exceeded':  'err.slowConnection',
+  'permission-denied':  'err.accessDenied',
+  'failed-precondition':'err.offlineData',
 };
+// Traduction avec repli français : si /js/i18n.js n'est pas chargé (ou la clé
+// manque), on affiche quand même un message lisible plutôt qu'une clé brute.
+const FR_FALLBACK = {
+  'err.weakNetwork': "Connexion internet trop faible. Vérifie ta réception puis réessaie.",
+  'err.tooManyTries': "Trop de tentatives. Attends quelques instants puis réessaie.",
+  'err.sessionExpired': "Ta session a expiré. Reconnecte-toi.",
+  'err.badCredentials': "Identifiants invalides. Vérifie et réessaie.",
+  'err.serverUnreachable': "Serveur injoignable (réseau instable). Nouvelle tentative en cours…",
+  'err.slowConnection': "La connexion est très lente. On réessaie…",
+  'err.accessDenied': "Accès refusé. Reconnecte-toi et réessaie.",
+  'err.offlineData': "Données hors-ligne indisponibles pour le moment.",
+  'err.accessDeniedServer': "Accès refusé par le serveur. Reconnecte-toi et réessaie.",
+  'err.connection': "Problème de connexion. Vérifie ton réseau — on réessaie automatiquement.",
+  'err.generic': "Une erreur est survenue. Réessaie dans un instant.",
+};
+function errText(key) {
+  const v = window.t ? window.t(key) : key;
+  return v === key ? (FR_FALLBACK[key] || key) : v;
+}
 export function friendlyError(err) {
   // Toute erreur qui remonte à l'utilisateur est aussi enregistrée dans le journal.
   try { logError('friendlyError', err); } catch (_) {}
   const code = String((err && (err.code || err.message)) || '');
   for (const key in ERROR_MESSAGES) {
-    if (code.includes(key)) return ERROR_MESSAGES[key];
+    if (code.includes(key)) return errText(ERROR_MESSAGES[key]);
   }
   // RTDB renvoie "permission_denied" / "PERMISSION_DENIED" (format différent de Firestore)
-  if (/permission/i.test(code)) {
-    return "Accès refusé par le serveur. Reconnecte-toi et réessaie.";
-  }
+  if (/permission/i.test(code)) return errText('err.accessDeniedServer');
   if (/network|fetch|timeout|offline|connexion|connection|unavailable|disconnect|unable/i.test(code)) {
-    return "Problème de connexion. Vérifie ton réseau — on réessaie automatiquement.";
+    return errText('err.connection');
   }
-  return "Une erreur est survenue. Réessaie dans un instant.";
+  return errText('err.generic');
 }
 
 /* ---------------------------------------------------------------------------

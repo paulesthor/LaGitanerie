@@ -139,6 +139,8 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
+    // Alias de traduction (window.t vient de /js/i18n.js)
+    const T = (k, v) => (window.t ? window.t(k, v) : k);
     import { auth, db, getFirestore, waitForAuth, withRetry, friendlyError } from '/js/firebase-config.js';
     import { ref, push, set, get, update } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
     import { onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
@@ -194,7 +196,7 @@
         setGuestAvatar(base64);
         showAvatarPreview(base64);
       } catch {
-        showToast('Erreur chargement photo', 'error');
+        showToast(T('lobby.photoError'), 'error');
       }
       e.target.value = '';
     });
@@ -213,19 +215,19 @@
           await authReady;
           const snap = await withRetry(() => get(ref(db, `gameCodes/${code}`)), { retries: 3, base: 400 });
           if (snap.exists()) {
-            hint.textContent = 'Partie trouvée';
+            hint.textContent = T('lobby.gameFound');
             hint.style.color = 'var(--orange)';
           } else {
-            hint.textContent = 'Code introuvable';
+            hint.textContent = T('lobby.codeNotFound');
             hint.style.color = 'var(--red)';
           }
-        } catch { hint.textContent = 'Réseau instable, réessaie'; hint.style.color = 'var(--red)'; }
+        } catch { hint.textContent = T('lobby.unstableNetwork'); hint.style.color = 'var(--red)'; }
       }, 400);
     });
 
     // --- Badge du mode choisi ---
     if (_mode === 'oral') {
-      document.getElementById('mode-badge-name').textContent = 'Soirée';
+      document.getElementById('mode-badge-name').textContent = T('mode.oral');
       const ic = document.getElementById('mode-badge-icon');
       ic.className = 'fas fa-champagne-glasses'; ic.style.color = 'var(--gold)';
     }
@@ -269,8 +271,8 @@
 
     function getPlayerInfo() {
       const name = nameInput.value.trim();
-      if (!name) { showError('Entre un pseudo !'); return null; }
-      if (name.length > 15) { showError('Pseudo trop long (15 caractères max)'); return null; }
+      if (!name) { showError(T('profile.enterName')); return null; }
+      if (name.length > 15) { showError(T('lobby.nameTooLong')); return null; }
       setGuestName(name);
       return { name, avatar: selectedAvatar || '🎴' };
     }
@@ -341,7 +343,7 @@
       const player = getPlayerInfo();
       if (!player) { if (btn) btn.disabled = false; return; }
       code = (code || '').trim().toUpperCase();
-      if (code.length !== 4) { showError('Le code fait 4 caractères'); if (btn) btn.disabled = false; return; }
+      if (code.length !== 4) { showError(T('lobby.code4')); if (btn) btn.disabled = false; return; }
       if (btn) btn.disabled = true;
 
       try {
@@ -349,24 +351,24 @@
         await authReady;
 
         const codeSnap = await withRetry(() => get(ref(db, `gameCodes/${code}`)));
-        if (!codeSnap.exists()) return (() => { showError('Code incorrect'); if (btn) btn.disabled = false; })();
+        if (!codeSnap.exists()) return (() => { showError(T('lobby.wrongCode')); if (btn) btn.disabled = false; })();
 
         const gameId   = codeSnap.val().gameId;
         const gameSnap = await withRetry(() => get(ref(db, `games/${gameId}`)));
-        if (!gameSnap.exists()) return (() => { showError('Partie introuvable'); if (btn) btn.disabled = false; })();
+        if (!gameSnap.exists()) return (() => { showError(T('lobby.gameNotFound')); if (btn) btn.disabled = false; })();
 
         const game = gameSnap.val();
         if (game.status === 'abandoned') {
-          return (() => { showError("L'hôte a quitté cette partie"); if (btn) btn.disabled = false; })();
+          return (() => { showError(T('lobby.hostLeft')); if (btn) btn.disabled = false; })();
         }
         if (game.status === 'started') {
           const phaseMsg = {
-            distribution: 'Distribution des cartes en cours, réessaie dans 1-2 min.',
-            memorize:     'Phase de mémorisation en cours, réessaie dans 1 min.',
-            memoryReveal: 'Partie en fin de partie, rejoins la prochaine.',
+            distribution: T('lobby.phaseDealing'),
+            memorize:     T('lobby.phaseMemorize'),
+            memoryReveal: T('lobby.phaseEnding'),
           };
           if (game.phase !== 'pyramid') {
-            return (() => { showError(phaseMsg[game.phase] || 'Partie en cours'); if (btn) btn.disabled = false; })();
+            return (() => { showError(phaseMsg[game.phase] || T('lobby.gameRunning')); if (btn) btn.disabled = false; })();
           }
         }
 
@@ -377,7 +379,7 @@
         // Rejoindre en cours (phase pyramide uniquement)
         if (game.status === 'started' && game.phase === 'pyramid') {
           const deck = game.deck || [];
-          if (deck.length < 4) return (() => { showError('Plus assez de cartes pour rejoindre'); if (btn) btn.disabled = false; })();
+          if (deck.length < 4) return (() => { showError(T('lobby.noCardsLeft')); if (btn) btn.disabled = false; })();
           const playerCards = deck.slice(0, 4).map(c => ({ ...c, revealed: false }));
           await withRetry(() => update(ref(db, `games/${gameId}`), {
             [`players/${playerId}`]: { name: player.name, avatar: player.avatar, uid: user.uid, online: true, cards: playerCards, sipsToDrink: 0, sipsGiven: 0, actedOnCard: null },
