@@ -4,16 +4,20 @@ import { ref, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/
 import { showToast, SUIT_SYMBOL, getSipsForCard, clearGameSession, cardFaceInner } from '/js/game/utils.js';
 import { avatarHTML, isPhotoAvatar } from '/js/game/avatar.js';
 
+// Raccourci de traduction (window.t vient de /js/i18n.js, chargé dans le <head>)
+const t = (k, v) => (window.t ? window.t(k, v) : k);
+const sipsTxt = (n) => t(n > 1 ? 'game.sipsN' : 'game.sip1', { n });
+
 const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate?.(p));
 
 const VIEW = `
   <div class="screen">
     <header class="app-header">
       <div class="flex items-center gap-8">
-        <span class="text-sm text-muted">Partie</span>
+        <span class="text-sm text-muted" data-i18n="game.game">Partie</span>
         <span id="header-code" class="font-bold" style="color:var(--gold)">----</span>
       </div>
-      <h1 style="font-size:.95rem">🔺 La Pyramide</h1>
+      <h1 style="font-size:.95rem">🔺 <span data-i18n="home.pyramid">La Pyramide</span></h1>
       <button class="header-btn" id="btn-menu"><i class="fas fa-bars"></i></button>
     </header>
     <div class="page-content">
@@ -22,9 +26,9 @@ const VIEW = `
       </div>
       <div id="pyramid-card" class="card flex-col gap-12">
         <div class="flex items-center justify-between">
-          <h3>🔺 Pyramide</h3>
+          <h3>🔺 <span data-i18n="pyr.pyramid">Pyramide</span></h3>
           <div id="waiting-info" class="flex gap-8 items-center hidden">
-            <span class="text-sm text-muted">Attend&nbsp;:</span>
+            <span class="text-sm text-muted" data-i18n="pyr.waitingOn">Attend&nbsp;:</span>
             <div id="waiting-avatars" class="waiting-avatars"></div>
           </div>
         </div>
@@ -35,7 +39,7 @@ const VIEW = `
       <div id="players-cards" class="flex-col gap-16"></div>
       <div id="history-card" class="card flex-col gap-10">
         <div class="flex items-center justify-between" id="log-toggle" style="cursor:pointer;user-select:none">
-          <h3 style="font-size:.9rem">Historique</h3>
+          <h3 style="font-size:.9rem" data-i18n="pyr.log">Historique</h3>
           <i id="log-chevron" class="fas fa-chevron-down" style="color:var(--text-muted);font-size:.75rem;transition:transform .2s"></i>
         </div>
         <div id="event-log" class="flex-col gap-6" style="display:none;max-height:180px;overflow-y:auto"></div>
@@ -45,13 +49,13 @@ const VIEW = `
           <div class="flex items-center gap-12">
             <span style="font-size:1.8rem">🧠</span>
             <div class="flex-col gap-4" style="flex:1">
-              <h3>Phase mémoire</h3>
-              <p class="text-sm text-muted">Retrouve tes 4 cartes. <strong style="color:var(--orange)">3 gorgées</strong> par erreur.</p>
+              <h3 data-i18n="mem2.title">Phase mémoire</h3>
+              <p class="text-sm text-muted" data-i18n-html="mem2.hint">Retrouve tes 4 cartes. <strong style="color:var(--orange)">3 gorgées</strong> par erreur.</p>
             </div>
           </div>
         </div>
         <div class="card flex-col gap-12">
-          <h3>Mes cartes</h3>
+          <h3 data-i18n="mem.myCards">Mes cartes</h3>
           <div id="mem-hand" class="mem-hand"></div>
         </div>
         <div class="card flex-col gap-10">
@@ -60,7 +64,7 @@ const VIEW = `
         </div>
         <div id="mem-done-wrap" class="hidden mt-auto">
           <button id="mem-btn-done" class="btn btn-success" style="padding:18px;font-size:1rem">
-            <i class="fas fa-check-circle"></i> J'ai terminé !
+            <i class="fas fa-check-circle"></i> <span data-i18n="mem2.done">J'ai terminé !</span>
           </button>
         </div>
       </div>
@@ -70,10 +74,10 @@ const VIEW = `
   <div id="modal-memory" class="modal-overlay">
     <div class="modal-sheet flex-col gap-14">
       <div class="modal-handle"></div>
-      <p class="label-caps text-center">Quel était le chiffre ?</p>
+      <p class="label-caps text-center" data-i18n="mem2.whichValue">Quel était le chiffre ?</p>
       <div id="mem-val-grid" class="mem-val-grid"></div>
       <button id="mem-confirm-btn" class="btn btn-primary" disabled>
-        <i class="fas fa-eye"></i> Révéler
+        <i class="fas fa-eye"></i> <span data-i18n="mem2.reveal">Révéler</span>
       </button>
     </div>
   </div>
@@ -81,7 +85,7 @@ const VIEW = `
   <div id="modal-target" class="modal-overlay">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <h3 class="text-center">Donner <span id="modal-sips-text">?</span> à&nbsp;:</h3>
+      <h3 class="text-center"><span data-i18n="game.give">Donner</span> <span id="modal-sips-text">?</span> <span data-i18n="pyr.to">à&nbsp;:</span></h3>
       <div id="target-grid" class="target-grid"></div>
     </div>
   </div>
@@ -92,7 +96,7 @@ const VIEW = `
       <h3>Joueurs</h3>
       <div id="sidebar-players" class="flex-col gap-8"></div>
       <button id="btn-leave" class="btn btn-danger" style="margin-top:8px">
-        <i class="fas fa-door-open"></i> Quitter
+        <i class="fas fa-door-open"></i> <span data-i18n="pyr.quit">Quitter</span>
       </button>
     </div>
   </div>
@@ -104,8 +108,8 @@ const VIEW = `
       <div class="mc-bot" id="proof-bot"></div>
     </div>
     <div class="notif-text">
-      <div class="notif-who" id="proof-who">Preuve</div>
-      <div class="notif-sub" id="proof-result">disparaît dans <span id="proof-countdown">3</span>s</div>
+      <div class="notif-who" id="proof-who" data-i18n="pyr.proof">Preuve</div>
+      <div class="notif-sub" id="proof-result"><span data-i18n="pyr.vanishIn">disparaît dans</span> <span id="proof-countdown">3</span>s</div>
     </div>
   </div>
 
@@ -120,6 +124,7 @@ const VIEW = `
 export function mount(root, api) {
   const { gameId, playerId } = api;
   root.innerHTML = VIEW;
+  window.I18N && window.I18N.apply(root);
   const $ = (id) => root.querySelector('#' + id);
   const gameRef = ref(db, `games/${gameId}`);
 
@@ -265,17 +270,17 @@ export function mount(root, api) {
     const events = game.eventLog || {};
     const sorted = Object.values(events).sort((a, b) => b.timestamp - a.timestamp).slice(0, 40);
     if (sorted.length === 0) {
-      el.innerHTML = '<span class="text-sm text-muted">Aucune action pour l\'instant.</span>';
+      el.innerHTML = `<span class="text-sm text-muted">${t('pyr.noAction')}</span>`;
       return;
     }
     el.innerHTML = sorted.map(e => {
       if (e.type === 'sips_given') {
-        const qty = e.isCulSec ? '🔥 CUL SEC' : `${e.amount} gorgée${e.amount > 1 ? 's' : ''}`;
+        const qty = e.isCulSec ? `🔥 ${t('oral.bottomsUp')}` : sipsTxt(e.amount);
         return `<div class="text-sm"><span class="font-bold" style="color:var(--orange)">${e.fromName}</span> → <span class="font-bold">${e.toName}</span> &nbsp;${qty}</div>`;
       }
       if (e.type === 'menteur_resolved') {
-        const verdict = e.correct ? `avait la carte — ${e.accuserName} boit` : `mentait — boit`;
-        return `<div class="text-sm">🤥 <span class="font-bold">${e.accusedName}</span> ${verdict} ${e.penalty} gorgée${e.penalty > 1 ? 's' : ''}</div>`;
+        const verdict = e.correct ? t('pyr.hadCardDrinks', { name: e.accuserName }) : t('pyr.wasLyingDrinks');
+        return `<div class="text-sm">🤥 <span class="font-bold">${e.accusedName}</span> ${verdict} ${sipsTxt(e.penalty)}</div>`;
       }
       return '';
     }).join('');
@@ -335,7 +340,7 @@ export function mount(root, api) {
 
       const label = document.createElement('div');
       label.style.cssText = 'color:var(--text-muted);font-size:.7rem;font-weight:700;margin-top:2px;text-align:center';
-      label.innerHTML = isCulSec ? '<i class="fas fa-fire" style="color:#ff4444"></i> CUL SEC' : `${sips} gorgée${sips > 1 ? 's' : ''}`;
+      label.innerHTML = isCulSec ? `<i class="fas fa-fire" style="color:#ff4444"></i> ${t('oral.bottomsUp')}` : sipsTxt(sips);
 
       wrap.appendChild(rowEl);
       wrap.appendChild(label);
@@ -357,24 +362,24 @@ export function mount(root, api) {
       if (keys.length > 0) {
         const event = me.sipsQueue[keys[0]];
         const key   = keys[0];
-        const from  = game.players?.[event.fromId]?.name || 'Un joueur';
-        const sipsText = event.isCulSec ? 'CUL SEC' : `${event.amount} gorgée${event.amount > 1 ? 's' : ''}`;
+        const from  = game.players?.[event.fromId]?.name || t('oral.aPlayer');
+        const sipsText = event.isCulSec ? t('oral.bottomsUp') : sipsTxt(event.amount);
         secSips.innerHTML = `
-          <div class="action-label">Gorgées reçues</div>
-          <div class="action-prompt"><strong>${from}</strong> te donne ${sipsText}</div>
+          <div class="action-label">${t('pyr.sipsReceived')}</div>
+          <div class="action-prompt">${t('pyr.givesYouSips', { name: `<strong>${from}</strong>`, sips: sipsText })}</div>
           <div class="action-btns">
-            <button class="action-btn liar" onclick="__pyr_handleLiar('${event.fromId}', ${event.amount}, '${key}', ${event.isCulSec})">🤥 Menteur !</button>
-            <button class="action-btn drink" onclick="__pyr_handleDrink('${key}')">🍺 Je bois</button>
+            <button class="action-btn liar" onclick="__pyr_handleLiar('${event.fromId}', ${event.amount}, '${key}', ${event.isCulSec})">🤥 ${t('pyr.liar')}</button>
+            <button class="action-btn drink" onclick="__pyr_handleDrink('${key}')">🍺 ${t('pyr.iDrink')}</button>
           </div>`;
         secSips.classList.remove('hidden');
       }
     } else if (me.isAccused) {
       const accuser = game.players?.[me.accusedBy]?.name || 'Un joueur';
       secSips.innerHTML = `
-        <div class="action-label">Accusé de mentir</div>
+        <div class="action-label">${t('pyr.accusedOfLying')}</div>
         <div class="action-prompt">
-          <strong>${accuser}</strong> t'accuse de mentir !<br>
-          <span class="text-sm text-muted">Clique sur une de tes cartes ci-dessous pour prouver.</span>
+          ${t('pyr.accusesYou', { name: `<strong>${accuser}</strong>` })}<br>
+          <span class="text-sm text-muted">${t('pyr.clickToProve')}</span>
         </div>`;
       secSips.classList.remove('hidden');
     }
@@ -390,23 +395,23 @@ export function mount(root, api) {
         const { sips: rawSips, isCulSec } = getSipsForCard(r, (game.pyramid || []).length);
         const mult = game.rules?.sipsMultiplier || 1;
         const sips = isCulSec ? rawSips : rawSips * mult;
-        const sipsText = isCulSec ? 'CUL SEC' : `${sips} gorgée${sips > 1 ? 's' : ''}`;
+        const sipsText = isCulSec ? t('oral.bottomsUp') : sipsTxt(sips);
         secCard.innerHTML = `
-          <div class="action-label">Cette carte — ${sipsText}</div>
+          <div class="action-label">${t('pyr.thisCard')} — ${sipsText}</div>
           <div class="action-prompt">
             <strong>${card.value} ${SUIT_SYMBOL[card.suit] || ''}</strong>
           </div>
           <div class="action-btns">
-            <button class="action-btn give" onclick="__pyr_handleGive(${sips}, ${isCulSec})">🍺 Donner</button>
-            <button class="action-btn pass" onclick="__pyr_handlePass()">✋ Passer</button>
-            ${game.hostId === playerId && canHostForce() ? `<button class="action-btn host-flip" onclick="__pyr_flipNextCard()">⏭ Retourner la suivante</button>` : ''}
+            <button class="action-btn give" onclick="__pyr_handleGive(${sips}, ${isCulSec})">🍺 ${t('game.give')}</button>
+            <button class="action-btn pass" onclick="__pyr_handlePass()">✋ ${t('pyr.pass')}</button>
+            ${game.hostId === playerId && canHostForce() ? `<button class="action-btn host-flip" onclick="__pyr_flipNextCard()">⏭ ${t('pyr.flipNextShort')}</button>` : ''}
           </div>`;
         secCard.classList.remove('hidden');
       }
     } else if (game.hostId === playerId && canHostForce()) {
       secCard.innerHTML = `
-        <div class="action-prompt text-muted">Tout le monde a joué.</div>
-        <button class="action-btn host-flip" style="grid-column:span 2" onclick="__pyr_flipNextCard()">🔺 Retourner la prochaine carte</button>`;
+        <div class="action-prompt text-muted">${t('pyr.everyonePlayed')}</div>
+        <button class="action-btn host-flip" style="grid-column:span 2" onclick="__pyr_flipNextCard()">🔺 ${t('pyr.flipNext')}</button>`;
       secCard.classList.remove('hidden');
     }
   }
@@ -426,7 +431,7 @@ export function mount(root, api) {
       header.innerHTML = `
         ${avatarHTML(player.avatar, 36)}
         <span class="font-bold" style="flex:1">${player.name}${isSelf ? ' (toi)' : ''}</span>
-        ${player.isAccused && !isSelf ? '<span class="badge badge-red">🤥 Accusé</span>' : ''}
+        ${player.isAccused && !isSelf ? `<span class="badge badge-red">🤥 ${t('pyr.accused')}</span>` : ''}
         ${player.sipsToDrink > 0 ? `<span class="badge badge-red">${player.sipsToDrink} 🍺</span>` : ''}`;
 
       const hand = document.createElement('div');
@@ -578,7 +583,7 @@ export function mount(root, api) {
   function handleGive(sips, isCulSec) {
     pendingGiveAction = { sips, isCulSec };
     const grid = $('target-grid');
-    $('modal-sips-text').innerHTML = isCulSec ? 'CUL SEC' : `${sips} gorgée${sips > 1 ? 's' : ''}`;
+    $('modal-sips-text').innerHTML = isCulSec ? t('oral.bottomsUp') : sipsTxt(sips);
     grid.innerHTML = '';
     Object.entries(game.players).forEach(([id, p]) => {
       if (id === playerId) return;
@@ -621,7 +626,7 @@ export function mount(root, api) {
     try {
       await update(gameRef, { [`players/${playerId}/actedOnCard`]: game.lastRevealedCardId });
       showToast('Passé', 'info');
-    } catch (e) { showToast('Erreur réseau', 'error'); }
+    } catch (e) { showToast(t('err.network'), 'error'); }
     finally { isProcessing = false; }
   }
 
@@ -635,7 +640,7 @@ export function mount(root, api) {
       if (sipsEvent?.isCulSec) updates[`players/${playerId}/culSecDrunk`] = true;
       await update(gameRef, updates);
       showToast('Santé !', 'success');
-    } catch (e) { showToast('Erreur réseau', 'error'); }
+    } catch (e) { showToast(t('err.network'), 'error'); }
     finally { isProcessing = false; }
   }
 
@@ -656,7 +661,7 @@ export function mount(root, api) {
         [`players/${playerId}/sipsQueue/${queueKey}`]: null
       });
       showToast('Accusation envoyée !', 'info');
-    } catch (e) { showToast('Erreur réseau', 'error'); }
+    } catch (e) { showToast(t('err.network'), 'error'); }
     finally { isProcessing = false; }
   }
 
@@ -688,7 +693,7 @@ export function mount(root, api) {
       updates[`players/${playerId}/bluffSuccessStreak`] = _s;
       updates[`players/${playerId}/maxBluffSuccessStreak`] = Math.max(me.maxBluffSuccessStreak || 0, _s);
       updates[`players/${playerId}/bluffFailStreak`] = 0;
-      showToast(`Prouvé ! ${accuserName} boit ${penalty}`, 'success');
+      showToast(t('pyr.provedToast', { name: accuserName, n: penalty }), 'success');
     } else {
       vibrate([200, 100, 200]);
       updates[`players/${playerId}/sipsToDrink`] = (me.sipsToDrink || 0) + penalty;
@@ -697,12 +702,12 @@ export function mount(root, api) {
       updates[`players/${playerId}/maxBluffFailStreak`] = Math.max(me.maxBluffFailStreak || 0, _f);
       updates[`players/${playerId}/bluffSuccessStreak`] = 0;
       updates[`players/${playerId}/menteurCaught`] = (me.menteurCaught || 0) + 1;
-      showToast(`Pris ! Tu bois ${penalty}`, 'error');
+      showToast(t('pyr.caughtToast', { n: penalty }), 'error');
     }
     const now = Date.now();
     updates[`eventLog/${now}`] = { type: 'menteur_resolved', accusedName: me.name, accuserName, correct, penalty, timestamp: now };
     try { await update(gameRef, updates); }
-    catch (e) { showToast('Erreur réseau — réessaie', 'error'); }
+    catch (e) { showToast(t('err.network'), 'error'); }
     finally { isProcessing = false; }
   }
 
@@ -718,23 +723,23 @@ export function mount(root, api) {
       const isCulSec = event.isCulSec;
       const isMeFrom = event.fromId === playerId;
       const isMeTo   = event.toId   === playerId;
-      amt = isCulSec ? 'CUL SEC' : `${event.amount} gorgée${event.amount > 1 ? 's' : ''}`;
+      amt = isCulSec ? t('oral.bottomsUp') : sipsTxt(event.amount);
       if (isCulSec) amtRed = true;
-      if (isMeFrom)      { accent = 'me-give';  icon = 'fa-hand-holding-droplet'; msg = `Tu donnes à <strong>${event.toName}</strong>`; }
+      if (isMeFrom)      { accent = 'me-give';  icon = 'fa-hand-holding-droplet'; msg = t('game.youGiveTo', { name: `<strong>${event.toName}</strong>` }); }
       else if (isMeTo)   { accent = 'me-drink'; icon = 'fa-beer-mug-empty';       msg = `<strong>${event.fromName}</strong> te donne`; amtRed = true; }
       else               { accent = 'spectate'; icon = 'fa-arrow-right-arrow-left'; msg = `<strong>${event.fromName}</strong> → <strong>${event.toName}</strong>`; }
     } else if (event.type === 'menteur_resolved') {
       const isMeAccused = event.accusedId === playerId;
       const isMeAccuser = event.accuserId === playerId;
-      amt = `${event.penalty} gorgée${event.penalty > 1 ? 's' : ''}`;
+      amt = sipsTxt(event.penalty);
       amtRed = true;
       if (event.correct) {
-        if (isMeAccuser)      { accent = 'me-drink'; icon = 'fa-beer-mug-empty'; msg = `<strong>${event.accusedName}</strong> avait la carte… tu bois`; }
-        else if (isMeAccused) { accent = 'win';      icon = 'fa-shield-halved';  msg = `Tu as prouvé ! <strong>${event.accuserName}</strong> boit`; }
-        else                  { accent = 'spectate'; icon = 'fa-shield-halved';  msg = `<strong>${event.accusedName}</strong> avait la carte — <strong>${event.accuserName}</strong> boit`; }
+        if (isMeAccuser)      { accent = 'me-drink'; icon = 'fa-beer-mug-empty'; msg = t('pyr.hadCardYouDrink', { name: `<strong>${event.accusedName}</strong>` }); }
+        else if (isMeAccused) { accent = 'win';      icon = 'fa-shield-halved';  msg = t('pyr.youProvedDrinks', { name: `<strong>${event.accuserName}</strong>` }); }
+        else                  { accent = 'spectate'; icon = 'fa-shield-halved';  msg = t('pyr.hadCardOtherDrinks', { a: `<strong>${event.accusedName}</strong>`, b: `<strong>${event.accuserName}</strong>` }); }
       } else {
-        if (isMeAccused)      { accent = 'me-drink'; icon = 'fa-face-frown-open'; msg = `Tu as menti… tu bois`; }
-        else                  { accent = 'spectate'; icon = 'fa-face-frown-open'; msg = `<strong>${event.accusedName}</strong> mentait !`; }
+        if (isMeAccused)      { accent = 'me-drink'; icon = 'fa-face-frown-open'; msg = t('pyr.youLiedDrink'); }
+        else                  { accent = 'spectate'; icon = 'fa-face-frown-open'; msg = t('pyr.wasLying', { name: `<strong>${event.accusedName}</strong>` }); }
       }
     } else { return; }
 
@@ -768,15 +773,15 @@ export function mount(root, api) {
 
     const isMeAccused = ev.accusedId === playerId;
     const isMeAccuser = ev.accuserId === playerId;
-    const pen = `${ev.penalty} gorgée${ev.penalty > 1 ? 's' : ''}`;
+    const pen = sipsTxt(ev.penalty);
     let accent = '', who = '', sub = '';
     if (ev.correct) {
-      if (isMeAccuser)      { accent = 'me-drink'; who = 'Accusation ratée';               sub = `${ev.accusedName} avait la carte — tu bois ${pen}`; }
-      else if (isMeAccused) { accent = 'win';      who = 'Tu as prouvé !';                  sub = `${ev.accuserName} boit ${pen}`; }
-      else                  { accent = '';         who = `${ev.accusedName} avait la carte`; sub = `${ev.accuserName} boit ${pen}`; }
+      if (isMeAccuser)      { accent = 'me-drink'; who = t('pyr.failedAccusation');        sub = t('pyr.hadCardYouDrinkN', { name: ev.accusedName, pen }); }
+      else if (isMeAccused) { accent = 'win';      who = t('pyr.youProved');               sub = t('pyr.drinksN', { name: ev.accuserName, pen }); }
+      else                  { accent = '';         who = t('pyr.hadCard', { name: ev.accusedName }); sub = t('pyr.drinksN', { name: ev.accuserName, pen }); }
     } else {
-      if (isMeAccused)      { accent = 'me-drink'; who = 'Tu as menti…';                    sub = `Tu bois ${pen}`; }
-      else                  { accent = '';         who = `${ev.accusedName} mentait !`;      sub = `${ev.accusedName} boit ${pen}`; }
+      if (isMeAccused)      { accent = 'me-drink'; who = t('pyr.youLied');                 sub = t('pyr.youDrinkN', { pen }); }
+      else                  { accent = '';         who = t('pyr.wasLyingPlain', { name: ev.accusedName }); sub = t('pyr.drinksN', { name: ev.accusedName, pen }); }
     }
     $('proof-who').textContent    = who;
     $('proof-result').textContent = sub;
@@ -844,7 +849,7 @@ export function mount(root, api) {
         showToast('Bonne mémoire !', 'success');
       }
     } catch (e) {
-      showToast('Erreur réseau — réessaie', 'error');
+      showToast(t('err.network'), 'error');
       _mRes[_mIdx] = null;
     }
     _renderMemHand();
@@ -885,13 +890,13 @@ export function mount(root, api) {
     el.innerHTML = '';
     Object.entries(game.players || {}).forEach(([id, p]) => {
       const status = p.memoryDone
-        ? '<span style="color:var(--green);font-weight:700">✅ Terminé</span>'
+        ? `<span style="color:var(--green);font-weight:700">✅ ${t('pyr.finished')}</span>`
         : (id === playerId
             ? `<span class="text-muted">${_mRes.filter(r=>r!==null).length} / 4</span>`
-            : '<span class="text-muted">En cours…</span>');
+            : `<span class="text-muted">${t('pyr.inProgress')}</span>`);
       const row = document.createElement('div');
       row.className = 'mem-prog-row';
-      row.innerHTML = `${avatarHTML(p.avatar, 30)}<span class="font-bold" style="flex:1">${p.name}${id===playerId?' (toi)':''}</span>${status}`;
+      row.innerHTML = `${avatarHTML(p.avatar, 30)}<span class="font-bold" style="flex:1">${p.name}${id===playerId?` (${t('wait.you')})`:''}</span>${status}`;
       el.appendChild(row);
     });
   }
@@ -899,7 +904,7 @@ export function mount(root, api) {
   function renderMemoryUI() {
     _buildMemModal();
     if (game.players[playerId]?.memoryDone) {
-      $('mem-hand').innerHTML = '<p class="text-muted text-sm text-center" style="padding:8px">En attente des autres joueurs…</p>';
+      $('mem-hand').innerHTML = `<p class="text-muted text-sm text-center" style="padding:8px">${t('pyr.waitingOthers')}</p>`;
       $('mem-done-wrap').classList.add('hidden');
     } else {
       _renderMemHand();
@@ -919,7 +924,7 @@ export function mount(root, api) {
     $('proof-top').textContent = `${card.value}${sym}`;
     $('proof-sym').textContent = sym;
     $('proof-bot').textContent = `${card.value}${sym}`;
-    $('proof-who').textContent = `${name} : ${correct ? '✅ correct' : '❌ raté +3🍺'}`;
+    $('proof-who').textContent = `${name} : ${correct ? `✅ ${t('mem2.correct')}` : `❌ ${t('mem2.wrong')}`}`;
     $('proof-result').innerHTML = `disparaît dans <span id="proof-countdown">4</span>s`;
     notif.className = 'card-notif show';
     let c = 4;

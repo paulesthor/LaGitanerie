@@ -5,7 +5,11 @@ import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/f
 import { doc, getDoc, setDoc, increment } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { clearGameSession } from '/js/game/utils.js';
 import { avatarHTML } from '/js/game/avatar.js';
-import { BADGES, TITLES, evaluateGameRewards } from '/js/game/badges.js';
+import { BADGES, TITLES, evaluateGameRewards, rewardName, rewardDesc } from '/js/game/badges.js';
+
+// Raccourci de traduction (window.t vient de /js/i18n.js, chargé dans le <head>)
+const t = (k, v) => (window.t ? window.t(k, v) : k);
+const sipsTxt = (n) => t(n > 1 ? 'game.sipsN' : 'game.sip1', { n });
 
 const END_VIEW = `
   <div class="screen">
@@ -16,22 +20,22 @@ const END_VIEW = `
     </header>
     <div class="page-content">
       <div class="card flex-col gap-12">
-        <h3><i class="fas fa-beer" style="color:var(--orange)"></i> Qui a bu le plus ?</h3>
+        <h3><i class="fas fa-beer" style="color:var(--orange)"></i> <span data-i18n="end.whoDrank">Qui a bu le plus ?</span></h3>
         <div id="podium-drunk" class="flex-col gap-8"></div>
       </div>
       <div class="card flex-col gap-12">
-        <h3><i class="fas fa-trophy" style="color:var(--orange)"></i> Distinctions</h3>
+        <h3><i class="fas fa-trophy" style="color:var(--orange)"></i> <span data-i18n="end.awards">Distinctions</span></h3>
         <div id="highlights" class="flex-col gap-8"></div>
       </div>
       <div class="card flex-col gap-12">
-        <h3><i class="fas fa-chart-bar" style="color:var(--orange)"></i> Stats de la partie</h3>
+        <h3><i class="fas fa-chart-bar" style="color:var(--orange)"></i> <span data-i18n="end.gameStats">Stats de la partie</span></h3>
         <div id="stats" class="stat-card"></div>
       </div>
       <div id="badges-section" class="hidden flex-col gap-12">
         <div class="section-divider"></div>
         <div class="flex items-center gap-10">
           <i class="fas fa-trophy" style="color:var(--orange)"></i>
-          <h3>Nouveau badge débloqué !</h3>
+          <h3 data-i18n="end.newBadge">Nouveau badge débloqué !</h3>
         </div>
         <div id="badges-list" class="flex-col gap-10"></div>
       </div>
@@ -39,18 +43,18 @@ const END_VIEW = `
         <div class="section-divider"></div>
         <div class="flex items-center gap-10">
           <i class="fas fa-medal" style="color:var(--orange)"></i>
-          <h3 id="titles-heading">Nouveau titre débloqué !</h3>
+          <h3 id="titles-heading" data-i18n="end.newTitle">Nouveau titre débloqué !</h3>
         </div>
         <div id="titles-list" class="flex-col gap-10"></div>
       </div>
       <div id="xp-section" class="xp-section hidden flex-col gap-8">
-        <p class="text-sm text-muted">XP gagné cette partie</p>
+        <p class="text-sm text-muted" data-i18n="end.xpGained">XP gagné cette partie</p>
         <div style="font-size:2rem;font-weight:700;color:var(--gold)">+<span id="xp-amount">0</span> XP</div>
-        <p id="xp-bonus-note" class="text-sm text-muted hidden">dont un petit bonus de participation</p>
+        <p id="xp-bonus-note" class="text-sm text-muted hidden" data-i18n="end.xpBonus">dont un petit bonus de participation</p>
       </div>
       <div class="flex-col gap-12 mt-auto">
-        <button id="btn-replay" class="btn btn-primary"><i class="fas fa-redo"></i> Rejouer</button>
-        <button id="btn-home" class="btn btn-secondary"><i class="fas fa-flag-checkered"></i> Fin de partie</button>
+        <button id="btn-replay" class="btn btn-primary"><i class="fas fa-redo"></i> <span data-i18n="end.replay">Rejouer</span></button>
+        <button id="btn-home" class="btn btn-secondary"><i class="fas fa-flag-checkered"></i> <span data-i18n="end.finish">Fin de partie</span></button>
       </div>
     </div>
   </div>`;
@@ -65,14 +69,14 @@ const END_VIEW_ORAL = `
     <div class="page-content" style="justify-content:center">
       <div class="card flex-col gap-14 text-center">
         <div style="font-size:3rem">🎉</div>
-        <h2>Partie terminée !</h2>
-        <p class="text-sm text-muted">Mode Soirée — santé à tous 🍻</p>
+        <h2 data-i18n="end.gameOver">Partie terminée !</h2>
+        <p class="text-sm text-muted" data-i18n="end.oralSub">Mode Soirée — santé à tous 🍻</p>
         <div id="oral-end-players" class="flex-col gap-8" style="margin-top:6px"></div>
-        <div id="oral-end-note" class="text-sm text-muted hidden"><i class="fas fa-check-circle" style="color:var(--green)"></i> Partie ajoutée à ton compteur</div>
+        <div id="oral-end-note" class="text-sm text-muted hidden"><i class="fas fa-check-circle" style="color:var(--green)"></i> <span data-i18n="end.counted">Partie ajoutée à ton compteur</span></div>
       </div>
       <div class="flex-col gap-12 mt-auto">
-        <button id="btn-replay" class="btn btn-primary"><i class="fas fa-redo"></i> Nouvelle partie</button>
-        <button id="btn-home" class="btn btn-secondary"><i class="fas fa-flag-checkered"></i> Menu</button>
+        <button id="btn-replay" class="btn btn-primary"><i class="fas fa-redo"></i> <span data-i18n="end.newGame">Nouvelle partie</span></button>
+        <button id="btn-home" class="btn btn-secondary"><i class="fas fa-flag-checkered"></i> <span data-i18n="game.menu">Menu</span></button>
       </div>
     </div>
   </div>`;
@@ -179,9 +183,9 @@ export function mount(root, api) {
     const luckiest   = [...players].sort((a,b) => (a.sipsToDrink||0) - (b.sipsToDrink||0))[0];
 
     const awards = [
-      { icon:'<i class="fas fa-hand-holding-heart" style="color:var(--orange)"></i>', label:'Gitan généreux', desc:`${bigGiver?.name} a donné le plus de gorgées`, value:(bigGiver?.sipsGiven||0) > 0 ? `${bigGiver.sipsGiven} gorgées` : '—' },
-      { icon:'<i class="fas fa-skull" style="color:var(--red)"></i>', label:'Grand buveur', desc:`${bigDrinker?.name} a bu le plus`, value:(bigDrinker?.sipsToDrink||0) > 0 ? `${bigDrinker.sipsToDrink} gorgées` : '—' },
-      { icon:'<i class="fas fa-clover" style="color:var(--green)"></i>', label:'Chanceux', desc:`${luckiest?.name} a bu le moins`, value:(luckiest?.sipsToDrink||0) > 0 ? `${luckiest.sipsToDrink} gorgées` : 'Sobre !' },
+      { icon:'<i class="fas fa-hand-holding-heart" style="color:var(--orange)"></i>', label:t('end.generous'), desc:t('end.generousDesc', { name: bigGiver?.name }), value:(bigGiver?.sipsGiven||0) > 0 ? sipsTxt(bigGiver.sipsGiven) : '—' },
+      { icon:'<i class="fas fa-skull" style="color:var(--red)"></i>', label:t('end.bigDrinker'), desc:t('end.bigDrinkerDesc', { name: bigDrinker?.name }), value:(bigDrinker?.sipsToDrink||0) > 0 ? sipsTxt(bigDrinker.sipsToDrink) : '—' },
+      { icon:'<i class="fas fa-clover" style="color:var(--green)"></i>', label:t('end.lucky'), desc:t('end.luckyDesc', { name: luckiest?.name }), value:(luckiest?.sipsToDrink||0) > 0 ? sipsTxt(luckiest.sipsToDrink) : t('end.sober') },
     ];
     awards.forEach((a, i) => {
       const el = document.createElement('div');
@@ -203,12 +207,12 @@ export function mount(root, api) {
     const myRank     = byDrunk.findIndex(p => p.id === playerId) + 1;
 
     const statRows = [
-      ['Total de gorgées bues', `${totalDrunk} 🍺`],
-      ['Total de gorgées données', `${totalGiven} 🍺`],
+      [t('end.totalDrunk'), `${totalDrunk} 🍺`],
+      [t('end.totalGiven'), `${totalGiven} 🍺`],
       ['Mon classement', `${myRank} / ${players.length}`],
-      ['Mes gorgées bues', `${me?.sipsToDrink||0} 🍺`],
-      ['Mes gorgées données', `${me?.sipsGiven||0} 🍺`],
-      ['Nombre de joueurs', players.length],
+      [t('end.myDrunk'), `${me?.sipsToDrink||0} 🍺`],
+      [t('end.myGiven'), `${me?.sipsGiven||0} 🍺`],
+      [t('end.playerCount'), players.length],
     ];
     const stats = $('stats');
     statRows.forEach(([label, value], i) => {
@@ -280,7 +284,7 @@ export function mount(root, api) {
         const section = $('badges-section');
         const list    = $('badges-list');
         section.classList.remove('hidden');
-        if (newBadges.length > 1) root.querySelector('#badges-section h3').textContent = `${newBadges.length} badges débloqués !`;
+        if (newBadges.length > 1) root.querySelector('#badges-section h3').textContent = t('end.nBadges', { n: newBadges.length });
         newBadges.forEach((id, idx) => {
           const def = BADGES[id]; if (!def) return;
           const card = document.createElement('div');
@@ -291,8 +295,8 @@ export function mount(root, api) {
               <i class="${def.icon}" style="color:${def.textColor};font-size:2rem"></i>
             </div>
             <div class="text-center flex-col gap-4">
-              <span class="font-bold" style="font-size:1rem">${def.name}</span>
-              <span class="text-sm text-muted">${def.desc}</span>
+              <span class="font-bold" style="font-size:1rem">${rewardName(def)}</span>
+              <span class="text-sm text-muted">${rewardDesc(def)}</span>
             </div>`;
           list.appendChild(card);
         });
@@ -302,7 +306,7 @@ export function mount(root, api) {
         const section = $('titles-section');
         const list    = $('titles-list');
         section.classList.remove('hidden');
-        if (newTitles.length > 1) $('titles-heading').textContent = `${newTitles.length} nouveaux titres !`;
+        if (newTitles.length > 1) $('titles-heading').textContent = t('end.nTitles', { n: newTitles.length });
         newTitles.forEach((id, idx) => {
           const def = TITLES[id]; if (!def) return;
           const el = document.createElement('div');
@@ -311,8 +315,8 @@ export function mount(root, api) {
           el.innerHTML = `
             <div class="stat-highlight-icon"><i class="fas fa-award" style="color:var(--gold)"></i></div>
             <div class="flex-col gap-4" style="flex:1">
-              <span class="font-bold">${def.name}</span>
-              <span class="text-sm text-muted">${def.desc}</span>
+              <span class="font-bold">${rewardName(def)}</span>
+              <span class="text-sm text-muted">${rewardDesc(def)}</span>
             </div>`;
           list.appendChild(el);
         });
@@ -357,10 +361,12 @@ export function mount(root, api) {
     _rendered = true;
     if (game.mode === 'oral') {
       root.innerHTML = END_VIEW_ORAL;
+      window.I18N && window.I18N.apply(root);
       bindButtons();
       renderOral(game);
     } else {
       root.innerHTML = END_VIEW;
+      window.I18N && window.I18N.apply(root);
       bindButtons();
       render(game);
     }

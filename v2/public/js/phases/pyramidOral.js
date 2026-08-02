@@ -8,13 +8,16 @@ import { ref, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/
 import { showToast, SUIT_SYMBOL, getSipsForCard, clearGameSession } from '/js/game/utils.js';
 import { isPhotoAvatar } from '/js/game/avatar.js';
 
+// Raccourci de traduction (window.t vient de /js/i18n.js, chargé dans le <head>)
+const t = (k, v) => (window.t ? window.t(k, v) : k);
+
 const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate?.(p));
 const REVEAL_MS = 2500;  // durée d'affichage (carte montrée + notif) puis re-cachée
 
 const VIEW = `
   <div class="oral-screen">
-    <button class="oral-leave" id="btn-leave" title="Quitter"><i class="fas fa-door-open"></i></button>
-    <div class="oral-code">Partie <span id="oral-code-val" style="color:var(--gold)">----</span></div>
+    <button class="oral-leave" id="btn-leave" data-i18n-title="oral.quit"><i class="fas fa-door-open"></i></button>
+    <div class="oral-code"><span data-i18n="game.game">Partie</span> <span id="oral-code-val" style="color:var(--gold)">----</span></div>
 
     <div class="oral-stage">
       <div id="oral-progress" class="oral-progress">—</div>
@@ -23,16 +26,16 @@ const VIEW = `
     </div>
 
     <div class="oral-hand-wrap">
-      <p class="oral-hint" id="oral-hint">Tes cartes — double-tape pour montrer</p>
+      <p class="oral-hint" id="oral-hint" data-i18n="oral.handHint">Tes cartes — double-tape pour montrer</p>
       <div id="oral-hand" class="oral-hand"></div>
     </div>
 
     <div id="oral-host-bar" class="oral-host-bar hidden">
       <button id="btn-flip" class="btn btn-primary" style="font-size:1.05rem;padding:16px">
-        <i class="fas fa-hand-pointer"></i> <span id="btn-flip-label">Retourner la carte</span>
+        <i class="fas fa-hand-pointer"></i> <span id="btn-flip-label" data-i18n="oral.flip">Retourner la carte</span>
       </button>
     </div>
-    <p id="oral-wait" class="oral-wait hidden">En attente que l'hôte retourne la carte…</p>
+    <p id="oral-wait" class="oral-wait hidden" data-i18n="oral.waitFlip">En attente que l'hôte retourne la carte…</p>
 
     <div id="oral-reveal-stack" class="oral-reveal-stack"></div>
   </div>`;
@@ -40,6 +43,7 @@ const VIEW = `
 export function mount(root, api) {
   const { gameId, playerId, isHost } = api;
   root.innerHTML = VIEW;
+  window.I18N && window.I18N.apply(root);
   const $ = (id) => root.querySelector('#' + id);
   const gameRef = ref(db, `games/${gameId}`);
 
@@ -52,7 +56,7 @@ export function mount(root, api) {
   let _tapTimes = {};
 
   $('btn-leave').onclick = async () => {
-    if (!confirm('Quitter la partie ?')) return;
+    if (!confirm(t('oral.confirmQuit'))) return;
     try { await remove(ref(db, `games/${gameId}/players/${playerId}`)); } catch (e) {}
     clearGameSession();
     window.location.href = '/';
@@ -99,8 +103,8 @@ export function mount(root, api) {
     chip.innerHTML = `
       <div class="orv-mini ${isRed ? 'red' : 'black'}">${rev.value || ''}${sym}</div>
       <div class="orv-txt">
-        <div class="orv-who">${rev.name || 'Un joueur'}</div>
-        <div class="orv-sub">montre sa carte</div>
+        <div class="orv-who">${rev.name || t('oral.aPlayer')}</div>
+        <div class="orv-sub">${t('oral.showsCard')}</div>
       </div>`;
     stack.appendChild(chip);
     vibrate(30);
@@ -123,7 +127,7 @@ export function mount(root, api) {
       }
       // Nouvelle carte → on efface les preuves de la carte précédente.
       await update(gameRef, { oralIndex: idx, oralReveals: null });
-    } catch (e) { showToast('Erreur réseau', 'error'); }
+    } catch (e) { showToast(t('err.network'), 'error'); }
     finally { _flipping = false; }
   }
 
@@ -144,8 +148,8 @@ export function mount(root, api) {
     const isLast = idx >= total - 1;
     if (isHost) {
       $('oral-host-bar').classList.remove('hidden');
-      $('btn-flip-label').textContent = idx < 0 ? 'Retourner la première carte'
-        : (isLast ? 'Terminer la partie' : 'Carte suivante');
+      $('btn-flip-label').textContent = idx < 0 ? t('oral.flipFirst')
+        : (isLast ? t('oral.finish') : t('oral.nextCard'));
     } else {
       $('oral-wait').classList.toggle('hidden', idx >= 0);
     }
@@ -158,7 +162,7 @@ export function mount(root, api) {
     // Aucune carte encore retournée
     if (idx < 0) {
       $('oral-py-slot').innerHTML = '<div class="oral-placeholder"><i class="fas fa-layer-group"></i></div>';
-      $('oral-sips').textContent = 'Prêt ?';
+      $('oral-sips').textContent = t('oral.ready');
       $('oral-sips').className = 'oral-sips';
       buildHand();
       return;
@@ -179,8 +183,8 @@ export function mount(root, api) {
       </div>`;
 
     const sipsEl = $('oral-sips');
-    if (isCulSec) { sipsEl.innerHTML = '<i class="fas fa-fire"></i> CUL SEC'; sipsEl.className = 'oral-sips culsec'; }
-    else { sipsEl.textContent = `${sips} gorgée${sips > 1 ? 's' : ''}`; sipsEl.className = 'oral-sips'; }
+    if (isCulSec) { sipsEl.innerHTML = `<i class="fas fa-fire"></i> ${t('oral.bottomsUp')}`; sipsEl.className = 'oral-sips culsec'; }
+    else { sipsEl.textContent = t(sips > 1 ? 'game.sipsN' : 'game.sip1', { n: sips }); sipsEl.className = 'oral-sips'; }
     vibrate(15);
     buildHand();
   }
@@ -236,10 +240,10 @@ export function mount(root, api) {
     _hideTimer = setTimeout(hideAllCards, REVEAL_MS);
     try {
       await update(ref(db, `games/${gameId}/oralReveals/${playerId}`), {
-        name: game.players?.[playerId]?.name || 'Joueur',
+        name: game.players?.[playerId]?.name || t('game.player'),
         value: card.value, suit: card.suit, ts: Date.now(),
       });
-    } catch (e) { showToast('Erreur réseau', 'error'); }
+    } catch (e) { showToast(t('err.network'), 'error'); }
   }
 
   function unmount() {

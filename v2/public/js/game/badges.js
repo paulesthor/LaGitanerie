@@ -7,6 +7,22 @@
 //   sipsThisGame, givenThisGame, bluffThisGame, culSec, memoryPerfect  (cette partie)
 //   isTopDrinker, isTopGiver, isSober, isLuckiest, numPlayers          (dérivés de la partie)
 
+
+// ── Libellés traduits ──────────────────────────────────────
+// Les noms/descriptions restent en français dans le catalogue (source de
+// vérité). rewardName/rewardDesc cherchent une traduction 'reward.<id>.name'
+// et retombent sur le français si la clé n'existe pas — un badge ajouté sans
+// traduction reste donc lisible au lieu d'afficher sa clé.
+function tr(key, fallback) {
+  if (!window.t) return fallback;
+  const v = window.t(key);
+  return v === key ? fallback : v;
+}
+export const rewardName = (d) => (d ? tr(`reward.${d.id}.name`, d.name) : '');
+export const rewardDesc = (d) => (d ? tr(`reward.${d.id}.desc`, d.desc) : '');
+// Les cadres ont leur propre préfixe : l'id « legend » existe aussi côté badges.
+export const borderName = (d) => (d ? tr(`reward.border_${d.id}.name`, d.name) : '');
+
 export const BADGES = {
   first_game: {
     id: 'first_game', name: 'Premier verre', desc: 'Terminer sa première partie',

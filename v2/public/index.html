@@ -536,10 +536,10 @@
     import { doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import { ref as dbRef, get as dbGet, set as dbSet, update as dbUpdate, remove as dbRemove, onValue as dbOnValue } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
     import { getGuestName, setGuestName, getGuestAvatar, setGuestAvatar, showToast } from '/js/game/utils.js';
-    import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
+    import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v109';
+    const APP_BUILD = 'v110';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -816,10 +816,10 @@
       const badgeEl= document.getElementById('home-user-badge');
       const acc    = document.getElementById('home-btn-account');
       nameEl.textContent = d.displayName || 'Joueur';
-      titleEl.textContent = (d.activeTitle && TITLES[d.activeTitle]) ? TITLES[d.activeTitle].name : '';
+      titleEl.textContent = (d.activeTitle && TITLES[d.activeTitle]) ? rewardName(TITLES[d.activeTitle]) : '';
       if (d.activeBadge && BADGES[d.activeBadge]) {
         const bd = BADGES[d.activeBadge];
-        badgeEl.innerHTML = `<span title="${bd.name}" style="display:inline-flex;width:20px;height:20px;border-radius:6px;align-items:center;justify-content:center;background:${bd.bg};box-shadow:0 2px 6px ${bd.glow}"><i class="${bd.icon}" style="color:${bd.textColor};font-size:.72rem"></i></span>`;
+        badgeEl.innerHTML = `<span title="${rewardName(bd)}" style="display:inline-flex;width:20px;height:20px;border-radius:6px;align-items:center;justify-content:center;background:${bd.bg};box-shadow:0 2px 6px ${bd.glow}"><i class="${bd.icon}" style="color:${bd.textColor};font-size:.72rem"></i></span>`;
       } else badgeEl.innerHTML = '';
       wrap.className = d.activeBorder ? `avatar-framed border-${d.activeBorder}` : '';
       wrap.style.flexShrink = '0';
@@ -883,15 +883,15 @@
         const def = TITLES[id]; if (!def) return;
         const pill = document.createElement('button');
         pill.className = 'title-pill' + (id === selectedTitle ? ' active' : '');
-        pill.textContent = def.name;
-        pill.title = def.desc;
+        pill.textContent = rewardName(def);
+        pill.title = rewardDesc(def);
         pill.onclick = () => { selectedTitle = id; renderTitles(owned, id); updateProfileTitle(); saveActive({ activeTitle: id }); };
         grid.appendChild(pill);
       });
     }
     function updateProfileTitle() {
       const el = document.getElementById('profile-title');
-      el.textContent = (selectedTitle && TITLES[selectedTitle]) ? TITLES[selectedTitle].name : '';
+      el.textContent = (selectedTitle && TITLES[selectedTitle]) ? rewardName(TITLES[selectedTitle]) : '';
     }
 
     async function unlockPseudoTitles(pseudo) {
@@ -911,8 +911,8 @@
         <div class="title-unlock-card">
           <div class="tu-crown"><i class="fas fa-crown"></i></div>
           <div class="tu-label">Titre secret débloqué</div>
-          <div class="tu-name">${def.name}</div>
-          <div class="tu-desc">${def.desc}</div>
+          <div class="tu-name">${rewardName(def)}</div>
+          <div class="tu-desc">${rewardDesc(def)}</div>
           <button class="btn btn-primary tu-ok">${titleId === 'oss117' ? 'Hassoul' : 'Stylé'}</button>
         </div>`;
       document.body.appendChild(ov);
@@ -936,9 +936,9 @@
           <div class="badge-hex" style="${earned ? `background:${def.bg};--badge-glow:${def.glow};box-shadow:0 4px 14px ${def.glow}` : 'background:var(--bg-raised)'}">
             <i class="${def.icon}" style="color:${earned ? def.textColor : 'var(--text-muted)'}"></i>
           </div>
-          <span class="badge-hex-label">${def.name}</span>`;
+          <span class="badge-hex-label">${rewardName(def)}</span>`;
         if (earned) {
-          wrap.title = def.desc;
+          wrap.title = rewardDesc(def);
           wrap.onclick = () => selectBadge(def.id, earnedIds);
         }
         grid.appendChild(wrap);
@@ -961,7 +961,7 @@
         icon.style.background = def.bg;
         icon.style.boxShadow = `0 3px 10px ${def.glow}`;
         icon.innerHTML = `<i class="${def.icon}" style="color:${def.textColor};font-size:.9rem"></i>`;
-        name.textContent = def.name;
+        name.textContent = rewardName(def);
         clearBtn.classList.remove('hidden');
         clearBtn.onclick = () => { selectedBadge = null; updateActiveBadgePreview(null); saveActive({ activeBadge: null }); };
       } else {
@@ -999,7 +999,7 @@
           <div class="border-option ${isUnlocked ? '' : 'locked'} ${isActive ? 'selected' : ''}" style="background:${b.gradient || `conic-gradient(from var(--border-angle),#f39c12,#e74c3c,#9b59b6,#f39c12)`}${b.animated ? ';animation:border-spin 2.5s linear infinite' : ''}">
             <div class="border-option-inner"></div>
           </div>
-          <span class="badge-hex-label">${b.name}${!isUnlocked ? `<br>Niv.${b.minLevel}` : ''}</span>`;
+          <span class="badge-hex-label">${borderName(b)}${!isUnlocked ? `<br>${window.t ? window.t("common.levelShort") : "Niv."}${b.minLevel}` : ''}</span>`;
         if (isUnlocked) {
           el.onclick = () => { selectedBorder = b.id; renderBorders(level, b.id); applyProfileBorder(b.id); saveActive({ activeBorder: b.id }); };
         }
