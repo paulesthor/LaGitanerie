@@ -560,10 +560,12 @@ p  { font-size: 0.9rem; line-height: 1.55; color: var(--text-muted); }
 /* Scroll natif fluide iOS */
 .player-hand, #event-log { -webkit-overflow-scrolling: touch; }
 
-/* ── Transitions de navigation ──
-   Voir le bloc « Transitions entre les pages » en fin de fichier.
-   (L'ancienne animation page-enter, elle, reste supprimée : elle doublait la
-   transition et provoquait un sursaut au chargement.) */
+/* ── Transitions de navigation : DÉSACTIVÉES ──
+   L'animation d'entrée de page (page-enter) + les View Transitions faisaient
+   se superposer l'ancienne et la nouvelle page (effet fantôme / scintillement).
+   Le fond sombre étant peint immédiatement (style inline en tête de page), la
+   navigation est nette et instantanée sans aucun fondu.
+   Voir aussi le bloc en fin de fichier. */
 
 /* ── Utilitaires animation ── */
 @keyframes slide-up-fade {
@@ -575,37 +577,9 @@ p  { font-size: 0.9rem; line-height: 1.55; color: var(--text-muted); }
   to   { opacity: 1; transform: scale(1); }
 }
 
-/* ══════════ Transitions entre les pages ══════════
-   Le site est un multi-pages : chaque navigation est un vrai chargement de
-   document, d'où les clignotements. L'API View Transitions garde à l'écran
-   l'image de la page quittée jusqu'au premier rendu de la suivante, puis
-   enchaîne les deux — plus aucun écran vide entre les deux.
-   Sans support (iOS < 18.2), la navigation reste exactement celle d'avant. */
-@view-transition { navigation: auto; }
-
-/* CLÉ DU PROBLÈME D'EFFET FANTÔME : par défaut le navigateur compose les deux
-   images en `plus-lighter` (les luminosités s'additionnent). Ça ne fonctionne
-   qu'avec le fondu croisé d'origine, dont les deux opacités sont exactement
-   complémentaires. Toute animation personnalisée casse cet équilibre et fait
-   apparaître un aplat surexposé au milieu — le « fantôme ». On repasse donc en
-   composition normale : la nouvelle page est simplement peinte AU-DESSUS de
-   l'ancienne, qui reste opaque et immobile en dessous. Aucun mélange possible,
-   donc aucun scintillement. */
-::view-transition-old(root),
-::view-transition-new(root) { mix-blend-mode: normal; }
-
-::view-transition-old(root) { animation: none; opacity: 1; }
-::view-transition-new(root) {
-  animation: gita-page-in .2s cubic-bezier(.4, 0, .2, 1);
-}
-@keyframes gita-page-in { from { opacity: 0; } }
-
-/* L'en-tête n'a pas besoin d'être isolé : il est identique d'une page à
-   l'autre, donc l'ancienne image reste dessous, pixel pour pixel, pendant que
-   la nouvelle apparaît. Il paraît strictement immobile. */
-
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) { animation: none !important; }
-}
+/* ══════════ Transitions entre les pages : DÉSACTIVÉES ══════════
+   Deuxième tentative avec l'API View Transitions (navigation: auto), écartée
+   comme la première : sur ce site elle AJOUTE des clignotements au lieu d'en
+   supprimer. Constaté sur iPhone. Ne pas réactiver sans pouvoir tester sur
+   l'appareil — le fond sombre peint dès l'en-tête du document suffit à rendre
+   la navigation nette. */
