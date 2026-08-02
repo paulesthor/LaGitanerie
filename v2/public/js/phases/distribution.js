@@ -102,8 +102,16 @@ export function mount(root, api) {
     requestAnimationFrame(() => { _rafPending = false; renderUI(); });
   }
 
+  // Une seule fenêtre du bas à la fois : deux .modal-overlay partagent le même
+  // z-index, deux ouvertures simultanées se superposeraient en assombrissant
+  // deux fois le fond, sans qu'on sache laquelle se ferme au clic.
+  function openModal(id) {
+    root.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+    const el = $(id); if (el) el.classList.add('show');
+  }
+
   // Menu
-  $('btn-menu').onclick = () => $('modal-menu').classList.add('show');
+  $('btn-menu').onclick = () => openModal('modal-menu');
   $('modal-menu').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) e.currentTarget.classList.remove('show');
   });
@@ -361,7 +369,7 @@ export function mount(root, api) {
       btn.onclick = () => assignSips(id, sips);
       grid.appendChild(btn);
     });
-    $('modal-target').classList.add('show');
+    openModal('modal-target');
   }
 
   async function assignSips(targetId, sips) {

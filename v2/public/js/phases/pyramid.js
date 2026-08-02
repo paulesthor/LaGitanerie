@@ -177,6 +177,14 @@ export function mount(root, api) {
   };
   document.addEventListener('dblclick', _dblHandler);
 
+  // Une seule fenêtre du bas à la fois : deux .modal-overlay partagent le même
+  // z-index, deux ouvertures simultanées se superposeraient en assombrissant
+  // deux fois le fond, sans qu'on sache laquelle se ferme au clic.
+  function openModal(id) {
+    root.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+    const el = $(id); if (el) el.classList.add('show');
+  }
+
   function triggerCulSecFlash() {
     const el = $('cul-sec-flash');
     el.style.opacity = '0.65';
@@ -184,7 +192,7 @@ export function mount(root, api) {
   }
 
   // Menu / modals
-  $('btn-menu').onclick = () => $('modal-menu').classList.add('show');
+  $('btn-menu').onclick = () => openModal('modal-menu');
   $('modal-menu').addEventListener('click', (e) => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
   $('modal-target').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) { e.currentTarget.classList.remove('show'); pendingGiveAction = null; }
@@ -593,7 +601,7 @@ export function mount(root, api) {
       btn.onclick = () => assignSips(id);
       grid.appendChild(btn);
     });
-    $('modal-target').classList.add('show');
+    openModal('modal-target');
   }
 
   async function assignSips(targetId) {
@@ -797,7 +805,10 @@ export function mount(root, api) {
   let _mIdx   = null;
   let _mVal   = null;
   let _mBuilt = false;
-  let _memNotifTimer = null, _memNotifCd = null;
+  // #proof-notif est partagé par showMenteurNotif et showMemRevealNotif : ils
+  // doivent utiliser LES MÊMES minuteurs (proofTimer / proofCountdown), sinon
+  // le minuteur de l'un masque la notification fraîchement affichée par l'autre
+  // et son compte à rebours continue d'écrire dans le nouveau contenu.
 
   function _buildMemModal() {
     if (_mBuilt) return;
@@ -826,7 +837,7 @@ export function mount(root, api) {
     _mIdx = idx; _mVal = null;
     $('mem-val-grid').querySelectorAll('.mem-val-btn').forEach(b => b.classList.remove('sel'));
     $('mem-confirm-btn').disabled = true;
-    $('modal-memory').classList.add('show');
+    openModal('modal-memory');
   }
 
   async function _confirmMem() {
@@ -925,18 +936,18 @@ export function mount(root, api) {
     $('proof-sym').textContent = sym;
     $('proof-bot').textContent = `${card.value}${sym}`;
     $('proof-who').textContent = `${name} : ${correct ? `✅ ${t('mem2.correct')}` : `❌ ${t('mem2.wrong')}`}`;
-    $('proof-result').innerHTML = `disparaît dans <span id="proof-countdown">4</span>s`;
+    $('proof-result').innerHTML = `${t('pyr.vanishIn')} <span id="proof-countdown">4</span>s`;
     notif.className = 'card-notif show';
     let c = 4;
-    clearInterval(_memNotifCd);
-    _memNotifCd = setInterval(() => {
+    clearInterval(proofCountdown);
+    proofCountdown = setInterval(() => {
       c--;
       const el = $('proof-countdown');
       if (el) el.textContent = Math.max(0, c);
-      if (c <= 0) clearInterval(_memNotifCd);
+      if (c <= 0) clearInterval(proofCountdown);
     }, 1000);
-    clearTimeout(_memNotifTimer);
-    _memNotifTimer = setTimeout(() => notif.classList.remove('show'), 4000);
+    clearTimeout(proofTimer);
+    proofTimer = setTimeout(() => notif.classList.remove('show'), 4000);
   }
 
   async function checkAllMemDone() {
@@ -957,8 +968,6 @@ export function mount(root, api) {
     clearInterval(proofCountdown);
     clearTimeout(proofTimer);
     clearTimeout(sipsBannerTimer);
-    clearInterval(_memNotifCd);
-    clearTimeout(_memNotifTimer);
     delete window.__pyr_handleGive;
     delete window.__pyr_handlePass;
     delete window.__pyr_handleDrink;
