@@ -51,8 +51,11 @@
       display:flex; flex-direction:column;
       padding-bottom:104px;   /* dégage la pill flottante */
     }
-    #view-accueil { background:#1b2734; padding-top:env(safe-area-inset-top); }
-    #view-profil, #view-stats, #view-amis, #view-reglages { background:#2c3e50; }
+    /* Aucun fond sur les vues : la couleur vient uniquement du document
+       (pilotée par l'onglet actif). Impossible d'avoir deux teintes qui se
+       rejoignent sous la barre. */
+    #view-accueil { background:transparent; padding-top:env(safe-area-inset-top); }
+    #view-profil, #view-stats, #view-amis, #view-reglages { background:transparent; }
 
     .pane-head { padding:calc(env(safe-area-inset-top) + 18px) 22px 2px; }
     .pane-head h1 {
@@ -76,7 +79,11 @@
       box-shadow:0 12px 32px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.35);
       padding:7px 5px;
       max-width:440px; margin:0 auto;
+      /* Masquée tant que le viewport iOS n'est pas stabilisé : elle apparaît
+         directement à sa place définitive, sans glisser sous les yeux. */
+      opacity:0; transition:opacity .3s ease;
     }
+    .tabbar.ready { opacity:1; }
     .tabbar button {
       flex:1; background:none; border:none; cursor:pointer;
       display:flex; flex-direction:column; align-items:center; gap:4px;
@@ -451,7 +458,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v94';
+    const APP_BUILD = 'v95';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -495,6 +502,26 @@
       window.addEventListener('load', refresh);
       window.addEventListener('pageshow', refresh);
       window.addEventListener('orientationchange', () => setTimeout(refresh, 300));
+
+      // ── Affichage de la barre une fois le viewport stabilisé ──
+      // Au lancement d'une PWA iOS, le viewport grandit par paliers pendant
+      // quelques secondes ; la barre suivrait ce mouvement sous les yeux de
+      // l'utilisateur. On la révèle quand la hauteur ne bouge plus.
+      (function () {
+        const bar = document.querySelector('.tabbar');
+        if (!bar) return;
+        const show = () => { bar.classList.add('ready'); refresh(); };
+        let lastH = window.innerHeight, stableSince = Date.now();
+        const t0 = Date.now();
+        (function watch() {
+          const h = window.innerHeight;
+          if (h !== lastH) { lastH = h; stableSince = Date.now(); refresh(); }
+          // Stable depuis 250 ms → on affiche. Filet de sécurité à 2,5 s.
+          if (Date.now() - stableSince > 250 || Date.now() - t0 > 2500) { show(); return; }
+          requestAnimationFrame(watch);
+        })();
+        setTimeout(show, 3000);   // garantie : la barre finit toujours visible
+      })();
     })();
 
     // ══════════ Onglets ══════════
