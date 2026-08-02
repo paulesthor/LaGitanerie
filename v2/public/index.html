@@ -440,7 +440,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v90';
+    const APP_BUILD = 'v91';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -492,6 +492,7 @@
         const shift = Math.max(0, Math.min(gap - 8, 140));   // 8px de garde
         if (shift > 0) bar.style.transform = `translateY(${shift}px)`;
       }
+      window.__alignBar = alignBar;   // réutilisé par le réalignement au démarrage
 
       function nudgeLayout() {
         const view = document.querySelector('.tab-view.active');
@@ -538,6 +539,31 @@
     document.querySelectorAll('.tabbar button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
     document.getElementById('home-chip').onclick = () => showTab(auth.currentUser && !auth.currentUser.isAnonymous ? 'profil' : 'accueil');
     showTab((location.hash || '').replace('#', '') || 'accueil');
+
+    // ── Réalignement de la barre au démarrage ──
+    // Seul un VRAI changement d'onglet fait qu'iOS repositionne correctement
+    // la barre. On effectue donc un aller-retour showTab() : les deux appels
+    // sont dans le même rendu, donc rien de visible à l'écran.
+    let _userInteracted = false;
+    ['pointerdown', 'touchstart', 'wheel'].forEach(ev =>
+      window.addEventListener(ev, () => { _userInteracted = true; }, { once: true, passive: true }));
+
+    function bootRealign(force) {
+      if (_userInteracted && !force) return;   // ne pas perturber l'utilisateur
+      const cur   = document.querySelector('.tabbar button.active')?.dataset.tab || 'accueil';
+      const other = cur === 'accueil' ? 'profil' : 'accueil';
+      showTab(other);
+      void document.body.offsetHeight;         // force le recalcul iOS
+      showTab(cur);
+      window.__alignBar && window.__alignBar();
+    }
+
+    bootRealign(true);
+    [120, 400, 900, 1800].forEach(ms => setTimeout(() => bootRealign(false), ms));
+    window.addEventListener('pageshow', () => setTimeout(() => bootRealign(true), 80));
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) setTimeout(() => bootRealign(true), 80);
+    });
 
     // ══════════ Puce compte (accueil) ══════════
     function paintHomeChip(d) {
