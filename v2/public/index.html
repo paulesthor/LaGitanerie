@@ -43,9 +43,10 @@
        iOS, s'arrêtent au-dessus de l'indicateur d'accueil (→ vide en bas). */
     .app-shell {
       position:fixed; top:0; left:0; right:0;
-      height:100vh;              /* iOS : 100vh = écran ENTIER (safe area comprise),
-                                    contrairement à dvh / -webkit-fill-available qui
-                                    s'arrêtent au-dessus de l'indicateur d'accueil. */
+      /* Hauteur MESURÉE en JS (window.innerHeight) : sur iOS en PWA, 100dvh et
+         inset:0 sont trop courts, 100vh est trop grand. La mesure directe est
+         la seule valeur fiable → la barre tombe pile au bas de l'écran. */
+      height:var(--vh, 100dvh);
       display:flex; flex-direction:column; overflow:hidden;
     }
     .tab-view { display:none; flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
@@ -447,17 +448,31 @@
     // ce qui faisait « sauter » la barre au 1er changement d'onglet. On la
     // mesure via une sonde et on la verrouille : plus aucun recalcul ensuite.
     (function () {
+      const root = document.documentElement;
       function measureSafe() {
         const p = document.createElement('div');
         p.style.cssText = 'position:fixed;left:0;bottom:0;width:0;height:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
         document.body.appendChild(p);
         const h = Math.round(p.getBoundingClientRect().height);
         p.remove();
-        if (h > 0) document.documentElement.style.setProperty('--sab', h + 'px');
+        if (h > 0) root.style.setProperty('--sab', h + 'px');
       }
-      measureSafe();
-      window.addEventListener('load', measureSafe);
-      setTimeout(measureSafe, 500);   // dernier filet une fois l'UI stabilisée
+      // Hauteur réelle de l'écran visible : seule mesure fiable en PWA iOS.
+      function setVH() { root.style.setProperty('--vh', window.innerHeight + 'px'); }
+
+      function refresh() { setVH(); measureSafe(); }
+      refresh();
+      window.addEventListener('load', refresh);
+      setTimeout(refresh, 300);       // filet une fois l'UI stabilisée
+      setTimeout(refresh, 1000);
+
+      // On ne recalcule que sur rotation / vrai changement d'écran : un resize
+      // dû au clavier ne doit pas écraser la hauteur de l'app.
+      let lastW = window.innerWidth;
+      window.addEventListener('orientationchange', () => setTimeout(refresh, 300));
+      window.addEventListener('resize', () => {
+        if (window.innerWidth !== lastW) { lastW = window.innerWidth; refresh(); }
+      });
     })();
 
     // ══════════ Onglets ══════════
