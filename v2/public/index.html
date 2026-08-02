@@ -41,16 +41,16 @@
        viewport-fit=cover, un élément fixe couvre TOUT l'écran, safe area
        comprise. Immunisé contre -webkit-fill-available / 100dvh qui, en PWA
        iOS, s'arrêtent au-dessus de l'indicateur d'accueil (→ vide en bas). */
-    .app-shell {
-      position:fixed; top:0; left:0; right:0;
-      /* Hauteur MESURÉE en JS (window.innerHeight) : sur iOS en PWA, 100dvh et
-         inset:0 sont trop courts, 100vh est trop grand. La mesure directe est
-         la seule valeur fiable → la barre tombe pile au bas de l'écran. */
-      height:var(--vh, 100dvh);
-      display:flex; flex-direction:column; overflow:hidden;
+    /* Aucune hauteur de conteneur n'est fiable en PWA iOS (dvh/inset trop
+       courts, 100vh trop grand, innerHeight trop court). On laisse donc le
+       document couler normalement et on ancre la barre au bas de la FENÊTRE :
+       bottom:0 tombe toujours pile sur le bord bas, sans calcul. */
+    .app-shell { display:block; }
+    .tab-view { display:none; }
+    .tab-view.active {
+      display:flex; flex-direction:column; min-height:100dvh;
+      padding-bottom:72px;   /* dégage la barre fixe */
     }
-    .tab-view { display:none; flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
-    .tab-view.active { display:flex; flex-direction:column; }
     #view-accueil { background:#1b2734; padding-top:env(safe-area-inset-top); }
     #view-profil, #view-stats, #view-amis, #view-reglages { background:#2c3e50; }
 
@@ -63,12 +63,11 @@
 
     /* ── Barre d'onglets fixe en bas ── */
     .tabbar {
-      flex-shrink:0;
-      display:flex; background:#141d26;                 /* opaque : la bande de sécurité iOS a la même couleur que la barre */
+      position:fixed; left:0; right:0; bottom:0; z-index:300;
+      display:flex; background:#141d26;                 /* opaque : la bande de sécurité iOS prend la couleur de la barre */
       border-top:1px solid rgba(255,255,255,.08);
-      /* Marge sous les icônes : basée sur --sab (safe area FIGÉE au démarrage,
-         cf. JS) et non sur env() en direct — la barre ne bouge plus jamais. */
-      padding-bottom:max(6px, calc(var(--sab, 0px) - 20px));
+      /* Marge constante : ne dépend d'aucun env() → la barre ne bouge jamais. */
+      padding-bottom:10px;
     }
     .tabbar button {
       flex:1; background:none; border:none; cursor:pointer;
@@ -482,8 +481,7 @@
       document.querySelectorAll('.tab-view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
       document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
       try { history.replaceState(null, '', '#' + name); } catch (e) {}
-      const active = document.getElementById('view-' + name);
-      if (active) active.scrollTop = 0;
+      window.scrollTo(0, 0);
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', name === 'accueil' ? '#1b2734' : '#2c3e50');
     }
     document.querySelectorAll('.tabbar button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
