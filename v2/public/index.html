@@ -49,7 +49,7 @@
     .tab-view { display:none; }
     .tab-view.active {
       display:flex; flex-direction:column;
-      padding-bottom:104px;   /* dégage la pill flottante */
+      padding-bottom:var(--tabbar-space, 140px);   /* dégage la pill flottante */
     }
     /* Aucun fond sur les vues : la couleur vient uniquement du document
        (pilotée par l'onglet actif). Impossible d'avoir deux teintes qui se
@@ -458,70 +458,63 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v95';
+    const APP_BUILD = 'v96';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
-    // ── Fige la safe area du bas dans --sab (mesurée une seule fois) ──
-    // env(safe-area-inset-bottom) vaut souvent 0 au 1er rendu puis se corrige,
-    // ce qui faisait « sauter » la barre au 1er changement d'onglet. On la
-    // mesure via une sonde et on la verrouille : plus aucun recalcul ensuite.
+    // ══════════════════════════════════════════════════════════════════
+    //  Position de la barre d'onglets
+    //  ---------------------------------------------------------------
+    //  En PWA iOS, le viewport grandit par paliers après le lancement
+    //  (mesuré : 812 → 848 → 874 px pour un écran de 874). Une barre calée
+    //  sur le BAS du viewport suit donc ce mouvement et se déplace sous les
+    //  yeux de l'utilisateur.
+    //
+    //  Solution : on l'accroche par le HAUT (top en pixels), à une position
+    //  calculée à partir de la plus petite hauteur de viewport observée.
+    //  Le haut du viewport, lui, ne bouge jamais → la barre est immobile,
+    //  et toujours dans la zone affichable puisqu'on prend le pire cas.
+    //  La valeur est mémorisée pour que le rendu soit identique à chaque
+    //  lancement (à froid comme à chaud).
+    // ══════════════════════════════════════════════════════════════════
     (function () {
-      const root = document.documentElement;
-      function measureSafe() {
-        const p = document.createElement('div');
-        p.style.cssText = 'position:fixed;left:0;bottom:0;width:0;height:env(safe-area-inset-bottom);visibility:hidden;pointer-events:none;';
-        document.body.appendChild(p);
-        const h = Math.round(p.getBoundingClientRect().height);
-        p.remove();
-        if (h > 0) root.style.setProperty('--sab', h + 'px');
+      const bar = document.querySelector('.tabbar');
+      if (!bar) return;
+      const KEY = 'gita_min_vh';
+      const MARGIN = 14;                     // marge sous la barre
+
+      function place() {
+        const isPortrait = window.innerHeight >= window.innerWidth;
+        if (!isPortrait) {                   // paysage : ancrage simple
+          bar.style.top = 'auto';
+          bar.style.bottom = MARGIN + 'px';
+          bar.classList.add('ready');
+          return;
+        }
+        const screenH = (window.screen && window.screen.height) || window.innerHeight;
+        const h = window.innerHeight;
+        let ref = parseInt(localStorage.getItem(KEY) || '0', 10);
+        // On ne retient que des hauteurs plausibles : un viewport très réduit
+        // correspond au clavier, pas à la mise en page.
+        if (h > screenH * 0.75 && (!ref || h < ref)) {
+          ref = h;
+          try { localStorage.setItem(KEY, String(ref)); } catch (e) {}
+        }
+        if (!ref) ref = h;
+        const barH = bar.offsetHeight || 62;
+        bar.style.bottom = 'auto';
+        bar.style.top = Math.round(ref - barH - MARGIN) + 'px';
+        // Réserve sous le contenu : barre + marges + bande basse inutilisable.
+        document.documentElement.style.setProperty(
+          '--tabbar-space', Math.round(screenH - ref + barH + MARGIN * 2) + 'px');
+        bar.classList.add('ready');
       }
-      // Hauteur réelle de l'écran visible : seule mesure fiable en PWA iOS.
-      function setVH() { root.style.setProperty('--vh', window.innerHeight + 'px'); }
 
-      // iOS résout mal bottom:0 au 1er rendu (barre trop haute) et ne se
-      // corrige qu'au 1er changement d'onglet. Ce changement masque/réaffiche
-      // la vue active : on reproduit exactement ce geste pour forcer iOS à
-      // recalculer la position de la barre dès le démarrage.
-      // Mesure une valeur env() (safe-area) en px.
-      function measureEnv(prop) {
-        const p = document.createElement('div');
-        p.style.cssText = `position:fixed;left:0;top:0;width:0;height:env(${prop});visibility:hidden;pointer-events:none;`;
-        document.body.appendChild(p);
-        const h = Math.round(p.getBoundingClientRect().height);
-        p.remove();
-        return h;
-      }
-
-      // La barre flotte au-dessus du bas d'écran : plus aucun décalage à
-      // calculer, elle reste donc toujours visible et bien placée, même
-      // pendant que le viewport iOS s'agrandit au lancement.
-      function refresh() { setVH(); measureSafe(); }
-      refresh();
-      window.addEventListener('load', refresh);
-      window.addEventListener('pageshow', refresh);
-      window.addEventListener('orientationchange', () => setTimeout(refresh, 300));
-
-      // ── Affichage de la barre une fois le viewport stabilisé ──
-      // Au lancement d'une PWA iOS, le viewport grandit par paliers pendant
-      // quelques secondes ; la barre suivrait ce mouvement sous les yeux de
-      // l'utilisateur. On la révèle quand la hauteur ne bouge plus.
-      (function () {
-        const bar = document.querySelector('.tabbar');
-        if (!bar) return;
-        const show = () => { bar.classList.add('ready'); refresh(); };
-        let lastH = window.innerHeight, stableSince = Date.now();
-        const t0 = Date.now();
-        (function watch() {
-          const h = window.innerHeight;
-          if (h !== lastH) { lastH = h; stableSince = Date.now(); refresh(); }
-          // Stable depuis 250 ms → on affiche. Filet de sécurité à 2,5 s.
-          if (Date.now() - stableSince > 250 || Date.now() - t0 > 2500) { show(); return; }
-          requestAnimationFrame(watch);
-        })();
-        setTimeout(show, 3000);   // garantie : la barre finit toujours visible
-      })();
+      place();
+      // Un seul recalcul utile : la rotation (le viewport change de forme).
+      window.addEventListener('orientationchange', () => setTimeout(place, 350));
+      window.addEventListener('pageshow', place);
     })();
 
     // ══════════ Onglets ══════════
