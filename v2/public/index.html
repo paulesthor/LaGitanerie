@@ -484,7 +484,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v101';
+    const APP_BUILD = 'v102';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -589,6 +589,7 @@
       if (!bar || !ind) return;
       const btns = Array.from(bar.querySelectorAll('button'));
       let pending = null;   // dernière position de doigt en attente de rendu
+      let raf = 0;          // frame de suivi en attente
       let startX = 0, moved = false, wasDrag = false;
 
       // Onglet dont le centre est le plus proche du doigt. Plus tolérant qu'un
@@ -608,8 +609,9 @@
       // Sélectionne l'onglet le plus proche de l'abscisse donnée (sans toucher
       // à la pastille quand on glisse : elle est déjà collée au doigt).
       function pick(x) {
+        if (!Number.isFinite(x)) return;   // jamais de sélection sur une position invalide
         const b = tabAt(x);
-        if (!b || b.classList.contains('active')) return;
+        if (!b || !b.dataset.tab || b.classList.contains('active')) return;
         showTab(b.dataset.tab);
         if (window.gitaVibrate) window.gitaVibrate(8);
         else navigator.vibrate?.(8);
@@ -625,14 +627,24 @@
       }
 
       // Un seul rendu par frame : le suivi reste fluide même si le doigt
-      // génère plus d'événements que d'images.
+      // génère plus d'événements que d'images. L'identifiant de frame est
+      // conservé pour pouvoir l'annuler au relâchement — sinon une frame en
+      // retard s'exécuterait après la fin du geste, avec une position périmée.
       function schedule(x) {
-        if (pending === null) requestAnimationFrame(() => {
-          const v = pending; pending = null;
+        pending = x;
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          if (pending === null) return;
+          const v = pending;
           if (moved) follow(v);   // simple tap : on laisse l'animation de recalage faire
           pick(v);
         });
-        pending = x;
+      }
+
+      function cancelFrame() {
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        pending = null;
       }
 
       bar.addEventListener('pointerdown', (e) => {
@@ -649,10 +661,13 @@
       });
       const end = (e) => {
         if (!indDragging) return;
+        cancelFrame();
         // L'onglet retenu est celui le plus proche du point de relâchement :
-        // la dernière frame de suivi a pu ne pas avoir été rendue.
-        if (e && typeof e.clientX === 'number' && e.type === 'pointerup') pick(e.clientX);
-        indDragging = false; pending = null;
+        // la dernière frame de suivi a pu ne pas avoir été rendue. Sur
+        // pointercancel (iOS interrompt le geste si le doigt dérive trop), on
+        // garde simplement l'onglet courant.
+        if (e && e.type === 'pointerup' && Number.isFinite(e.clientX)) pick(e.clientX);
+        indDragging = false;
         wasDrag = moved; moved = false;
         bar.classList.remove('dragging');
         moveIndicator();     // recale en douceur sur l'onglet retenu
