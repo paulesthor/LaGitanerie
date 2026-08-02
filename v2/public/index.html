@@ -46,9 +46,9 @@
     /* ── Barre d'onglets fixe en bas ── */
     .tabbar {
       position:fixed; left:0; right:0; bottom:0; z-index:300;
-      display:flex; background:rgba(18,26,34,.97);
-      -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px);
+      display:flex; background:#141d26;                 /* opaque : la bande de sécurité iOS a la même couleur que la barre */
       border-top:1px solid rgba(255,255,255,.08);
+      /* Remplit la zone de l'indicateur d'accueil iOS (sinon bande vide en bas) */
       padding-bottom:env(safe-area-inset-bottom);
     }
     .tabbar button {
