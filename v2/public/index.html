@@ -459,11 +459,26 @@
       // Hauteur réelle de l'écran visible : seule mesure fiable en PWA iOS.
       function setVH() { root.style.setProperty('--vh', window.innerHeight + 'px'); }
 
-      function refresh() { setVH(); measureSafe(); }
+      // iOS résout mal bottom:0 au 1er rendu (barre trop haute) et ne se
+      // corrige qu'au 1er changement d'onglet. Ce changement masque/réaffiche
+      // la vue active : on reproduit exactement ce geste pour forcer iOS à
+      // recalculer la position de la barre dès le démarrage.
+      function nudgeLayout() {
+        const view = document.querySelector('.tab-view.active');
+        if (!view) return;
+        const prev = view.style.display;
+        view.style.display = 'none';
+        void document.body.offsetHeight;   // force le recalcul
+        view.style.display = prev;
+      }
+
+      function refresh() { setVH(); measureSafe(); nudgeLayout(); }
       refresh();
       window.addEventListener('load', refresh);
-      setTimeout(refresh, 300);       // filet une fois l'UI stabilisée
-      setTimeout(refresh, 1000);
+      window.addEventListener('pageshow', refresh);
+      setTimeout(refresh, 150);       // filets successifs le temps que l'UI iOS se stabilise
+      setTimeout(refresh, 500);
+      setTimeout(refresh, 1200);
 
       // On ne recalcule que sur rotation / vrai changement d'écran : un resize
       // dû au clavier ne doit pas écraser la hauteur de l'app.
