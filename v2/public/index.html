@@ -100,7 +100,9 @@
       pointer-events:none; z-index:0;
       transition:transform .3s cubic-bezier(.34,1.35,.5,1), width .3s cubic-bezier(.34,1.35,.5,1);
     }
-    .tabbar.dragging .tab-ind { transition:transform .09s linear, width .09s linear; }
+    /* Pendant le glissement la pastille est pilotée image par image par le
+       doigt : aucune transition, sinon elle traîne derrière. */
+    .tabbar.dragging .tab-ind { transition:none; }
     .tabbar button {
       position:relative; z-index:1;
       flex:1; background:none; border:none; cursor:pointer;
@@ -482,7 +484,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v98';
+    const APP_BUILD = 'v99';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -561,9 +563,14 @@
     }
 
     // ── Indicateur glissant (façon iOS) ──
-    // On peut taper un onglet, ou maintenir et glisser : la pastille suit le
-    // doigt et l'onglet change au passage.
+    // Deux régimes :
+    //  · au repos, la pastille est calée sur l'onglet actif ;
+    //  · pendant le glissement, elle suit le doigt en continu (position libre,
+    //    pas case par case) et l'onglet actif change au passage.
+    let indDragging = false;
+
     function moveIndicator(animate = true) {
+      if (indDragging) return;   // pendant le glissement, c'est le doigt qui pilote
       const bar = document.querySelector('.tabbar');
       const ind = document.querySelector('.tab-ind');
       const btn = document.querySelector('.tabbar button.active');
@@ -578,33 +585,68 @@
 
     (function () {
       const bar = document.querySelector('.tabbar');
-      if (!bar) return;
+      const ind = bar && bar.querySelector('.tab-ind');
+      if (!bar || !ind) return;
       const btns = Array.from(bar.querySelectorAll('button'));
-      let dragging = false;
+      let pending = null;   // dernière position de doigt en attente de rendu
+      let startX = 0, moved = false;
 
       const tabAt = (x) => btns.find(b => {
         const r = b.getBoundingClientRect();
         return x >= r.left && x <= r.right;
       });
 
+      // Sélectionne l'onglet sous l'abscisse donnée (sans toucher à la pastille
+      // quand on glisse : elle est déjà collée au doigt).
       function pick(x) {
-        const b = tabAt(x);
+        const b = tabAt(x) || (x < bar.getBoundingClientRect().left ? btns[0] : btns[btns.length - 1]);
         if (!b || b.classList.contains('active')) return;
         showTab(b.dataset.tab);
         if (window.gitaVibrate) window.gitaVibrate(8);
         else navigator.vibrate?.(8);
       }
 
+      // Pastille centrée sur le doigt, bornée à l'intérieur de la barre.
+      function follow(x) {
+        const br = bar.getBoundingClientRect();
+        const w  = ind.offsetWidth || (br.width / btns.length);
+        const min = 5, max = br.width - w - 5;
+        const left = Math.max(min, Math.min(max, x - br.left - w / 2));
+        ind.style.transform = `translateX(${left}px)`;
+      }
+
+      // Un seul rendu par frame : le suivi reste fluide même si le doigt
+      // génère plus d'événements que d'images.
+      function schedule(x) {
+        if (pending === null) requestAnimationFrame(() => {
+          const v = pending; pending = null;
+          if (moved) follow(v);   // simple tap : on laisse l'animation de recalage faire
+          pick(v);
+        });
+        pending = x;
+      }
+
       bar.addEventListener('pointerdown', (e) => {
-        dragging = true;
+        indDragging = true; startX = e.clientX; moved = false;
         bar.classList.add('dragging');
         try { bar.setPointerCapture(e.pointerId); } catch (err) {}
-        pick(e.clientX);
+        schedule(e.clientX);
       });
-      bar.addEventListener('pointermove', (e) => { if (dragging) pick(e.clientX); });
-      const end = () => { dragging = false; bar.classList.remove('dragging'); moveIndicator(); };
+      bar.addEventListener('pointermove', (e) => {
+        if (!indDragging) return;
+        e.preventDefault();
+        if (!moved && Math.abs(e.clientX - startX) > 4) moved = true;
+        schedule(e.clientX);
+      });
+      const end = () => {
+        if (!indDragging) return;
+        indDragging = false; pending = null; moved = false;
+        bar.classList.remove('dragging');
+        moveIndicator();     // recale en douceur sur l'onglet retenu
+      };
       bar.addEventListener('pointerup', end);
       bar.addEventListener('pointercancel', end);
+      bar.addEventListener('lostpointercapture', end);
 
       // Repositionnement si la largeur change (rotation, redimensionnement)
       window.addEventListener('resize', () => moveIndicator(false));
