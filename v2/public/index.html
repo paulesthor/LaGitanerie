@@ -37,7 +37,11 @@
        vrai pied de page (flux normal). On n'utilise PLUS position:fixed pour
        la barre : iOS la plaçait trop haut au 1er rendu puis la « faisait
        tomber » au 1er reflow. Ici elle est toujours au bas du conteneur. */
-    .app-shell { display:flex; flex-direction:column; height:100%; overflow:hidden; }
+    /* Ancré au viewport (inset:0) plutôt qu'à la chaîne html/body : avec
+       viewport-fit=cover, un élément fixe couvre TOUT l'écran, safe area
+       comprise. Immunisé contre -webkit-fill-available / 100dvh qui, en PWA
+       iOS, s'arrêtent au-dessus de l'indicateur d'accueil (→ vide en bas). */
+    .app-shell { position:fixed; inset:0; display:flex; flex-direction:column; overflow:hidden; }
     .tab-view { display:none; flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; }
     .tab-view.active { display:flex; flex-direction:column; }
     #view-accueil { background:#1b2734; padding-top:env(safe-area-inset-top); }
