@@ -55,9 +55,10 @@
     }
     .face {
       position: absolute; inset: 0;
-      border-radius: 14%;
+      border-radius: 8%;
       background: linear-gradient(158deg, #fff 0%, #f0f0ea 100%);
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,.09);
+      /* Le halo blanc déborde du rayon et bouche les trous aux arêtes. */
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,.09), 0 0 0 2px #f4f4ef;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       grid-template-rows: repeat(3, 1fr);
@@ -281,7 +282,7 @@
         // Le dé s'élève : on le translate en Z et on l'écarte légèrement du
         // centre de perspective pour que l'élévation se lise vraiment.
         d.el.style.transform =
-          `translate3d(${d.x}px, ${d.y - d.z * 0.55}px, ${d.z}px) ` +
+          `translate3d(${d.x}px, ${d.y - Math.min(d.z, 170) * 0.42}px, ${d.z}px) ` +
           `rotateX(${d.rx}deg) rotateY(${d.ry}deg)`;
         // Ombre : plaquée au sol, plus petite et plus pâle à mesure qu'il monte.
         const k = Math.max(0, 1 - d.z / 260);
@@ -348,6 +349,7 @@
         }
 
         separate();
+        clampAll();
         return moving;
       }
 
@@ -374,6 +376,18 @@
               }
             }
           }
+        }
+      }
+
+      // Recadrage final : garantit qu'aucun dé ne se retrouve hors du tapis
+      // après avoir été repoussé par un voisin.
+      function clampAll() {
+        const w = board.clientWidth, h = board.clientHeight;
+        for (const d of dice) {
+          if (d.x < 0) d.x = 0;
+          else if (d.x > w - size) d.x = w - size;
+          if (d.y < 0) d.y = 0;
+          else if (d.y > h - size) d.y = h - size;
         }
       }
 
@@ -418,9 +432,9 @@
           d.x = w * (0.15 + Math.random() * 0.7) - size / 2;
           d.y = h - size;
           d.z = 40 + Math.random() * 70;
-          d.vx = (Math.random() - 0.5) * 620;
-          d.vy = -(420 + Math.random() * 380);
-          d.vz = 520 + Math.random() * 460;
+          d.vx = (Math.random() - 0.5) * 540;
+          d.vy = -(360 + Math.random() * 300);
+          d.vz = 430 + Math.random() * 330;
           d.vrx = (Math.random() - 0.5) * 1700;
           d.vry = (Math.random() - 0.5) * 1700;
           d.resting = false; d.settling = 0;
