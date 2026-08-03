@@ -196,7 +196,7 @@
     .link-btn:active { color:var(--orange,#f39c12); border-color:rgba(243,156,18,0.4); }
 
     /* ── Hero ── */
-    .hero { padding:calc(38px * var(--s)) 22px calc(50px * var(--s)); }
+    .hero { padding:calc(38px * var(--s)) 22px calc(76px * var(--s)); }
     .hero-title {
       font-family:var(--font-brand,'Playfair Display',serif);
       font-weight:600; font-size:calc(clamp(2.6rem,13vw,4.4rem) * var(--s));
@@ -574,7 +574,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v123';
+    const APP_BUILD = 'v124';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

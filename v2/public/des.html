@@ -148,12 +148,20 @@
 
   <script>
     // ══════════════════════════════════════════════════════════════════
-    //  Dés 3D — moteur physique maison
-    //  Les apps de référence utilisent Three.js + Cannon. Ici on obtient le
-    //  même ressenti avec des cubes CSS (transform-style: preserve-3d) et une
-    //  simulation écrite à la main : gravité, rebonds amortis, frottement,
-    //  collisions entre dés et contre les bords. Aucune bibliothèque à
-    //  télécharger — l'app reste légère et fonctionne hors-ligne.
+    //  Dés — simulation de corps rigides
+    //
+    //  Modèle identique à celui des moteurs physiques (Cannon, Bullet, Jolt),
+    //  réduit à ce dont un dé a besoin :
+    //    · orientation en QUATERNION, pas en angles d'Euler — pas de blocage
+    //      de cardan, et une rotation libre sur les trois axes ;
+    //    · vitesse angulaire vectorielle et inertie de cube (exacte : un cube
+    //      a ses trois moments principaux égaux, un scalaire suffit) ;
+    //    · contacts par les HUIT COINS du cube, avec impulsion et couple. C'est
+    //      ce point qui change tout : un dé qui touche par un coin bascule sur
+    //      sa face, au lieu de glisser à plat.
+    //
+    //  Repère : x vers la droite, y vers le bas de l'écran, z vers la caméra.
+    //  Le tapis est le plan z = 0 ; la gravité tire vers -z.
     // ══════════════════════════════════════════════════════════════════
     (function () {
       'use strict';
@@ -169,7 +177,7 @@
       const btnPlus = document.getElementById('plus');
       const btnMinus= document.getElementById('minus');
 
-      // Disposition des points par face.
+      // ── Géométrie du dé ──
       const FACES = {
         1: ['p-mc'],
         2: ['p-tl', 'p-br'],
@@ -178,8 +186,7 @@
         5: ['p-tl', 'p-tr', 'p-mc', 'p-bl', 'p-br'],
         6: ['p-tl', 'p-tr', 'p-ml', 'p-mr', 'p-bl', 'p-br'],
       };
-      // Un vrai cube : 6 faces, les opposées totalisent 7 comme sur un vrai dé.
-      // avant=1, arrière=6, droite=2, gauche=5, dessus=3, dessous=4.
+      const SLOTS = [1, 6, 2, 5, 3, 4];   // avant, arrière, droite, gauche, dessus, dessous
       const FACE_TRANSFORM = {
         1: 'translateZ(var(--h, 30px))',
         6: 'rotateY(180deg) translateZ(var(--h, 30px))',
@@ -188,337 +195,406 @@
         3: 'rotateX(90deg)  translateZ(var(--h, 30px))',
         4: 'rotateX(-90deg) translateZ(var(--h, 30px))',
       };
-      // ── Paramètres physiques ──
-      const GRAVITY     = 2600;   // px/s² — chute franche, pas flottante
-      const RESTITUTION = 0.42;   // énergie conservée à chaque rebond
-      const FRICTION    = 0.985;  // frottement de l'air / du tapis
-      const GROUND_DRAG = 0.90;   // freinage une fois posé
-      const SPIN_DRAG   = 0.988;  // amortissement de la rotation
-      const REST_SPEED  = 26;     // sous cette vitesse, le dé est considéré immobile
+      // Normale de chaque emplacement dans le repère du dé.
+      const SLOT_N = {
+        1: [0, 0, 1], 6: [0, 0, -1],
+        2: [1, 0, 0], 5: [-1, 0, 0],
+        3: [0, -1, 0], 4: [0, 1, 0],
+      };
 
-      let count = 0, dice = [], raf = 0, rolling = false, size = 60;
+      // ── Paramètres physiques ──
+      const GRAVITY     = 2400;   // px/s²
+      const RESTITUTION = 0.28;   // un dé rebondit peu : il est lourd et mat
+      const FRICTION    = 0.42;   // frottement sur le tapis (coefficient de Coulomb)
+      const AIR         = 0.9965; // traînée
+      const SPIN_AIR    = 0.996;
+      const SLOP        = 0.8;    // tolérance de contact (voir groundContact)
+      const ROLL_DRAG   = 3.4;    // résistance au roulement, une fois au sol
+      const SLEEP_V     = 14;     // seuils d'endormissement
+      const SLEEP_W     = 0.9;
+      const SLEEP_TIME  = 0.16;
+
+      // ══════ Quaternions ══════
+      function qmul(a, b) {
+        return [
+          a[0]*b[0] - a[1]*b[1] - a[2]*b[2] - a[3]*b[3],
+          a[0]*b[1] + a[1]*b[0] + a[2]*b[3] - a[3]*b[2],
+          a[0]*b[2] - a[1]*b[3] + a[2]*b[0] + a[3]*b[1],
+          a[0]*b[3] + a[1]*b[2] - a[2]*b[1] + a[3]*b[0],
+        ];
+      }
+      function qnorm(q) {
+        const n = Math.hypot(q[0], q[1], q[2], q[3]) || 1;
+        return [q[0]/n, q[1]/n, q[2]/n, q[3]/n];
+      }
+      // Intégration de l'orientation par la vitesse angulaire :
+      // dq/dt = ½ · ω ⊗ q   (ω vu comme quaternion pur)
+      function qIntegrate(q, w, dt) {
+        const wq = [0, w[0], w[1], w[2]];
+        const d  = qmul(wq, q);
+        return qnorm([
+          q[0] + 0.5 * d[0] * dt, q[1] + 0.5 * d[1] * dt,
+          q[2] + 0.5 * d[2] * dt, q[3] + 0.5 * d[3] * dt,
+        ]);
+      }
+      function qMatrix(q) {
+        const [w, x, y, z] = q;
+        const xx = x*x, yy = y*y, zz = z*z;
+        const xy = x*y, xz = x*z, yz = y*z;
+        const wx = w*x, wy = w*y, wz = w*z;
+        return [
+          1 - 2*(yy+zz), 2*(xy - wz),   2*(xz + wy),
+          2*(xy + wz),   1 - 2*(xx+zz), 2*(yz - wx),
+          2*(xz - wy),   2*(yz + wx),   1 - 2*(xx+yy),
+        ];
+      }
+      function rot(m, v) {
+        return [
+          m[0]*v[0] + m[1]*v[1] + m[2]*v[2],
+          m[3]*v[0] + m[4]*v[1] + m[5]*v[2],
+          m[6]*v[0] + m[7]*v[1] + m[8]*v[2],
+        ];
+      }
+      const cross = (a, b) => [
+        a[1]*b[2] - a[2]*b[1],
+        a[2]*b[0] - a[0]*b[2],
+        a[0]*b[1] - a[1]*b[0],
+      ];
+      const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+
+      // ── Les 24 orientations d'un cube ──
+      // Engendrées par rotations successives de 90°. Servent au repos : on
+      // aligne sur la PLUS PROCHE, donc la correction est minuscule — le dé est
+      // déjà posé sur une face quand la physique s'arrête.
+      const ORIENTS = (function () {
+        const s = Math.SQRT1_2;
+        const gens = [
+          [s, s, 0, 0], [s, 0, s, 0], [s, 0, 0, s],   // +90° autour de x, y, z
+        ];
+        const out = [], seen = new Set();
+        // q et -q décrivent la même rotation : il faut une signature commune.
+        // On ne peut pas se fier au signe de q[0] — il vaut 0 pour la moitié des
+        // rotations, et le signe devient alors arbitraire (d'où des doublons).
+        // On prend le signe de la première composante non nulle.
+        const key = (q) => {
+          let f = 1;
+          for (const v of q) { if (Math.abs(v) > 1e-6) { f = v < 0 ? -1 : 1; break; } }
+          return q.map(v => (Math.round(v * f * 1000) / 1000) + 0).join(',');
+        };
+        const queue = [[1, 0, 0, 0]];
+        seen.add(key([1, 0, 0, 0])); out.push([1, 0, 0, 0]);
+        while (queue.length) {
+          const q = queue.shift();
+          for (const g of gens) {
+            const n = qnorm(qmul(g, q));
+            const k = key(n);
+            if (!seen.has(k)) { seen.add(k); out.push(n); queue.push(n); }
+          }
+        }
+        return out;   // 24
+      })();
+
+      function nearestOrient(q) {
+        let best = ORIENTS[0], bd = -1;
+        for (const o of ORIENTS) {
+          const d = Math.abs(q[0]*o[0] + q[1]*o[1] + q[2]*o[2] + q[3]*o[3]);
+          if (d > bd) { bd = d; best = o; }
+        }
+        return best;
+      }
+      function slerp(a, b, t) {
+        let d = a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
+        let bb = b;
+        if (d < 0) { bb = [-b[0], -b[1], -b[2], -b[3]]; d = -d; }
+        if (d > 0.9995) {
+          return qnorm([
+            a[0] + (bb[0]-a[0])*t, a[1] + (bb[1]-a[1])*t,
+            a[2] + (bb[2]-a[2])*t, a[3] + (bb[3]-a[3])*t,
+          ]);
+        }
+        const th = Math.acos(d), st = Math.sin(th);
+        const s1 = Math.sin((1-t)*th) / st, s2 = Math.sin(t*th) / st;
+        return [
+          a[0]*s1 + bb[0]*s2, a[1]*s1 + bb[1]*s2,
+          a[2]*s1 + bb[2]*s2, a[3]*s1 + bb[3]*s2,
+        ];
+      }
+
+      // Emplacement tourné vers la caméra (+z) pour une orientation donnée.
+      function faceUp(q) {
+        const m = qMatrix(q);
+        let best = 1, bz = -2;
+        for (const slot in SLOT_N) {
+          const z = rot(m, SLOT_N[slot])[2];
+          if (z > bz) { bz = z; best = +slot; }
+        }
+        return best;
+      }
+
+      // ══════ Étiquetage aléatoire ══════
+      // La physique ne présente pas les six faces de façon parfaitement
+      // équiprobable. Plutôt que de forcer le résultat — ce qui produirait à
+      // nouveau une correction visible — on renumérote le dé avant chaque
+      // lancer. Le numéro porté par la face qui sort est alors uniforme.
+      function randomLabels() {
+        const front = 1 + Math.floor(Math.random() * 6), back = 7 - front;
+        const rest  = [1,2,3,4,5,6].filter(n => n !== front && n !== back);
+        const top   = rest[Math.floor(Math.random() * rest.length)], bottom = 7 - top;
+        const pair  = rest.filter(n => n !== top && n !== bottom);
+        const flip  = Math.random() < 0.5;
+        return {
+          1: front, 6: back,
+          2: flip ? pair[0] : pair[1], 5: flip ? pair[1] : pair[0],
+          3: top, 4: bottom,
+        };
+      }
+
+      let count = 0, dice = [], raf = 0, rolling = false, size = 60, half = 30, inertia = 1;
 
       try {
         const saved = parseInt(localStorage.getItem('gita_dice_count') || '0', 10);
         if (saved > 0 && saved <= MAX) count = saved;
       } catch (e) {}
 
-      // La taille s'adapte au nombre de dés ET au tapis : 10 dés doivent tenir
-      // à l'aise sans se chevaucher en permanence.
       function computeSize() {
         const w = board.clientWidth, h = board.clientHeight;
         const n = Math.max(count, 1);
-        const fit = Math.sqrt((w * h) / (n * 5.2));
-        size = Math.max(34, Math.min(82, Math.round(fit)));
-      }
-
-      // Ordre des emplacements de faces dans le DOM, et leur opposé.
-      const SLOTS = [1, 6, 2, 5, 3, 4];   // avant, arrière, droite, gauche, dessus, dessous
-
-      function randomLabels() {
-        const front = 1 + Math.floor(Math.random() * 6);
-        const back  = 7 - front;
-        const rest  = [1, 2, 3, 4, 5, 6].filter(n => n !== front && n !== back);
-        const top   = rest[Math.floor(Math.random() * rest.length)];
-        const bottom = 7 - top;
-        const pair  = rest.filter(n => n !== top && n !== bottom);
-        const flip  = Math.random() < 0.5;
-        // { emplacement : numéro affiché }
-        return {
-          1: front, 6: back,
-          2: flip ? pair[0] : pair[1],
-          5: flip ? pair[1] : pair[0],
-          3: top, 4: bottom,
-        };
+        size = Math.max(34, Math.min(80, Math.round(Math.sqrt((w * h) / (n * 5.6)))));
+        half = size / 2;
+        // Cube homogène : I = m·(2a)²/6 avec a = demi-arête. Masse = 1.
+        inertia = (2 / 3) * half * half;
       }
 
       function paintLabels(d) {
         d.labels = randomLabels();
         SLOTS.forEach((slot, i) => {
-          const face = d.el.children[i];
-          const v = d.labels[slot];
-          face.innerHTML = FACES[v].map(p => `<span class="pip ${p}"></span>`).join('');
-        });
-      }
-
-      function buildDie() {
-        const el = document.createElement('div');
-        el.className = 'die';
-        el.innerHTML = SLOTS.map(slot =>
-          `<div class="face" style="transform:${FACE_TRANSFORM[slot]}"></div>`
-        ).join('');
-        const sh = document.createElement('div');
-        sh.className = 'shadow';
-        board.appendChild(sh);
-        board.appendChild(el);
-        return { el, sh };
-      }
-
-      function applySize() {
-        computeSize();
-        dice.forEach(d => {
-          d.el.style.width  = size + 'px';
-          d.el.style.height = size + 'px';
-          d.el.style.setProperty('--h', (size / 2) + 'px');
-          d.sh.style.width  = size + 'px';
-          d.sh.style.height = (size * 0.42) + 'px';
+          d.el.children[i].innerHTML =
+            FACES[d.labels[slot]].map(p => `<span class="pip ${p}"></span>`).join('');
         });
       }
 
       function makeDie() {
-        const { el, sh } = buildDie();
+        const el = document.createElement('div');
+        el.className = 'die';
+        el.innerHTML = SLOTS.map(slot =>
+          `<div class="face" style="transform:${FACE_TRANSFORM[slot]}"></div>`).join('');
+        const sh = document.createElement('div');
+        sh.className = 'shadow';
+        board.appendChild(sh); board.appendChild(el);
         const d = {
           el, sh,
-          x: 0, y: 0, z: 0,           // z = hauteur au-dessus du tapis
-          vx: 0, vy: 0, vz: 0,
-          rx: 0, ry: 0,               // rotation courante (degrés)
-          vrx: 0, vry: 0,
+          p: [0, 0, 0],          // centre
+          v: [0, 0, 0],          // vitesse
+          q: [1, 0, 0, 0],       // orientation
+          w: [0, 0, 0],          // vitesse angulaire (rad/s)
           value: 1, labels: null,
-          resting: true, settling: 0,
+          resting: true, calm: 0,
         };
         paintLabels(d);
-        d.value = d.labels[1];   // face avant tournée vers la caméra
+        d.value = d.labels[faceUp(d.q)];
         return d;
       }
 
-      // Place les dés proprement répartis, à plat, sans simulation.
-      function layout() {
-        applySize();
-        const w = board.clientWidth, h = board.clientHeight;
-        const cols = Math.ceil(Math.sqrt(dice.length || 1));
-        const rows = Math.ceil((dice.length || 1) / cols);
-        dice.forEach((d, i) => {
-          const cx = (i % cols + 0.5) / cols, cy = (Math.floor(i / cols) + 0.5) / rows;
-          d.x = cx * (w - size);
-          d.y = cy * (h - size);
-          d.z = 0; d.vx = d.vy = d.vz = 0; d.vrx = d.vry = 0;
-          d.rx = Math.round(d.rx / 90) * 90;
-          d.ry = Math.round(d.ry / 90) * 90;
-          d.value = d.labels[faceUp(d.rx, d.ry)];
-          d.resting = true; d.settling = 0;
-          draw(d);
-        });
+      function applySize() {
+        computeSize();
+        for (const d of dice) {
+          d.el.style.width = size + 'px';
+          d.el.style.height = size + 'px';
+          d.el.style.setProperty('--h', half + 'px');
+          d.sh.style.width = size + 'px';
+          d.sh.style.height = (size * 0.4) + 'px';
+        }
       }
 
+      // Les huit coins, dans le repère du dé.
+      const CORNERS = [];
+      for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1]) CORNERS.push([sx, sy, sz]);
+
       function draw(d) {
-        // Le dé s'élève : on le translate en Z et on l'écarte légèrement du
-        // centre de perspective pour que l'élévation se lise vraiment.
-        d.el.style.transform =
-          `translate3d(${d.x}px, ${d.y - Math.min(d.z, 170) * 0.42}px, ${d.z}px) ` +
-          `rotateX(${d.rx}deg) rotateY(${d.ry}deg)`;
-        // Ombre : plaquée au sol, plus petite et plus pâle à mesure qu'il monte.
-        const k = Math.max(0, 1 - d.z / 260);
-        d.sh.style.transform =
-          `translate3d(${d.x + size * (1 - k) * 0.5}px, ${d.y + size * 0.72}px, 0) scale(${0.55 + k * 0.45})`;
-        d.sh.style.opacity = 0.10 + k * 0.34;
+        const m = qMatrix(d.q);
+        // Colonnes de la matrice pour matrix3d (ordre colonne par colonne).
+        const mat = `matrix3d(${m[0]},${m[3]},${m[6]},0,${m[1]},${m[4]},${m[7]},0,${m[2]},${m[5]},${m[8]},0,0,0,0,1)`;
+        const x = d.p[0] - half, y = d.p[1] - half, z = d.p[2];
+        // L'altitude se lit aussi par un léger décalage vers le haut : sans lui,
+        // la seule perspective ne suffit pas à distinguer « en l'air » de « posé ».
+        d.el.style.transform = `translate3d(${x}px, ${y - Math.min(z, 200) * 0.34}px, ${z}px) ${mat}`;
+        const k = Math.max(0, 1 - z / 300);
+        d.sh.style.transform = `translate3d(${x}px, ${y + size * 0.66}px, 0) scale(${0.5 + k * 0.5})`;
+        d.sh.style.opacity = 0.08 + k * 0.32;
+      }
+
+      // ══════ Contact d'un coin avec le tapis ══════
+      // Résolution par impulsion : composante normale (rebond) puis tangentielle
+      // (frottement). Le couple r × j est ce qui fait basculer le dé.
+      function groundContact(d, dt) {
+        const m = qMatrix(d.q);
+        let deepest = 0, touching = false;
+        for (const c of CORNERS) {
+          const r  = rot(m, [c[0]*half, c[1]*half, c[2]*half]);
+          const pz = d.p[2] + r[2];
+          // Tolérance : un dé posé à plat a ses coins EXACTEMENT à z=0. Sans
+          // cette marge, il n'a aucun contact, donc aucun frottement — et sa
+          // rotation résiduelle ne s'amortit jamais. C'est ce qui faisait
+          // tourner certains dés sans fin.
+          if (pz >= SLOP) continue;
+          touching = true;
+          if (-pz > deepest) deepest = -pz;
+
+          // Vitesse du point de contact : v + ω × r
+          const wxr = cross(d.w, r);
+          const vp  = [d.v[0] + wxr[0], d.v[1] + wxr[1], d.v[2] + wxr[2]];
+          const vn  = vp[2];                    // normale = (0,0,1)
+          if (vn >= 0) continue;
+
+          // Dénominateur d'impulsion : 1/m + ((r×n)·(r×n))/I
+          const rn  = cross(r, [0, 0, 1]);
+          const den = 1 + dot(rn, rn) / inertia;
+          const j   = -(1 + RESTITUTION) * vn / den;
+
+          d.v[2] += j;
+          const tq = cross(r, [0, 0, j]);
+          d.w[0] += tq[0] / inertia; d.w[1] += tq[1] / inertia; d.w[2] += tq[2] / inertia;
+
+          // Frottement : impulsion tangentielle bornée par µ·j (loi de Coulomb)
+          const vt = [vp[0], vp[1], 0];
+          const vtl = Math.hypot(vt[0], vt[1]);
+          if (vtl > 0.001) {
+            const t = [vt[0]/vtl, vt[1]/vtl, 0];
+            const rt = cross(r, t);
+            const dent = 1 + dot(rt, rt) / inertia;
+            let jt = -vtl / dent;
+            const maxJt = FRICTION * Math.abs(j);
+            if (jt < -maxJt) jt = -maxJt;
+            d.v[0] += jt * t[0]; d.v[1] += jt * t[1];
+            const tq2 = cross(r, [jt*t[0], jt*t[1], 0]);
+            d.w[0] += tq2[0] / inertia; d.w[1] += tq2[1] / inertia; d.w[2] += tq2[2] / inertia;
+          }
+        }
+        // Correction de position : on remonte le dé hors du sol.
+        if (deepest > 0) d.p[2] += deepest;
+        // Résistance au roulement : un vrai dé posé s'immobilise vite, il ne
+        // continue pas à tourner sur lui-même.
+        if (touching) {
+          const k = Math.max(0, 1 - ROLL_DRAG * dt);
+          d.w[0] *= k; d.w[1] *= k; d.w[2] *= k;
+        }
+      }
+
+      // ══════ Choc entre deux dés ══════
+      // Sphères englobantes : à cette taille et cette vitesse, la différence
+      // avec un contact cube-cube est invisible, pour un coût bien moindre.
+      function diceContacts() {
+        const R = half * 1.06;
+        for (let pass = 0; pass < 2; pass++) {
+          for (let i = 0; i < dice.length; i++) {
+            for (let j = i + 1; j < dice.length; j++) {
+              const a = dice[i], b = dice[j];
+              let n = [b.p[0]-a.p[0], b.p[1]-a.p[1], b.p[2]-a.p[2]];
+              let dist = Math.hypot(n[0], n[1], n[2]);
+              if (dist >= 2*R) continue;
+              if (dist < 0.0001) {
+                const ang = Math.random() * Math.PI * 2;
+                n = [Math.cos(ang), Math.sin(ang), 0]; dist = 0.0001;
+              } else { n = [n[0]/dist, n[1]/dist, n[2]/dist]; }
+
+              // Séparation
+              const pen = (2*R - dist) / 2;
+              a.p[0] -= n[0]*pen; a.p[1] -= n[1]*pen; a.p[2] -= n[2]*pen;
+              b.p[0] += n[0]*pen; b.p[1] += n[1]*pen; b.p[2] += n[2]*pen;
+              if (a.p[2] < half*0.2) a.p[2] = half*0.2;
+              if (b.p[2] < half*0.2) b.p[2] = half*0.2;
+
+              // Impulsion au point de contact, avec couple : c'est ce qui
+              // relance les dés en rotation après un choc.
+              const ra = [ n[0]*R,  n[1]*R,  n[2]*R];
+              const rb = [-n[0]*R, -n[1]*R, -n[2]*R];
+              const va = cross(a.w, ra), vb = cross(b.w, rb);
+              const rel = [
+                (b.v[0]+vb[0]) - (a.v[0]+va[0]),
+                (b.v[1]+vb[1]) - (a.v[1]+va[1]),
+                (b.v[2]+vb[2]) - (a.v[2]+va[2]),
+              ];
+              const vn = dot(rel, n);
+              if (vn >= 0) continue;
+              const rna = cross(ra, n), rnb = cross(rb, n);
+              const den = 2 + (dot(rna, rna) + dot(rnb, rnb)) / inertia;
+              const jm  = -(1 + 0.35) * vn / den;
+
+              a.v[0] -= jm*n[0]; a.v[1] -= jm*n[1]; a.v[2] -= jm*n[2];
+              b.v[0] += jm*n[0]; b.v[1] += jm*n[1]; b.v[2] += jm*n[2];
+              const ta = cross(ra, [-jm*n[0], -jm*n[1], -jm*n[2]]);
+              const tb = cross(rb, [ jm*n[0],  jm*n[1],  jm*n[2]]);
+              a.w[0] += ta[0]/inertia; a.w[1] += ta[1]/inertia; a.w[2] += ta[2]/inertia;
+              b.w[0] += tb[0]/inertia; b.w[1] += tb[1]/inertia; b.w[2] += tb[2]/inertia;
+
+              if (Math.abs(vn) > 12) { a.resting = false; b.resting = false; a.calm = b.calm = 0; }
+            }
+          }
+        }
+      }
+
+      function walls(d) {
+        const w = board.clientWidth, h = board.clientHeight;
+        if (d.p[0] < half)     { d.p[0] = half;     d.v[0] = Math.abs(d.v[0]) * 0.5; d.w[1] *= -0.6; }
+        if (d.p[0] > w - half) { d.p[0] = w - half; d.v[0] = -Math.abs(d.v[0]) * 0.5; d.w[1] *= -0.6; }
+        if (d.p[1] < half)     { d.p[1] = half;     d.v[1] = Math.abs(d.v[1]) * 0.5; d.w[0] *= -0.6; }
+        if (d.p[1] > h - half) { d.p[1] = h - half; d.v[1] = -Math.abs(d.v[1]) * 0.5; d.w[0] *= -0.6; }
       }
 
       function step(dt) {
-        const w = board.clientWidth, h = board.clientHeight;
-        let moving = false;
-
         for (const d of dice) {
           if (d.resting) continue;
+          d.v[2] -= GRAVITY * dt;
+          d.p[0] += d.v[0]*dt; d.p[1] += d.v[1]*dt; d.p[2] += d.v[2]*dt;
+          d.q = qIntegrate(d.q, d.w, dt);
+          groundContact(d, dt);
+          walls(d);
+          d.v[0] *= AIR; d.v[1] *= AIR; d.v[2] *= AIR;
+          d.w[0] *= SPIN_AIR; d.w[1] *= SPIN_AIR; d.w[2] *= SPIN_AIR;
+        }
 
-          d.vz -= GRAVITY * dt;
-          d.z  += d.vz * dt;
-          d.x  += d.vx * dt;
-          d.y  += d.vy * dt;
-          d.rx += d.vrx * dt;
-          d.ry += d.vry * dt;
+        diceContacts();
 
-          // Rebond sur le tapis
-          if (d.z <= 0) {
-            d.z = 0;
-            if (Math.abs(d.vz) > 60) {
-              d.vz = -d.vz * RESTITUTION;
-              // Un impact freine la translation et la rotation : c'est ce qui
-              // rend la fin de course crédible.
-              d.vx *= 0.78; d.vy *= 0.78;
-              d.vrx *= 0.62; d.vry *= 0.62;
-            } else {
-              d.vz = 0;
-              d.vx *= GROUND_DRAG; d.vy *= GROUND_DRAG;
-              d.vrx *= 0.86; d.vry *= 0.86;
-            }
-          }
-
-          // Bords du tapis
-          if (d.x < 0)          { d.x = 0;          d.vx = -d.vx * 0.55; d.vry = -d.vry * 0.7; }
-          if (d.x > w - size)   { d.x = w - size;   d.vx = -d.vx * 0.55; d.vry = -d.vry * 0.7; }
-          if (d.y < 0)          { d.y = 0;          d.vy = -d.vy * 0.55; d.vrx = -d.vrx * 0.7; }
-          if (d.y > h - size)   { d.y = h - size;   d.vy = -d.vy * 0.55; d.vrx = -d.vrx * 0.7; }
-
-          d.vx *= FRICTION; d.vy *= FRICTION;
-          d.vrx *= SPIN_DRAG; d.vry *= SPIN_DRAG;
-
-          // Couple d'alignement : nul tant que le dé file, total quand il
-          // s'immobilise. Le redressement se dissout dans la fin de course au
-          // lieu de former un mouvement séparé.
-          const spin  = Math.abs(d.vrx) + Math.abs(d.vry);
-          const speed = Math.hypot(d.vx, d.vy) + Math.abs(d.vz);
-          if (d.z < size * 0.25) {
-            const calm = Math.max(0, 1 - (speed / 260) - (spin / 900));
-            if (calm > 0) {
-              const k = Math.min(1, calm * calm * dt * 14);
-              const tx = Math.round(d.rx / 90) * 90;
-              const ty = Math.round(d.ry / 90) * 90;
-              d.rx += shortest(d.rx, tx) * k;
-              d.ry += shortest(d.ry, ty) * k;
-              // On freine aussi la rotation résiduelle, sinon le couple lutte
-              // contre elle et le dé oscille autour de sa position droite.
-              d.vrx *= (1 - calm * 0.25);
-              d.vry *= (1 - calm * 0.25);
-            }
-          }
-
-          if (d.z === 0 && speed < REST_SPEED && spin < 40) {
-            const tx = Math.round(d.rx / 90) * 90;
-            const ty = Math.round(d.ry / 90) * 90;
-            // Reste-t-il un écart perceptible ? Si oui on laisse le couple
-            // finir le travail ; sinon on fige.
-            if (Math.abs(shortest(d.rx, tx)) < 1.2 && Math.abs(shortest(d.ry, ty)) < 1.2) {
-              d.rx = tx; d.ry = ty;
-              d.vx = d.vy = d.vrx = d.vry = 0;
-              d.value = d.labels[faceUp(d.rx, d.ry)];   // la valeur DÉCOULE de la pose
-              d.resting = true;
-            }
+        let moving = false;
+        for (const d of dice) {
+          if (!d.resting) {
+            const sv = Math.hypot(d.v[0], d.v[1], d.v[2]);
+            const sw = Math.hypot(d.w[0], d.w[1], d.w[2]);
+            if (sv < SLEEP_V && sw < SLEEP_W) {
+              d.calm += dt;
+              // Alignement final : la physique a déjà posé le dé sur une face,
+              // l'écart avec l'orientation exacte est de quelques degrés. La
+              // correction est donc imperceptible — plus de « remise droite ».
+              const target = nearestOrient(d.q);
+              d.q = slerp(d.q, target, Math.min(1, dt * 12));
+              d.v[0] *= 0.82; d.v[1] *= 0.82;
+              d.w[0] *= 0.82; d.w[1] *= 0.82; d.w[2] *= 0.82;
+              if (d.calm > SLEEP_TIME) {
+                d.q = target;
+                d.v = [0, 0, 0]; d.w = [0, 0, 0];
+                d.p[2] = half;
+                d.value = d.labels[faceUp(d.q)];
+                d.resting = true;
+              }
+            } else { d.calm = 0; }
           }
           if (!d.resting) moving = true;
           draw(d);
         }
-
-        collide();
-        clampAll();
-        // Une collision peut réveiller un dé déjà posé : on réévalue APRÈS,
-        // sinon la boucle s'arrêterait alors que quelque chose bouge encore.
-        if (!moving) moving = dice.some(d => !d.resting);
         return moving;
-      }
-
-      // ── Collisions entre dés ──
-      // Ce ne sont plus de simples écartements : à chaque contact on résout un
-      // vrai choc — séparation le long de la normale, échange de quantité de
-      // mouvement, restitution, et couple induit qui remet les dés en rotation.
-      // Trois passes : avec dix dés serrés, une seule laisse des recouvrements
-      // résiduels que l'œil repère immédiatement.
-      const COLL_RESTITUTION = 0.45;
-      function collide() {
-        const w = board.clientWidth, h = board.clientHeight;
-        for (let pass = 0; pass < 3; pass++) {
-          let touched = false;
-          for (let i = 0; i < dice.length; i++) {
-            for (let j = i + 1; j < dice.length; j++) {
-              const a = dice[i], b = dice[j];
-              // Deux dés à des hauteurs très différentes ne se touchent pas :
-              // l'un survole l'autre.
-              if (Math.abs(a.z - b.z) > size * 0.85) continue;
-
-              let dx = b.x - a.x, dy = b.y - a.y;
-              let dist = Math.hypot(dx, dy);
-              const min = size * 0.97;
-              if (dist >= min) continue;
-
-              // Deux dés exactement superposés : on invente une normale, sinon
-              // la division par la distance explose.
-              if (dist < 0.0001) {
-                const ang = Math.random() * Math.PI * 2;
-                dx = Math.cos(ang); dy = Math.sin(ang); dist = 0.0001;
-              } else { dx /= dist; dy /= dist; }
-
-              touched = true;
-
-              // 1. Séparation : chacun recule de la moitié du recouvrement.
-              const overlap = (min - dist) / 2;
-              a.x -= dx * overlap; a.y -= dy * overlap;
-              b.x += dx * overlap; b.y += dy * overlap;
-
-              // 2. Choc : seule la composante normale des vitesses est échangée.
-              const rvx = b.vx - a.vx, rvy = b.vy - a.vy;
-              const sep = rvx * dx + rvy * dy;
-              if (sep < 0) {                       // ils se rapprochent encore
-                const imp = -(1 + COLL_RESTITUTION) * sep / 2;
-                a.vx -= imp * dx; a.vy -= imp * dy;
-                b.vx += imp * dx; b.vy += imp * dy;
-
-                // 3. Couple induit : un choc décentré fait repartir les dés en
-                // rotation. Sans ça, ils se percutent en restant figés.
-                const shock = Math.min(1, Math.abs(sep) / 260);
-                const tang = (rvx * -dy + rvy * dx);
-                a.vrx -= tang * 0.55 * shock; a.vry += tang * 0.55 * shock;
-                b.vrx += tang * 0.55 * shock; b.vry -= tang * 0.55 * shock;
-
-                // Un dé posé que l'on percute doit se remettre à bouger.
-                if (shock > 0.05) {
-                  if (a.resting) { a.resting = false; }
-                  if (b.resting) { b.resting = false; }
-                }
-              }
-
-              // Recadrage immédiat : un dé repoussé ne doit jamais sortir, même
-              // le temps d'une passe.
-              a.x = Math.max(0, Math.min(w - size, a.x));
-              a.y = Math.max(0, Math.min(h - size, a.y));
-              b.x = Math.max(0, Math.min(w - size, b.x));
-              b.y = Math.max(0, Math.min(h - size, b.y));
-            }
-          }
-          if (!touched) break;
-        }
-      }
-
-      // Quelle face regarde la caméra ? On fait tourner la normale de chaque
-      // face par l'orientation courante et on garde celle dont la composante Z
-      // est la plus grande. Calculé, jamais deviné : impossible d'afficher une
-      // valeur qui ne corresponde pas à la face visible.
-      const NORMALS = {
-        1: [0, 0, 1], 6: [0, 0, -1],
-        2: [1, 0, 0], 5: [-1, 0, 0],
-        3: [0, -1, 0], 4: [0, 1, 0],
-      };
-      function faceUp(rx, ry) {
-        const ax = rx * Math.PI / 180, ay = ry * Math.PI / 180;
-        const cx = Math.cos(ax), sx = Math.sin(ax);
-        const cy = Math.cos(ay), sy = Math.sin(ay);
-        let best = 1, bestZ = -2;
-        for (const v in NORMALS) {
-          const [x, y, z] = NORMALS[v];
-          // rotateY puis rotateX, dans l'ordre où le CSS les applique.
-          const x1 = x * cy + z * sy, y1 = y, z1 = -x * sy + z * cy;
-          const z2 = y1 * sx + z1 * cx;
-          if (z2 > bestZ) { bestZ = z2; best = +v; }
-        }
-        return best;
-      }
-
-      // Recadrage final : garantit qu'aucun dé ne se retrouve hors du tapis
-      // après avoir été repoussé par un voisin.
-      function clampAll() {
-        const w = board.clientWidth, h = board.clientHeight;
-        for (const d of dice) {
-          if (d.x < 0) d.x = 0;
-          else if (d.x > w - size) d.x = w - size;
-          if (d.y < 0) d.y = 0;
-          else if (d.y > h - size) d.y = h - size;
-        }
-      }
-
-      // Plus court chemin angulaire vers la cible (évite un tour complet).
-      function shortest(from, to) {
-        let d = (to - from) % 360;
-        if (d > 180) d -= 360;
-        if (d < -180) d += 360;
-        return d;
       }
 
       let last = 0;
       function loop(ts) {
         if (!last) last = ts;
-        // Plafonné : après un passage en arrière-plan, un dt énorme ferait
-        // traverser les murs aux dés.
-        const dt = Math.min(0.032, (ts - last) / 1000);
+        let dt = (ts - last) / 1000;
         last = ts;
-        const moving = step(dt);
+        if (dt > 0.05) dt = 0.05;          // retour d'arrière-plan
+        // Sous-pas : à grande vitesse angulaire, un seul pas par image fait
+        // traverser le sol aux coins et l'atterrissage devient mou.
+        const n = 3, sub = dt / n;
+        let moving = false;
+        for (let i = 0; i < n; i++) moving = step(sub) || moving;
         if (moving) {
           raf = requestAnimationFrame(loop);
         } else {
@@ -535,23 +611,20 @@
         btnRoll.disabled = true;
         totalEl.textContent = '';
         applySize();
-
-        dice.forEach((d) => {
-          paintLabels(d);   // nouvel étiquetage → tirage équitable
-          // On repart de la position ACTUELLE du dé : il est soulevé et relancé
-          // sur place, au lieu d'être téléporté en bas du tapis.
-          d.z = 30 + Math.random() * 60;
+        for (const d of dice) {
+          paintLabels(d);
+          // Soulevé et relancé depuis sa position actuelle.
+          d.p[2] = half + 40 + Math.random() * 70;
           const ang = Math.random() * Math.PI * 2;
-          const force = 220 + Math.random() * 320;
-          d.vx = Math.cos(ang) * force;
-          d.vy = Math.sin(ang) * force;
-          d.vz = 430 + Math.random() * 330;
-          d.vrx = (Math.random() - 0.5) * 1700;
-          d.vry = (Math.random() - 0.5) * 1700;
-          d.resting = false; d.settling = 0;
-          draw(d);
-        });
-
+          const force = 190 + Math.random() * 300;
+          d.v = [Math.cos(ang)*force, Math.sin(ang)*force, 330 + Math.random()*260];
+          // Rotation initiale : axe quelconque, vitesse élevée.
+          const ax = [Math.random()-0.5, Math.random()-0.5, Math.random()-0.5];
+          const al = Math.hypot(ax[0], ax[1], ax[2]) || 1;
+          const spin = 16 + Math.random() * 18;    // rad/s
+          d.w = [ax[0]/al*spin, ax[1]/al*spin, ax[2]/al*spin];
+          d.resting = false; d.calm = 0;
+        }
         vibrate([16, 34, 12]);
         if (!raf) { last = 0; raf = requestAnimationFrame(loop); }
       }
@@ -570,20 +643,34 @@
         emptyEl.style.display = count === 0 ? '' : 'none';
       }
 
+      function layout() {
+        applySize();
+        const w = board.clientWidth, h = board.clientHeight;
+        const cols = Math.ceil(Math.sqrt(dice.length || 1));
+        const rows = Math.ceil((dice.length || 1) / cols);
+        dice.forEach((d, i) => {
+          d.p = [
+            ((i % cols) + 0.5) / cols * w,
+            (Math.floor(i / cols) + 0.5) / rows * h,
+            half,
+          ];
+          d.v = [0, 0, 0]; d.w = [0, 0, 0];
+          d.q = nearestOrient(d.q);
+          d.value = d.labels[faceUp(d.q)];
+          d.resting = true; d.calm = 0;
+          walls(d);
+          draw(d);
+        });
+      }
+
       function setCount(n) {
         const next = Math.max(0, Math.min(MAX, n));
         if (next === count) return;
         count = next;
         try { localStorage.setItem('gita_dice_count', String(count)); } catch (e) {}
         while (dice.length < count) dice.push(makeDie());
-        while (dice.length > count) {
-          const d = dice.pop();
-          d.el.remove(); d.sh.remove();
-        }
-        sync();
-        layout();
-        renderTotal();
-        vibrate(8);
+        while (dice.length > count) { const d = dice.pop(); d.el.remove(); d.sh.remove(); }
+        sync(); layout(); renderTotal(); vibrate(8);
       }
 
       btnPlus.onclick  = () => setCount(count + 1);
@@ -591,18 +678,16 @@
       btnRoll.onclick  = roll;
       board.addEventListener('click', () => { if (count > 0) roll(); });
 
-      // Une rotation change les dimensions du tapis : on replace tout.
       window.addEventListener('resize', () => { if (!rolling) layout(); });
       window.addEventListener('gita:langchange', () => { sync(); renderTotal(); });
 
-      // Mise en place initiale (après le premier rendu, pour connaître la
-      // taille réelle du tapis).
       requestAnimationFrame(() => {
         for (let i = 0; i < count; i++) dice.push(makeDie());
         sync(); layout(); renderTotal();
       });
     })();
   </script>
+
 
   <!-- Retour haptique partagé (window.gitaVibrate). Script classique, comme
        sur les autres pages : gestures.js n'est pas un module. -->
