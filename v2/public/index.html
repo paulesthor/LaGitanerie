@@ -120,7 +120,15 @@
     .tabbar button.active i { transform:translateY(-1px) scale(1.08); }
 
     /* ── Barre compte (accueil) ── */
-    .topbar { display:flex; align-items:center; gap:12px; padding:clamp(9px,1.8vh,16px) 22px; position:relative; }
+    /* Échelle globale de l'accueil : 1 sur grand écran, jusqu'à 0.72 sur
+       petit. Tous les espacements et corps de texte en dépendent, ce qui
+       réduit l'ensemble proportionnellement au lieu de déformer la page. */
+    #view-accueil { --s: 1; }
+    @media (max-height: 860px) { #view-accueil { --s: .90; } }
+    @media (max-height: 780px) { #view-accueil { --s: .82; } }
+    @media (max-height: 700px) { #view-accueil { --s: .74; } }
+    @media (max-height: 640px) { #view-accueil { --s: .66; } }
+    .topbar { display:flex; align-items:center; gap:12px; padding:calc(14px * var(--s)) 22px; position:relative; }
     .topbar-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; }
     /* ── Sélecteur de langue ── */
     .lang-btn {
@@ -188,22 +196,22 @@
     .link-btn:active { color:var(--orange,#f39c12); border-color:rgba(243,156,18,0.4); }
 
     /* ── Hero ── */
-    .hero { padding:clamp(18px,4.4vh,44px) 22px clamp(22px,5.6vh,60px); }
+    .hero { padding:calc(38px * var(--s)) 22px calc(50px * var(--s)); }
     .hero-title {
       font-family:var(--font-brand,'Playfair Display',serif);
-      font-weight:600; font-size:clamp(2.3rem,11.5vh,4.4rem);
+      font-weight:600; font-size:calc(clamp(2.6rem,13vw,4.4rem) * var(--s));
       line-height:0.9; letter-spacing:-0.01em; color:var(--text,#ecf0f1);
     }
     .hero-title .amp { color:var(--orange,#f39c12); }
 
     /* ── Liste de jeux ── */
-    .games { padding:4px 22px 0; }
+    .games { padding:calc(6px * var(--s)) 22px 0; }
     .games-label {
       font-size:0.58rem; font-weight:700; text-transform:uppercase;
       letter-spacing:0.28em; color:rgba(236,240,241,0.3); padding-bottom:6px;
     }
     .game {
-      display:flex; align-items:center; gap:16px; padding:clamp(13px,2.5vh,26px) 2px;
+      display:flex; align-items:center; gap:calc(18px * var(--s)); padding:calc(24px * var(--s)) 2px;
       border-top:1px solid rgba(255,255,255,0.07);
       text-decoration:none; color:inherit; transition:padding-left .18s ease;
     }
@@ -216,12 +224,12 @@
     .game-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
     .game-name {
       font-family:var(--font-brand,'Playfair Display',serif);
-      font-weight:600; font-size:clamp(1.2rem,2.9vh,1.9rem); line-height:1.05; color:var(--text,#ecf0f1);
+      font-weight:600; font-size:calc(clamp(1.4rem,6.2vw,1.9rem) * var(--s)); line-height:1.05; color:var(--text,#ecf0f1);
     }
-    .game-desc { font-size:clamp(.7rem,1.55vh,.78rem); color:rgba(236,240,241,0.45); line-height:1.4; }
+    .game-desc { font-size:calc(.78rem * var(--s)); color:rgba(236,240,241,0.45); line-height:1.4; }
     .game-go { margin-left:auto; flex-shrink:0; color:var(--orange,#f39c12); font-size:1.25rem; line-height:1; transition:transform .18s ease; }
     .game:active .game-go { transform:translateX(5px); }
-    .home-footer { margin-top:auto; padding:clamp(12px,2.6vh,30px) 22px clamp(10px,1.8vh,20px); font-size:0.66rem; font-style:italic; letter-spacing:.01em; color:rgba(236,240,241,0.22); }
+    .home-footer { margin-top:auto; padding:calc(26px * var(--s)) 22px calc(16px * var(--s)); font-size:0.66rem; font-style:italic; letter-spacing:.01em; color:rgba(236,240,241,0.22); }
 
     /* ── Profil / stats / amis / réglages (repris de l'ancienne page profil) ── */
     .emoji-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:8px; }
@@ -566,7 +574,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v122';
+    const APP_BUILD = 'v123';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -667,6 +675,7 @@
       document.body.style.background = bg;
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
       moveIndicator();
+      if (name === 'accueil' && window.gitaFitHome) requestAnimationFrame(window.gitaFitHome);
     }
 
     // ── Indicateur glissant (façon iOS) ──
@@ -794,6 +803,46 @@
       window.addEventListener('resize', () => moveIndicator(false));
       requestAnimationFrame(() => moveIndicator(false));
     })();
+    // ══════════ Ajustement de l'accueil ══════════
+    // Les requêtes média ne suffisent pas : en PWA iOS la hauteur du viewport
+    // change après le lancement, et la barre d'onglets réserve une bande dont
+    // la taille dépend de l'appareil. On mesure donc le débordement réel et on
+    // réduit l'échelle par paliers jusqu'à ce que tout tienne — l'accueil ne
+    // défile jamais, quel que soit le téléphone.
+    (function () {
+      const view = document.getElementById('view-accueil');
+      if (!view) return;
+
+      function fit() {
+        if (!view.classList.contains('active')) return;
+        let s = 1;
+        view.style.setProperty('--s', s);
+        // C'est le DOCUMENT qui défile, pas la section : comparer la hauteur de
+        // la section à la sienne ne détecterait jamais rien. On teste donc la
+        // seule condition qui compte — la page dépasse-t-elle l'écran ?
+        const overflows = () =>
+          document.documentElement.scrollHeight > window.innerHeight + 1;
+        // 8 paliers de 5 % : absorbe les écrans les plus courts sans jamais
+        // descendre à une taille illisible.
+        for (let i = 0; i < 8 && overflows(); i++) {
+          s = Math.round((s - 0.05) * 100) / 100;
+          view.style.setProperty('--s', s);
+          view.offsetHeight;   // force le recalcul avant la mesure suivante
+        }
+      }
+
+      // Après le premier rendu, puis à chaque événement qui change la hauteur.
+      requestAnimationFrame(() => requestAnimationFrame(fit));
+      window.addEventListener('resize', fit);
+      window.addEventListener('orientationchange', () => setTimeout(fit, 350));
+      window.addEventListener('pageshow', fit);
+      window.addEventListener('gita:langchange', () => setTimeout(fit, 30));
+      // Les polices d'affichage arrivent après le HTML : elles changent la
+      // hauteur du titre, donc il faut remesurer une fois chargées.
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+      window.gitaFitHome = fit;
+    })();
+
     // ══════════ Sélecteur de langue ══════════
     (function () {
       const I18N = window.I18N;
