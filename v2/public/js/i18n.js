@@ -486,6 +486,13 @@
       'cg.h7': 'Contact',
       'cg.p7': 'Une question, un souci : <strong>esthor.pl@gmail.com</strong>.',
 
+
+      // ── Invitation ──
+      'invite.youJoin': 'Tu rejoins la partie de',
+      'invite.enter': 'Entrer dans la partie',
+      'invite.defaultName': 'Joueur',
+      'wait.linkCopied': 'Lien de la partie copié',
+
       'settings.build': 'La Gitanerie · build',
     },
 
@@ -1047,6 +1054,13 @@
       'cg.p6': 'The name, design and code of La Gitanerie belong to their author. The rules of the Pyramid and Werewolf belong to the world of traditional games.',
       'cg.h7': 'Contact',
       'cg.p7': 'A question or a problem: <strong>esthor.pl@gmail.com</strong>.',
+
+
+      // ── Invitation ──
+      'invite.youJoin': 'You are joining the game of',
+      'invite.enter': 'Enter the game',
+      'invite.defaultName': 'Player',
+      'wait.linkCopied': 'Game link copied',
 
       'settings.build': 'La Gitanerie · build',
     },
@@ -1610,6 +1624,13 @@
       'cg.h7': 'Contatti',
       'cg.p7': 'Una domanda o un problema: <strong>esthor.pl@gmail.com</strong>.',
 
+
+      // ── Invitation ──
+      'invite.youJoin': 'Ti unisci alla partita di',
+      'invite.enter': 'Entra nella partita',
+      'invite.defaultName': 'Giocatore',
+      'wait.linkCopied': 'Link della partita copiato',
+
       'settings.build': 'La Gitanerie · build',
     },
 
@@ -2171,6 +2192,13 @@
       'cg.p6': 'El nombre, el diseno y el codigo de La Gitanerie pertenecen a su autor. Las reglas de la Piramide y del Hombre Lobo pertenecen a los juegos tradicionales.',
       'cg.h7': 'Contacto',
       'cg.p7': 'Una duda o un problema: <strong>esthor.pl@gmail.com</strong>.',
+
+
+      // ── Invitation ──
+      'invite.youJoin': 'Te unes a la partida de',
+      'invite.enter': 'Entrar en la partida',
+      'invite.defaultName': 'Jugador',
+      'wait.linkCopied': 'Enlace de la partida copiado',
 
       'settings.build': 'La Gitanerie · build',
     },

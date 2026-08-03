@@ -156,11 +156,14 @@ export function mount(root, api) {
   $('btn-share-code').onclick = async () => {
     const code = $('game-code').textContent;
     if (!code || code === '----') return;
+    // On partage un LIEN DIRECT vers la partie, pas l'accueil : le destinataire
+    // entre en un tap au lieu de retaper le code à la main.
+    const link = `${location.origin}/lobbypyramide.html?join=${code}`;
     if (navigator.share) {
-      try { await navigator.share({ title: 'La Gitanerie', text: `${t('wait.shareText', { code })}\nhttps://la-gitanerie.web.app` }); } catch {}
+      try { await navigator.share({ title: 'La Gitanerie', text: t('wait.shareText', { code }), url: link }); } catch {}
     } else {
-      await navigator.clipboard.writeText(code).catch(() => {});
-      showToast(t('wait.codeCopied', { code }), 'success');
+      await navigator.clipboard.writeText(link).catch(() => {});
+      showToast(t('wait.linkCopied'), 'success');
     }
   };
 

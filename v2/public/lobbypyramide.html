@@ -70,6 +70,36 @@
 
     <div class="page-content">
 
+      <!-- ═══ Arrivée par lien d'invitation ═══
+           Écran volontairement minimal : quelqu'un qui clique sur un lien veut
+           entrer dans LA partie de son ami, pas configurer un profil. On ne lui
+           montre donc ni l'onglet Créer, ni le mode, ni la photo. -->
+      <div id="invite-view" class="flex-col gap-14 hidden">
+        <div class="card flex-col gap-14 text-center">
+          <div style="font-size:2.6rem">🎴</div>
+          <div class="flex-col gap-6">
+            <span class="text-sm text-muted" data-i18n="invite.youJoin">Tu rejoins la partie de</span>
+            <span id="invite-host" class="font-bold" style="font-size:1.35rem;color:var(--gold)">…</span>
+          </div>
+          <!-- Joueurs déjà présents : on voit qu'on arrive au bon endroit -->
+          <div id="invite-players" class="flex gap-8 flex-wrap" style="justify-content:center"></div>
+        </div>
+
+        <div class="card flex-col gap-12">
+          <div class="input-group">
+            <label data-i18n="profile.playerName">Nom de joueur</label>
+            <input type="text" id="invite-name" class="input" data-i18n-ph="lobby.namePh" maxlength="15" autocomplete="off">
+          </div>
+          <button id="invite-join" class="btn btn-primary" style="padding:18px;font-size:1.05rem">
+            <i class="fas fa-right-to-bracket"></i> <span data-i18n="invite.enter">Entrer dans la partie</span>
+          </button>
+          <div id="invite-error" class="hidden text-sm text-center" style="color:var(--red)"></div>
+        </div>
+      </div>
+
+      <!-- ═══ Salon complet (création / rejoindre par code) ═══ -->
+      <div id="lobby-view" class="flex-col gap-14">
+
       <!-- Profil -->
       <div class="card flex-col gap-16">
         <h3 data-i18n="lobby.yourProfile">Ton profil</h3>
@@ -132,6 +162,8 @@
       </div>
 
       <div id="error-msg" class="hidden text-sm text-center" style="color:var(--red)"></div>
+
+      </div><!-- /#lobby-view -->
 
     </div>
   </div>
@@ -278,7 +310,10 @@
     }
 
     function showError(msg) {
-      const el = document.getElementById('error-msg');
+      // Sur l'écran d'invitation, #error-msg est masqué avec le salon : on
+      // redirige vers la zone d'erreur visible, sinon l'échec est silencieux.
+      const inviteOn = !document.getElementById('invite-view').classList.contains('hidden');
+      const el = document.getElementById(inviteOn ? 'invite-error' : 'error-msg');
       el.textContent = msg;
       el.classList.remove('hidden');
       setTimeout(() => el.classList.add('hidden'), 4000);
@@ -414,20 +449,82 @@
       joinGameByCode(code, document.getElementById('btn-join'));
     };
 
-    // --- Rejoindre rapidement (depuis /pyramide.html) : ?join=CODE ---
+    // ══════════ Arrivée par lien d'invitation : ?join=CODE ══════════
     const _joinParam = (new URLSearchParams(location.search).get('join') || '').trim().toUpperCase();
     let _autoJoined = false;
-    function attemptAutoJoin() {
-      if (_autoJoined || !_joinParam) return;
-      if (!nameInput.value.trim()) return;   // on attend d'avoir un pseudo
-      _autoJoined = true;
-      joinGameByCode(_joinParam, document.getElementById('btn-join'));
+
+    // Un pseudo par défaut est TOUJOURS proposé : sans lui, un nouveau joueur
+    // (champ vide) restait bloqué sur le formulaire alors que l'habitué entrait
+    // tout seul — la friction tombait sur celui qu'on veut justement convertir.
+    function suggestName() {
+      const n = 1 + Math.floor(Math.random() * 99);
+      return `${T('invite.defaultName')} ${n}`;
     }
+
+    function knownName() {
+      try {
+        const pc = JSON.parse(localStorage.getItem('profileCache')) || {};
+        return (pc.displayName || localStorage.getItem('guestName') || '').trim();
+      } catch (e) { return ''; }
+    }
+
+    // Aperçu de la partie : chez qui on entre, et qui est déjà là.
+    async function paintInvitePreview(code) {
+      try {
+        await authReady;
+        const codeSnap = await get(ref(db, `gameCodes/${code}`));
+        if (!codeSnap.exists()) { inviteError(T('lobby.wrongCode')); return; }
+        const gameSnap = await get(ref(db, `games/${codeSnap.val().gameId}`));
+        if (!gameSnap.exists()) { inviteError(T('lobby.gameNotFound')); return; }
+        const game    = gameSnap.val();
+        const players = game.players || {};
+        const host    = players[game.hostId] || {};
+        document.getElementById('invite-host').textContent = host.name || T('game.player');
+        const wrap = document.getElementById('invite-players');
+        wrap.innerHTML = Object.values(players).map(p =>
+          `<span class="flex items-center gap-6 card-sm" style="padding:6px 10px">${avatarHTML(p.avatar, 24)}<span class="text-sm">${p.name || ''}</span></span>`
+        ).join('');
+      } catch (e) { /* l'aperçu est un bonus : son échec ne bloque pas l'entrée */ }
+    }
+
+    function inviteError(msg) {
+      const el = document.getElementById('invite-error');
+      el.textContent = msg; el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
     if (_joinParam) {
-      switchTab('join');
+      // Écran dédié : on masque tout le salon de création.
+      document.getElementById('lobby-view').classList.add('hidden');
+      document.getElementById('invite-view').classList.remove('hidden');
       document.getElementById('input-code').value = _joinParam;
-      // dès que le pseudo est prêt (compte ou invité), on rejoint automatiquement
-      setTimeout(attemptAutoJoin, 600);
+
+      const inviteName = document.getElementById('invite-name');
+      inviteName.value = knownName() || suggestName();
+      // Le pseudo suggéré se sélectionne au premier appui : on le remplace d'un
+      // geste au lieu de devoir tout effacer.
+      let _touched = false;
+      inviteName.addEventListener('focus', () => {
+        if (!_touched && !knownName()) { inviteName.select(); _touched = true; }
+      });
+
+      paintInvitePreview(_joinParam);
+
+      const doJoin = () => {
+        const name = inviteName.value.trim() || suggestName();
+        nameInput.value = name;          // le reste du code lit ce champ
+        joinGameByCode(_joinParam, document.getElementById('invite-join'));
+      };
+      document.getElementById('invite-join').onclick = doJoin;
+      inviteName.addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(); });
+
+      // Entrée automatique pour qui a déjà un pseudo : un tap sur le lien suffit.
+      function attemptAutoJoin() {
+        if (_autoJoined || !knownName()) return;
+        _autoJoined = true;
+        nameInput.value = knownName();
+        joinGameByCode(_joinParam, document.getElementById('invite-join'));
+      }
       authReady.then(() => setTimeout(attemptAutoJoin, 200));
     }
   </script>
