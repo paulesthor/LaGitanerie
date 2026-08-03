@@ -209,7 +209,8 @@
       const AIR         = 0.9965; // traînée
       const SPIN_AIR    = 0.996;
       const SLOP        = 0.8;    // tolérance de contact (voir groundContact)
-      const ROLL_DRAG   = 3.4;    // résistance au roulement, une fois au sol
+      const ROLL_DRAG   = 6.0;    // résistance au roulement, une fois au sol
+      const MAX_ROLL    = 3.2;    // durée maximale d'un lancer (garde-fou)
       const SLEEP_V     = 14;     // seuils d'endormissement
       const SLEEP_W     = 0.9;
       const SLEEP_TIME  = 0.16;
@@ -261,64 +262,6 @@
         a[0]*b[1] - a[1]*b[0],
       ];
       const dot = (a, b) => a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
-
-      // ── Les 24 orientations d'un cube ──
-      // Engendrées par rotations successives de 90°. Servent au repos : on
-      // aligne sur la PLUS PROCHE, donc la correction est minuscule — le dé est
-      // déjà posé sur une face quand la physique s'arrête.
-      const ORIENTS = (function () {
-        const s = Math.SQRT1_2;
-        const gens = [
-          [s, s, 0, 0], [s, 0, s, 0], [s, 0, 0, s],   // +90° autour de x, y, z
-        ];
-        const out = [], seen = new Set();
-        // q et -q décrivent la même rotation : il faut une signature commune.
-        // On ne peut pas se fier au signe de q[0] — il vaut 0 pour la moitié des
-        // rotations, et le signe devient alors arbitraire (d'où des doublons).
-        // On prend le signe de la première composante non nulle.
-        const key = (q) => {
-          let f = 1;
-          for (const v of q) { if (Math.abs(v) > 1e-6) { f = v < 0 ? -1 : 1; break; } }
-          return q.map(v => (Math.round(v * f * 1000) / 1000) + 0).join(',');
-        };
-        const queue = [[1, 0, 0, 0]];
-        seen.add(key([1, 0, 0, 0])); out.push([1, 0, 0, 0]);
-        while (queue.length) {
-          const q = queue.shift();
-          for (const g of gens) {
-            const n = qnorm(qmul(g, q));
-            const k = key(n);
-            if (!seen.has(k)) { seen.add(k); out.push(n); queue.push(n); }
-          }
-        }
-        return out;   // 24
-      })();
-
-      function nearestOrient(q) {
-        let best = ORIENTS[0], bd = -1;
-        for (const o of ORIENTS) {
-          const d = Math.abs(q[0]*o[0] + q[1]*o[1] + q[2]*o[2] + q[3]*o[3]);
-          if (d > bd) { bd = d; best = o; }
-        }
-        return best;
-      }
-      function slerp(a, b, t) {
-        let d = a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3];
-        let bb = b;
-        if (d < 0) { bb = [-b[0], -b[1], -b[2], -b[3]]; d = -d; }
-        if (d > 0.9995) {
-          return qnorm([
-            a[0] + (bb[0]-a[0])*t, a[1] + (bb[1]-a[1])*t,
-            a[2] + (bb[2]-a[2])*t, a[3] + (bb[3]-a[3])*t,
-          ]);
-        }
-        const th = Math.acos(d), st = Math.sin(th);
-        const s1 = Math.sin((1-t)*th) / st, s2 = Math.sin(t*th) / st;
-        return [
-          a[0]*s1 + bb[0]*s2, a[1]*s1 + bb[1]*s2,
-          a[2]*s1 + bb[2]*s2, a[3]*s1 + bb[3]*s2,
-        ];
-      }
 
       // Emplacement tourné vers la caméra (+z) pour une orientation donnée.
       function faceUp(q) {
@@ -388,7 +331,7 @@
           q: [1, 0, 0, 0],       // orientation
           w: [0, 0, 0],          // vitesse angulaire (rad/s)
           value: 1, labels: null,
-          resting: true, calm: 0,
+          resting: true, calm: 0, awake: 0,
         };
         paintLabels(d);
         d.value = d.labels[faceUp(d.q)];
@@ -554,25 +497,34 @@
         }
 
         diceContacts();
+        // Les chocs se résolvent APRÈS les murs : un dé repoussé par un voisin
+        // pouvait donc finir hors du plateau. On revalide les bords ensuite.
+        for (const d of dice) walls(d);
 
         let moving = false;
         for (const d of dice) {
           if (!d.resting) {
+            d.awake += dt;
             const sv = Math.hypot(d.v[0], d.v[1], d.v[2]);
             const sw = Math.hypot(d.w[0], d.w[1], d.w[2]);
-            if (sv < SLEEP_V && sw < SLEEP_W) {
+            // Garde-fou : un dé coincé contre un autre peut glisser très
+            // longtemps sous les seuils d'arrêt. Passé ce délai on l'immobilise
+            // — mieux vaut une fin nette qu'une animation qui n'en finit pas.
+            if (d.awake > MAX_ROLL) {
+              d.v = [0, 0, 0]; d.w = [0, 0, 0];
+              d.value = d.labels[faceUp(d.q)];
+              d.resting = true;
+            } else if (sv < SLEEP_V && sw < SLEEP_W) {
               d.calm += dt;
-              // Alignement final : la physique a déjà posé le dé sur une face,
-              // l'écart avec l'orientation exacte est de quelques degrés. La
-              // correction est donc imperceptible — plus de « remise droite ».
-              const target = nearestOrient(d.q);
-              d.q = slerp(d.q, target, Math.min(1, dt * 12));
+              // Aucun redressement : le dé garde exactement la pose que la
+              // physique lui a donnée. Il peut rester légèrement de travers,
+              // comme un vrai dé sur une table — c'est même plus crédible.
               d.v[0] *= 0.82; d.v[1] *= 0.82;
               d.w[0] *= 0.82; d.w[1] *= 0.82; d.w[2] *= 0.82;
               if (d.calm > SLEEP_TIME) {
-                d.q = target;
                 d.v = [0, 0, 0]; d.w = [0, 0, 0];
-                d.p[2] = half;
+                // La valeur reste celle de la face la plus tournée vers nous :
+                // le calcul ne suppose aucun alignement.
                 d.value = d.labels[faceUp(d.q)];
                 d.resting = true;
               }
@@ -623,7 +575,7 @@
           const al = Math.hypot(ax[0], ax[1], ax[2]) || 1;
           const spin = 16 + Math.random() * 18;    // rad/s
           d.w = [ax[0]/al*spin, ax[1]/al*spin, ax[2]/al*spin];
-          d.resting = false; d.calm = 0;
+          d.resting = false; d.calm = 0; d.awake = 0;
         }
         vibrate([16, 34, 12]);
         if (!raf) { last = 0; raf = requestAnimationFrame(loop); }
@@ -655,7 +607,6 @@
             half,
           ];
           d.v = [0, 0, 0]; d.w = [0, 0, 0];
-          d.q = nearestOrient(d.q);
           d.value = d.labels[faceUp(d.q)];
           d.resting = true; d.calm = 0;
           walls(d);
