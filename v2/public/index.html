@@ -120,7 +120,7 @@
     .tabbar button.active i { transform:translateY(-1px) scale(1.08); }
 
     /* ── Barre compte (accueil) ── */
-    .topbar { display:flex; align-items:center; gap:12px; padding:16px 22px; position:relative; }
+    .topbar { display:flex; align-items:center; gap:12px; padding:clamp(9px,1.8vh,16px) 22px; position:relative; }
     .topbar-actions { display:flex; align-items:center; gap:10px; flex-shrink:0; }
     /* ── Sélecteur de langue ── */
     .lang-btn {
@@ -188,22 +188,22 @@
     .link-btn:active { color:var(--orange,#f39c12); border-color:rgba(243,156,18,0.4); }
 
     /* ── Hero ── */
-    .hero { padding:44px 22px 60px; }
+    .hero { padding:clamp(18px,4.4vh,44px) 22px clamp(22px,5.6vh,60px); }
     .hero-title {
       font-family:var(--font-brand,'Playfair Display',serif);
-      font-weight:600; font-size:clamp(3rem,15vw,4.4rem);
+      font-weight:600; font-size:clamp(2.3rem,11.5vh,4.4rem);
       line-height:0.9; letter-spacing:-0.01em; color:var(--text,#ecf0f1);
     }
     .hero-title .amp { color:var(--orange,#f39c12); }
 
     /* ── Liste de jeux ── */
-    .games { padding:8px 22px 0; }
+    .games { padding:4px 22px 0; }
     .games-label {
       font-size:0.58rem; font-weight:700; text-transform:uppercase;
       letter-spacing:0.28em; color:rgba(236,240,241,0.3); padding-bottom:6px;
     }
     .game {
-      display:flex; align-items:center; gap:18px; padding:26px 2px;
+      display:flex; align-items:center; gap:16px; padding:clamp(13px,2.5vh,26px) 2px;
       border-top:1px solid rgba(255,255,255,0.07);
       text-decoration:none; color:inherit; transition:padding-left .18s ease;
     }
@@ -216,12 +216,12 @@
     .game-body { flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
     .game-name {
       font-family:var(--font-brand,'Playfair Display',serif);
-      font-weight:600; font-size:clamp(1.45rem,6.5vw,1.9rem); line-height:1.05; color:var(--text,#ecf0f1);
+      font-weight:600; font-size:clamp(1.2rem,2.9vh,1.9rem); line-height:1.05; color:var(--text,#ecf0f1);
     }
-    .game-desc { font-size:0.78rem; color:rgba(236,240,241,0.45); line-height:1.4; }
+    .game-desc { font-size:clamp(.7rem,1.55vh,.78rem); color:rgba(236,240,241,0.45); line-height:1.4; }
     .game-go { margin-left:auto; flex-shrink:0; color:var(--orange,#f39c12); font-size:1.25rem; line-height:1; transition:transform .18s ease; }
     .game:active .game-go { transform:translateX(5px); }
-    .home-footer { margin-top:auto; padding:30px 22px 20px; font-size:0.66rem; font-style:italic; letter-spacing:.01em; color:rgba(236,240,241,0.22); }
+    .home-footer { margin-top:auto; padding:clamp(12px,2.6vh,30px) 22px clamp(10px,1.8vh,20px); font-size:0.66rem; font-style:italic; letter-spacing:.01em; color:rgba(236,240,241,0.22); }
 
     /* ── Profil / stats / amis / réglages (repris de l'ancienne page profil) ── */
     .emoji-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:8px; margin-top:8px; }
@@ -566,7 +566,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v121';
+    const APP_BUILD = 'v122';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

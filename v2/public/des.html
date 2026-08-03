@@ -188,16 +188,6 @@
         3: 'rotateX(90deg)  translateZ(var(--h, 30px))',
         4: 'rotateX(-90deg) translateZ(var(--h, 30px))',
       };
-      // Orientation finale pour présenter une valeur donnée face à la caméra.
-      const REST = {
-        1: { x:   0, y:   0 },
-        6: { x:   0, y: 180 },
-        2: { x:   0, y: -90 },
-        5: { x:   0, y:  90 },
-        3: { x: -90, y:   0 },
-        4: { x:  90, y:   0 },
-      };
-
       // ── Paramètres physiques ──
       const GRAVITY     = 2600;   // px/s² — chute franche, pas flottante
       const RESTITUTION = 0.42;   // énergie conservée à chaque rebond
@@ -222,13 +212,40 @@
         size = Math.max(34, Math.min(82, Math.round(fit)));
       }
 
+      // Ordre des emplacements de faces dans le DOM, et leur opposé.
+      const SLOTS = [1, 6, 2, 5, 3, 4];   // avant, arrière, droite, gauche, dessus, dessous
+
+      function randomLabels() {
+        const front = 1 + Math.floor(Math.random() * 6);
+        const back  = 7 - front;
+        const rest  = [1, 2, 3, 4, 5, 6].filter(n => n !== front && n !== back);
+        const top   = rest[Math.floor(Math.random() * rest.length)];
+        const bottom = 7 - top;
+        const pair  = rest.filter(n => n !== top && n !== bottom);
+        const flip  = Math.random() < 0.5;
+        // { emplacement : numéro affiché }
+        return {
+          1: front, 6: back,
+          2: flip ? pair[0] : pair[1],
+          5: flip ? pair[1] : pair[0],
+          3: top, 4: bottom,
+        };
+      }
+
+      function paintLabels(d) {
+        d.labels = randomLabels();
+        SLOTS.forEach((slot, i) => {
+          const face = d.el.children[i];
+          const v = d.labels[slot];
+          face.innerHTML = FACES[v].map(p => `<span class="pip ${p}"></span>`).join('');
+        });
+      }
+
       function buildDie() {
         const el = document.createElement('div');
         el.className = 'die';
-        el.innerHTML = Object.keys(FACE_TRANSFORM).map(v =>
-          `<div class="face" style="transform:${FACE_TRANSFORM[v]}">` +
-          FACES[v].map(p => `<span class="pip ${p}"></span>`).join('') +
-          `</div>`
+        el.innerHTML = SLOTS.map(slot =>
+          `<div class="face" style="transform:${FACE_TRANSFORM[slot]}"></div>`
         ).join('');
         const sh = document.createElement('div');
         sh.className = 'shadow';
@@ -250,15 +267,18 @@
 
       function makeDie() {
         const { el, sh } = buildDie();
-        return {
+        const d = {
           el, sh,
           x: 0, y: 0, z: 0,           // z = hauteur au-dessus du tapis
           vx: 0, vy: 0, vz: 0,
           rx: 0, ry: 0,               // rotation courante (degrés)
           vrx: 0, vry: 0,
-          value: 1 + Math.floor(Math.random() * 6),
+          value: 1, labels: null,
           resting: true, settling: 0,
         };
+        paintLabels(d);
+        d.value = d.labels[1];   // face avant tournée vers la caméra
+        return d;
       }
 
       // Place les dés proprement répartis, à plat, sans simulation.
@@ -272,7 +292,9 @@
           d.x = cx * (w - size);
           d.y = cy * (h - size);
           d.z = 0; d.vx = d.vy = d.vz = 0; d.vrx = d.vry = 0;
-          d.rx = REST[d.value].x; d.ry = REST[d.value].y;
+          d.rx = Math.round(d.rx / 90) * 90;
+          d.ry = Math.round(d.ry / 90) * 90;
+          d.value = d.labels[faceUp(d.rx, d.ry)];
           d.resting = true; d.settling = 0;
           draw(d);
         });
@@ -332,15 +354,21 @@
 
           const speed = Math.hypot(d.vx, d.vy) + Math.abs(d.vz);
           if (d.z === 0 && speed < REST_SPEED) {
-            // Phase de calage : on ramène doucement le cube sur la face tirée,
-            // par le plus court chemin, pour qu'il ne « saute » pas à la fin.
+            // Calage sur l'angle droit le plus proche : le dé se pose comme un
+            // vrai dé qui bascule sur sa dernière arête, au lieu de pivoter
+            // vers une face imposée.
+            if (d.settling === 0) {
+              d.tx = Math.round(d.rx / 90) * 90;
+              d.ty = Math.round(d.ry / 90) * 90;
+            }
             d.settling += dt;
-            const tx = REST[d.value].x, ty = REST[d.value].y;
-            d.rx += shortest(d.rx, tx) * Math.min(1, dt * 11);
-            d.ry += shortest(d.ry, ty) * Math.min(1, dt * 11);
+            d.rx += shortest(d.rx, d.tx) * Math.min(1, dt * 9);
+            d.ry += shortest(d.ry, d.ty) * Math.min(1, dt * 9);
             d.vx *= 0.7; d.vy *= 0.7;
-            if (d.settling > 0.42) {
-              d.rx = tx; d.ry = ty; d.vx = d.vy = d.vrx = d.vry = 0;
+            if (d.settling > 0.34) {
+              d.rx = d.tx; d.ry = d.ty;
+              d.vx = d.vy = d.vrx = d.vry = 0;
+              d.value = d.labels[faceUp(d.rx, d.ry)];   // la valeur DÉCOULE de la pose
               d.resting = true;
             }
           }
@@ -377,6 +405,30 @@
             }
           }
         }
+      }
+
+      // Quelle face regarde la caméra ? On fait tourner la normale de chaque
+      // face par l'orientation courante et on garde celle dont la composante Z
+      // est la plus grande. Calculé, jamais deviné : impossible d'afficher une
+      // valeur qui ne corresponde pas à la face visible.
+      const NORMALS = {
+        1: [0, 0, 1], 6: [0, 0, -1],
+        2: [1, 0, 0], 5: [-1, 0, 0],
+        3: [0, -1, 0], 4: [0, 1, 0],
+      };
+      function faceUp(rx, ry) {
+        const ax = rx * Math.PI / 180, ay = ry * Math.PI / 180;
+        const cx = Math.cos(ax), sx = Math.sin(ax);
+        const cy = Math.cos(ay), sy = Math.sin(ay);
+        let best = 1, bestZ = -2;
+        for (const v in NORMALS) {
+          const [x, y, z] = NORMALS[v];
+          // rotateY puis rotateX, dans l'ordre où le CSS les applique.
+          const x1 = x * cy + z * sy, y1 = y, z1 = -x * sy + z * cy;
+          const z2 = y1 * sx + z1 * cx;
+          if (z2 > bestZ) { bestZ = z2; best = +v; }
+        }
+        return best;
       }
 
       // Recadrage final : garantit qu'aucun dé ne se retrouve hors du tapis
@@ -424,16 +476,15 @@
         totalEl.textContent = '';
         applySize();
 
-        const w = board.clientWidth, h = board.clientHeight;
-        dice.forEach((d, i) => {
-          d.value = 1 + Math.floor(Math.random() * 6);
-          // Départ depuis le bas de l'écran, comme une main qui lance : chaque
-          // dé part d'un point et d'un angle différents.
-          d.x = w * (0.15 + Math.random() * 0.7) - size / 2;
-          d.y = h - size;
-          d.z = 40 + Math.random() * 70;
-          d.vx = (Math.random() - 0.5) * 540;
-          d.vy = -(360 + Math.random() * 300);
+        dice.forEach((d) => {
+          paintLabels(d);   // nouvel étiquetage → tirage équitable
+          // On repart de la position ACTUELLE du dé : il est soulevé et relancé
+          // sur place, au lieu d'être téléporté en bas du tapis.
+          d.z = 30 + Math.random() * 60;
+          const ang = Math.random() * Math.PI * 2;
+          const force = 220 + Math.random() * 320;
+          d.vx = Math.cos(ang) * force;
+          d.vy = Math.sin(ang) * force;
           d.vz = 430 + Math.random() * 330;
           d.vrx = (Math.random() - 0.5) * 1700;
           d.vry = (Math.random() - 0.5) * 1700;
