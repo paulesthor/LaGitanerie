@@ -311,6 +311,14 @@
         </span>
         <span class="game-go" aria-hidden="true">→</span>
       </a>
+      <a href="/des.html" class="game">
+        <span class="game-num">03</span>
+        <span class="game-body">
+          <span class="game-name" data-i18n="home.dice">Les Dés</span>
+          <span class="game-desc" data-i18n="home.diceDesc">De 1 à 10 dés à lancer. Pas de règles, pas de salon : le gobelet, c'est ton téléphone.</span>
+        </span>
+        <span class="game-go" aria-hidden="true">→</span>
+      </a>
     </nav>
 
     <div class="home-footer" data-i18n="home.disclaimer">L'abus d'alcool est recommandé par les collègues.</div>
@@ -558,7 +566,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v118';
+    const APP_BUILD = 'v119';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

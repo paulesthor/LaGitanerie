@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+  <meta charset="UTF-8">
+  <style id="gita-early-bg">html{background:#243242}</style>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#243242">
+  <title>Dés — La Gitanerie</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&amp;family=Playfair+Display:wght@700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="/js/i18n.js"></script>
+  <style>
+    /* Le plateau occupe toute la hauteur disponible : les dés sont au centre,
+       les commandes restent collées en bas, sans jamais faire défiler la page. */
+    .dice-page { flex: 1; display: flex; flex-direction: column; gap: 18px; }
+    .dice-board {
+      flex: 1;
+      display: flex; align-items: center; justify-content: center;
+      flex-wrap: wrap;
+      align-content: center;
+      gap: clamp(8px, 2.5vw, 16px);
+      padding: 8px 0;
+      min-height: 40vh;
+    }
+    .dice-empty { color: var(--text-muted); font-size: .9rem; text-align: center; }
+
+    /* ── Un dé ──
+       Taille fluide : 10 dés doivent tenir sans déborder sur un petit écran,
+       et 1 seul dé doit rester imposant. */
+    .die {
+      --sz: clamp(46px, 17vw, 76px);
+      width: var(--sz); height: var(--sz);
+      border-radius: calc(var(--sz) * .2);
+      background: linear-gradient(158deg, #fff 0%, #f1f1ec 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.9),
+        inset 0 0 0 1px rgba(0,0,0,.08),
+        0 6px 16px rgba(0,0,0,.42);
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      padding: calc(var(--sz) * .14);
+      flex-shrink: 0;
+      will-change: transform;
+    }
+    /* Les points sont placés par zone de la grille 3×3 — un dé dessiné, pas un
+       caractère : net à toutes les tailles et identique sur tous les appareils. */
+    .pip {
+      width: calc(var(--sz) * .17); height: calc(var(--sz) * .17);
+      border-radius: 50%;
+      background: #1a1a24;
+      box-shadow: inset 0 -1px 1px rgba(255,255,255,.25);
+      align-self: center; justify-self: center;
+    }
+    .p-tl { grid-area: 1 / 1; } .p-tr { grid-area: 1 / 3; }
+    .p-ml { grid-area: 2 / 1; } .p-mc { grid-area: 2 / 2; } .p-mr { grid-area: 2 / 3; }
+    .p-bl { grid-area: 3 / 1; } .p-br { grid-area: 3 / 3; }
+
+    /* Le 6 met en valeur : liseré doré discret */
+    .die.six { box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 0 0 2px rgba(243,156,18,.55), 0 6px 18px rgba(243,156,18,.28); }
+
+    /* ── Animation de lancer ──
+       Le dé culbute, rebondit et se stabilise. Chaque dé est décalé pour que la
+       volée paraisse naturelle plutôt que synchronisée. */
+    @keyframes die-roll {
+      0%   { transform: translateY(-38px) rotate(0deg)    scale(.86); }
+      35%  { transform: translateY(6px)   rotate(220deg)  scale(1.06); }
+      55%  { transform: translateY(-10px) rotate(400deg)  scale(.98); }
+      75%  { transform: translateY(3px)   rotate(520deg)  scale(1.03); }
+      100% { transform: translateY(0)     rotate(576deg)  scale(1); }
+    }
+    .die.rolling { animation: die-roll .72s cubic-bezier(.28,.9,.35,1) both; }
+
+    /* Apparition d'un dé qu'on vient d'ajouter */
+    @keyframes die-in { from { opacity: 0; transform: scale(.6); } }
+    .die.added { animation: die-in .22s cubic-bezier(.34,1.5,.5,1) both; }
+
+    /* ── Commandes ── */
+    .dice-controls { display: flex; flex-direction: column; gap: 14px; }
+    .dice-count {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+    }
+    .dice-count-label { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+    .dice-stepper { display: flex; align-items: center; gap: 14px; }
+    .dice-stepper button {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--bg-raised); border: 1px solid var(--border-strong);
+      color: var(--text); font-size: 1.3rem; font-family: inherit;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .15s, transform .1s;
+    }
+    .dice-stepper button:active { background: var(--orange); color: #1a1a1a; transform: scale(.92); }
+    .dice-stepper button:disabled { opacity: .3; pointer-events: none; }
+    .dice-stepper .val { font-size: 1.5rem; font-weight: 700; min-width: 34px; text-align: center; }
+
+    .dice-total {
+      text-align: center; font-size: .85rem; color: var(--text-muted);
+      min-height: 1.3em;
+    }
+    .dice-total strong { color: var(--gold); font-size: 1.15rem; }
+  </style>
+</head>
+<body>
+
+  <div class="screen">
+    <header class="app-header">
+      <button class="header-btn" onclick="window.location.href='/'" data-i18n-aria="common.back" aria-label="Retour"><i class="fas fa-arrow-left"></i></button>
+      <div class="header-brand"><i class="fas fa-guitar" style="color:var(--red);margin-right:6px;font-size:.9rem"></i>La <span class="brand-accent">Gitanerie</span></div>
+      <div style="width:36px"></div>
+    </header>
+
+    <div class="page-content dice-page">
+
+      <div id="board" class="dice-board">
+        <p class="dice-empty" data-i18n="dice.empty">Ajoute des dés avec le +</p>
+      </div>
+
+      <div class="dice-controls">
+        <div class="dice-count">
+          <span class="dice-count-label" data-i18n="dice.count">Nombre de dés</span>
+          <div class="dice-stepper">
+            <button id="minus" data-i18n-aria="dice.remove" aria-label="Retirer un dé">−</button>
+            <span class="val" id="count">0</span>
+            <button id="plus" data-i18n-aria="dice.add" aria-label="Ajouter un dé">+</button>
+          </div>
+        </div>
+
+        <div id="total" class="dice-total"></div>
+
+        <button id="roll" class="btn btn-primary" style="padding:18px;font-size:1.1rem" disabled>
+          <i class="fas fa-dice"></i> <span data-i18n="dice.roll">Lancer</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Jeu de dés entièrement local : aucun réseau, aucun compte, aucun salon.
+    (function () {
+      'use strict';
+      const MAX = 10;
+      const T = (k, v) => (window.t ? window.t(k, v) : k);
+      const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate && navigator.vibrate(p));
+
+      const board   = document.getElementById('board');
+      const countEl = document.getElementById('count');
+      const totalEl = document.getElementById('total');
+      const btnRoll = document.getElementById('roll');
+      const btnPlus = document.getElementById('plus');
+      const btnMinus= document.getElementById('minus');
+
+      // Disposition des points pour chaque face (zones de la grille 3×3).
+      const FACES = {
+        1: ['p-mc'],
+        2: ['p-tl', 'p-br'],
+        3: ['p-tl', 'p-mc', 'p-br'],
+        4: ['p-tl', 'p-tr', 'p-bl', 'p-br'],
+        5: ['p-tl', 'p-tr', 'p-mc', 'p-bl', 'p-br'],
+        6: ['p-tl', 'p-tr', 'p-ml', 'p-mr', 'p-bl', 'p-br'],
+      };
+
+      let count  = 0;
+      let values = [];
+      let rolling = false;
+
+      // On mémorise le nombre de dés : on retrouve sa mise en place d'une
+      // soirée à l'autre sans avoir à la refaire.
+      try {
+        const saved = parseInt(localStorage.getItem('gita_dice_count') || '0', 10);
+        if (saved > 0 && saved <= MAX) count = saved;
+      } catch (e) {}
+
+      function dieHTML(v, cls) {
+        const pips = (FACES[v] || []).map(p => `<span class="pip ${p}"></span>`).join('');
+        return `<div class="die ${v === 6 ? 'six' : ''} ${cls || ''}">${pips}</div>`;
+      }
+
+      function renderTotal() {
+        if (!values.length) { totalEl.textContent = ''; return; }
+        const sum = values.reduce((a, b) => a + b, 0);
+        totalEl.innerHTML = `${T('dice.total')} <strong>${sum}</strong>`;
+      }
+
+      function render(animate) {
+        countEl.textContent = count;
+        btnPlus.disabled  = count >= MAX;
+        btnMinus.disabled = count <= 0;
+        btnRoll.disabled  = count === 0 || rolling;
+
+        if (count === 0) {
+          board.innerHTML = `<p class="dice-empty">${T('dice.empty')}</p>`;
+          values = [];
+          renderTotal();
+          return;
+        }
+        board.innerHTML = values.map(v => dieHTML(v, animate ? 'rolling' : '')).join('');
+        // Décalage progressif : la volée paraît naturelle au lieu d'être
+        // parfaitement synchrone.
+        if (animate) {
+          board.querySelectorAll('.die').forEach((d, i) => {
+            d.style.animationDelay = (i * 45) + 'ms';
+          });
+        }
+        renderTotal();
+      }
+
+      function setCount(n) {
+        const next = Math.max(0, Math.min(MAX, n));
+        if (next === count) return;
+        const added = next > count;
+        count = next;
+        try { localStorage.setItem('gita_dice_count', String(count)); } catch (e) {}
+        // Les dés déjà lancés gardent leur valeur ; un dé ajouté arrive tiré au
+        // hasard plutôt que vide, pour qu'on voie tout de suite ce qu'on ajoute.
+        if (added) values.push(1 + Math.floor(Math.random() * 6));
+        else values = values.slice(0, count);
+        render(false);
+        if (added) {
+          const last = board.querySelector('.die:last-child');
+          if (last) last.classList.add('added');
+        }
+        vibrate(8);
+      }
+
+      function roll() {
+        if (rolling || count === 0) return;
+        rolling = true;
+        btnRoll.disabled = true;
+        values = Array.from({ length: count }, () => 1 + Math.floor(Math.random() * 6));
+        // Le total n'apparaît qu'une fois les dés retombés : l'afficher pendant
+        // la culbute revendrait le résultat avant l'animation.
+        totalEl.textContent = '';
+        render(true);
+        vibrate([18, 40, 12]);
+        const last = 720 + (count - 1) * 45;
+        setTimeout(() => {
+          rolling = false;
+          btnRoll.disabled = count === 0;
+          renderTotal();
+          vibrate(14);
+        }, last);
+      }
+
+      btnPlus.onclick  = () => setCount(count + 1);
+      btnMinus.onclick = () => setCount(count - 1);
+      btnRoll.onclick  = roll;
+      // Toucher le plateau relance : le geste naturel une fois qu'on joue.
+      board.addEventListener('click', () => { if (count > 0) roll(); });
+
+      // Valeurs initiales pour le nombre de dés restauré
+      values = Array.from({ length: count }, () => 1 + Math.floor(Math.random() * 6));
+      render(false);
+
+      // Les libellés arrivent après la traduction : on redessine au changement.
+      window.addEventListener('gita:langchange', () => render(false));
+    })();
+  </script>
+  <!-- Retour haptique partagé (window.gitaVibrate). Script classique, comme
+       sur les autres pages : gestures.js n'est pas un module. -->
+  <script src="/js/gestures.js"></script>
+</body></html>

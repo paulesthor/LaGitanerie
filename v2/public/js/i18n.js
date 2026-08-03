@@ -493,6 +493,17 @@
       'invite.defaultName': 'Joueur',
       'wait.linkCopied': 'Lien de la partie copié',
 
+
+      // ── Dés ──
+      'home.dice': 'Les Dés',
+      'home.diceDesc': 'De 1 à 10 dés à lancer. Pas de règles, pas de salon : le gobelet, c\'est ton téléphone.',
+      'dice.empty': 'Ajoute des dés avec le +',
+      'dice.count': 'Nombre de dés',
+      'dice.add': 'Ajouter un dé',
+      'dice.remove': 'Retirer un dé',
+      'dice.roll': 'Lancer',
+      'dice.total': 'Total',
+
       'settings.build': 'La Gitanerie · build',
     },
 
@@ -1061,6 +1072,17 @@
       'invite.enter': 'Enter the game',
       'invite.defaultName': 'Player',
       'wait.linkCopied': 'Game link copied',
+
+
+      // ── Dés ──
+      'home.dice': 'The Dice',
+      'home.diceDesc': '1 to 10 dice to roll. No rules, no room: your phone is the cup.',
+      'dice.empty': 'Add dice with the +',
+      'dice.count': 'Number of dice',
+      'dice.add': 'Add a die',
+      'dice.remove': 'Remove a die',
+      'dice.roll': 'Roll',
+      'dice.total': 'Total',
 
       'settings.build': 'La Gitanerie · build',
     },
@@ -1631,6 +1653,17 @@
       'invite.defaultName': 'Giocatore',
       'wait.linkCopied': 'Link della partita copiato',
 
+
+      // ── Dés ──
+      'home.dice': 'I Dadi',
+      'home.diceDesc': 'Da 1 a 10 dadi da lanciare. Niente regole, niente sala: il bussolotto e il tuo telefono.',
+      'dice.empty': 'Aggiungi dadi con il +',
+      'dice.count': 'Numero di dadi',
+      'dice.add': 'Aggiungi un dado',
+      'dice.remove': 'Rimuovi un dado',
+      'dice.roll': 'Lancia',
+      'dice.total': 'Totale',
+
       'settings.build': 'La Gitanerie · build',
     },
 
@@ -2199,6 +2232,17 @@
       'invite.enter': 'Entrar en la partida',
       'invite.defaultName': 'Jugador',
       'wait.linkCopied': 'Enlace de la partida copiado',
+
+
+      // ── Dés ──
+      'home.dice': 'Los Dados',
+      'home.diceDesc': 'De 1 a 10 dados para lanzar. Sin reglas, sin sala: el cubilete es tu telefono.',
+      'dice.empty': 'Anade dados con el +',
+      'dice.count': 'Numero de dados',
+      'dice.add': 'Anadir un dado',
+      'dice.remove': 'Quitar un dado',
+      'dice.roll': 'Lanzar',
+      'dice.total': 'Total',
 
       'settings.build': 'La Gitanerie · build',
     },
