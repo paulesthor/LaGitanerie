@@ -27,7 +27,8 @@
   <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js">
   <!-- Perf : préparer les pages de jeu pour un clic instantané -->
   <link rel="prefetch" href="/pyramide.html">
-  <link rel="prefetch" href="/loupgarou.html">
+  <!-- LOUP-GAROU MASQUÉ : préchargement désactivé tant que le jeu reste caché.
+       <link rel="prefetch" href="/loupgarou.html"> -->
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   <style>
     /* Le fond du document est de la couleur de la barre : tout ce qui dépasse
@@ -310,6 +311,13 @@
         </span>
         <span class="game-go" aria-hidden="true">→</span>
       </a>
+      <!-- ═══ LOUP-GAROU MASQUÉ ═══════════════════════════════════════════════
+           Entrée retirée de l'accueil à la demande, le jeu n'est pas supprimé :
+           loupgarou.html / loupwait.html / loupnight.html et js/game/loup.js
+           sont intacts. Pour le réouvrir : décommenter ce bloc, remettre « 03 »
+           sur Les Dés, réactiver le prefetch dans le <head>, remettre le
+           raccourci dans manifest.json et retirer la garde en haut des trois
+           pages loup*.html.
       <a href="/loupgarou.html" class="game">
         <span class="game-num">02</span>
         <span class="game-body">
@@ -319,8 +327,9 @@
         </span>
         <span class="game-go" aria-hidden="true">→</span>
       </a>
+      ═══════════════════════════════════════════════════════════════════════ -->
       <a href="/des.html" class="game">
-        <span class="game-num">03</span>
+        <span class="game-num">02</span>
         <span class="game-body">
           <span class="game-name" data-i18n="home.dice">Les Dés</span>
           <span class="game-desc" data-i18n="home.diceDesc">De 1 à 10 dés à lancer. Pas de règles, pas de salon : le gobelet, c'est ton téléphone.</span>
@@ -574,7 +583,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v126';
+    const APP_BUILD = 'v127';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

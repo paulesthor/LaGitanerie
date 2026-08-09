@@ -1,7 +1,7 @@
 {
   "name": "La Gitanerie",
   "short_name": "Gitanerie",
-  "description": "Jeux de gitans à jouer entre amis : la Pyramide et le Loup-Garou pour une nuit.",
+  "description": "Jeux de gitans à jouer entre amis : la Pyramide et les Dés, sans installation ni inscription.",
   "lang": "fr",
   "id": "/",
   "start_url": "/",
@@ -39,17 +39,6 @@
       "name": "La Pyramide",
       "short_name": "Pyramide",
       "url": "/pyramide.html",
-      "icons": [
-        {
-          "src": "/icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    },
-    {
-      "name": "Loup-Garou",
-      "short_name": "Loup-Garou",
-      "url": "/loupgarou.html",
       "icons": [
         {
           "src": "/icons/icon-192.png",
