@@ -18,23 +18,43 @@
   <link rel="stylesheet" href="/css/main.css">
   <script src="/js/i18n.js"></script>
   <style>
-    .dice-page { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+    /* ── Aucun défilement sur cette page ──
+       Sur Android, la barre d'adresse se rétracte dès qu'une page peut défiler,
+       ce qui change la hauteur du plateau EN PLEIN LANCER : les dés se
+       retrouvaient brusquement hors du tapis et étaient plaqués contre le bord.
+       La page est donc bornée à la hauteur réellement visible (--app-h, posée
+       par le script depuis window.innerHeight, seule mesure fiable sur Android)
+       et ne défile jamais. */
+    html, body { height: 100%; min-height: 0; overflow: hidden; overscroll-behavior: none; }
+    .dice-screen {
+      height: 100dvh;
+      height: var(--app-h, 100dvh);
+      min-height: 0;
+      overflow: hidden;
+    }
+    .dice-page { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; overflow: hidden; }
+    .dice-controls { flex: 0 0 auto; }
 
     /* ── Le tapis ──
-       Perspective réelle : les dés sont de vrais cubes qui tournent sur trois
-       axes, pas des carrés qu'on fait pivoter à plat. */
+       Le cadre porte le fond et le rognage ; la scène intérieure porte la
+       perspective. Les deux sur le même élément font mal découper les enfants
+       en 3D sous Chrome Android — des dés tronqués ou disparus près des bords. */
     .dice-board {
       flex: 1;
       position: relative;
-      min-height: 44vh;
+      min-height: 120px;
       border-radius: var(--radius);
       background:
         radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,.035), transparent 70%),
         var(--bg-card);
       border: 1px solid var(--border);
       overflow: hidden;
+    }
+    .dice-stage {
+      position: absolute; inset: 0;
       perspective: 900px;
       perspective-origin: 50% 42%;
+      transform-style: preserve-3d;
       touch-action: manipulation;
     }
     .dice-empty {
@@ -47,24 +67,29 @@
     /* Chaque dé est positionné par le moteur : on ne met AUCUNE transition CSS,
        sinon elle entrerait en conflit avec les transformations calculées à
        chaque image. */
+    /* Pas de `will-change` ici : combiné à preserve-3d, Chrome Android promeut
+       chaque face en couche séparée et les trie mal — le cube apparaît alors
+       éclaté, avec des faces arrière qui traversent l'avant. */
     .die {
       position: absolute;
       top: 0; left: 0;
       transform-style: preserve-3d;
-      will-change: transform;
     }
     .face {
       position: absolute; inset: 0;
       /* Arrondi discret : au-delà, les coins laissent des trous aux arêtes du
          cube. Aucune ombre portée vers l'extérieur — elle déborderait de la
-         silhouette et se verrait comme un liseré blanc sur le côté. */
-      border-radius: 5%;
+         silhouette et se verrait comme un liseré blanc sur le côté.
+         Exprimé en pixels et non en pourcentage : le rasteriseur d'Android
+         arrondit les rayons en % de façon instable d'une face à l'autre. */
+      border-radius: calc(var(--h, 30px) * .1);
       background: linear-gradient(158deg, #fff 0%, #f0f0ea 100%);
       box-shadow: inset 0 0 0 1px rgba(0,0,0,.09);
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       grid-template-rows: repeat(3, 1fr);
-      padding: 14%;
+      padding: calc(var(--h, 30px) * .28);
+      -webkit-backface-visibility: hidden;
       backface-visibility: hidden;
     }
     .pip {
@@ -115,7 +140,7 @@
 </head>
 <body>
 
-  <div class="screen">
+  <div class="screen dice-screen">
     <header class="app-header">
       <button class="header-btn" onclick="window.location.href='/'" data-i18n-aria="common.back" aria-label="Retour"><i class="fas fa-arrow-left"></i></button>
       <div class="header-brand"><i class="fas fa-guitar" style="color:var(--red);margin-right:6px;font-size:.9rem"></i>La <span class="brand-accent">Gitanerie</span></div>
@@ -125,6 +150,7 @@
     <div class="page-content dice-page">
 
       <div id="board" class="dice-board">
+        <div id="stage" class="dice-stage"></div>
         <p id="empty" class="dice-empty" data-i18n="dice.empty">Ajoute des dés avec le +</p>
       </div>
 
@@ -172,6 +198,7 @@
       const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate && navigator.vibrate(p));
 
       const board   = document.getElementById('board');
+      const stage   = document.getElementById('stage');
       const emptyEl = document.getElementById('empty');
       const countEl = document.getElementById('count');
       const totalEl = document.getElementById('total');
@@ -296,15 +323,44 @@
 
       let count = 0, dice = [], raf = 0, rolling = false, size = 60, half = 30, inertia = 1;
 
+      // ── Dimensions du tapis ──
+      // Mesurées une fois par image, jamais dans la boucle physique : lire
+      // clientWidth déclenche un recalcul de mise en page synchrone, et la
+      // boucle en faisait des dizaines par image (10 dés × 3 sous-pas × 2
+      // passes). C'est exactement le genre de charge qui fait saccader Android.
+      let BW = 320, BH = 320;
+      function measure() {
+        const w = stage.clientWidth, h = stage.clientHeight;
+        if (!w || !h || (w === BW && h === BH)) return;
+        const sx = w / BW, sy = h / BH;
+        BW = w; BH = h;
+        // Le tapis vient de changer de taille. On transporte les dés
+        // proportionnellement : sans ça, tous ceux qui se retrouvent hors du
+        // nouveau cadre sont plaqués d'un coup contre le bord le plus proche.
+        for (const d of dice) { d.p[0] *= sx; d.p[1] *= sy; walls(d); }
+      }
+
+      // Hauteur réellement visible. window.innerHeight est la seule mesure qui
+      // suit la barre d'adresse d'Android ; 100dvh sert de repli.
+      function setAppHeight() {
+        document.documentElement.style.setProperty('--app-h', window.innerHeight + 'px');
+      }
+      setAppHeight();
+
       try {
         const saved = parseInt(localStorage.getItem('gita_dice_count') || '0', 10);
         if (saved > 0 && saved <= MAX) count = saved;
       } catch (e) {}
 
       function computeSize() {
-        const w = board.clientWidth, h = board.clientHeight;
+        measure();
+        const w = BW, h = BH;
         const n = Math.max(count, 1);
         size = Math.max(34, Math.min(80, Math.round(Math.sqrt((w * h) / (n * 5.6)))));
+        // Un cube posé sur la pointe occupe √3 fois son arête. S'il ne tient pas
+        // dans le tapis, aucune borne ne peut le contenir et il déborde du
+        // cadre : on le rapetisse plutôt que d'accepter un dé rogné.
+        size = Math.min(size, Math.min(w, h) / 2);
         half = size / 2;
         // Cube homogène : I = m·(2a)²/6 avec a = demi-arête. Masse = 1.
         inertia = (2 / 3) * half * half;
@@ -325,7 +381,7 @@
           `<div class="face" style="transform:${FACE_TRANSFORM[slot]}"></div>`).join('');
         const sh = document.createElement('div');
         sh.className = 'shadow';
-        board.appendChild(sh); board.appendChild(el);
+        stage.appendChild(sh); stage.appendChild(el);
         const d = {
           el, sh,
           p: [0, 0, 0],          // centre
@@ -479,17 +535,31 @@
       }
 
       function walls(d) {
-        const w = board.clientWidth, h = board.clientHeight;
+        const w = BW, h = BH;
         // Encombrement réel du cube une fois tourné : demi-somme des valeurs
         // absolues de la ligne correspondante de la matrice de rotation. Exact,
         // et bien plus serré que le rayon circonscrit.
+        // MARGE : sans elle un dé peut s'arrêter pile sur le trait du cadre, ce
+        // qui se lit comme un dé coincé dans la bordure plutôt que posé dessus.
+        const MARGIN = 2;
         const m = qMatrix(d.q);
-        const ex = (Math.abs(m[0]) + Math.abs(m[1]) + Math.abs(m[2])) * half;
-        const ey = (Math.abs(m[3]) + Math.abs(m[4]) + Math.abs(m[5])) * half;
-        if (d.p[0] < ex)     { d.p[0] = ex;     d.v[0] = Math.abs(d.v[0]) * 0.5; d.w[1] *= -0.6; }
-        if (d.p[0] > w - ex) { d.p[0] = w - ex; d.v[0] = -Math.abs(d.v[0]) * 0.5; d.w[1] *= -0.6; }
-        if (d.p[1] < ey)     { d.p[1] = ey;     d.v[1] = Math.abs(d.v[1]) * 0.5; d.w[0] *= -0.6; }
-        if (d.p[1] > h - ey) { d.p[1] = h - ey; d.v[1] = -Math.abs(d.v[1]) * 0.5; d.w[0] *= -0.6; }
+        let ex = (Math.abs(m[0]) + Math.abs(m[1]) + Math.abs(m[2])) * half + MARGIN;
+        let ey = (Math.abs(m[3]) + Math.abs(m[4]) + Math.abs(m[5])) * half + MARGIN;
+        // Si le tapis est plus étroit que le dé — cas réel sur Android quand la
+        // barre d'adresse réapparaît en plein lancer et raccourcit le plateau —
+        // les deux bornes se croisent. Chaque image renvoyait alors le dé d'un
+        // bord à l'autre : c'est ce qui le figeait, collé contre l'arête.
+        // On le recentre au lieu de le coincer.
+        if (2 * ex >= w) { d.p[0] = w / 2; d.v[0] = 0; ex = 0; }
+        if (2 * ey >= h) { d.p[1] = h / 2; d.v[1] = 0; ey = 0; }
+        if (ex > 0) {
+          if (d.p[0] < ex)     { d.p[0] = ex;     d.v[0] = Math.abs(d.v[0]) * 0.5; d.w[1] *= -0.6; }
+          if (d.p[0] > w - ex) { d.p[0] = w - ex; d.v[0] = -Math.abs(d.v[0]) * 0.5; d.w[1] *= -0.6; }
+        }
+        if (ey > 0) {
+          if (d.p[1] < ey)     { d.p[1] = ey;     d.v[1] = Math.abs(d.v[1]) * 0.5; d.w[0] *= -0.6; }
+          if (d.p[1] > h - ey) { d.p[1] = h - ey; d.v[1] = -Math.abs(d.v[1]) * 0.5; d.w[0] *= -0.6; }
+        }
       }
 
       function step(dt) {
@@ -550,6 +620,7 @@
         let dt = (ts - last) / 1000;
         last = ts;
         if (dt > 0.05) dt = 0.05;          // retour d'arrière-plan
+        measure();                          // une seule lecture de mise en page par image
         // Sous-pas : à grande vitesse angulaire, un seul pas par image fait
         // traverser le sol aux coins et l'atterrissage devient mou.
         const n = 3, sub = dt / n;
@@ -605,7 +676,7 @@
 
       function layout() {
         applySize();
-        const w = board.clientWidth, h = board.clientHeight;
+        const w = BW, h = BH;
         const cols = Math.ceil(Math.sqrt(dice.length || 1));
         const rows = Math.ceil((dice.length || 1) / cols);
         dice.forEach((d, i) => {
@@ -637,7 +708,16 @@
       btnRoll.onclick  = roll;
       board.addEventListener('click', () => { if (count > 0) roll(); });
 
-      window.addEventListener('resize', () => { if (!rolling) layout(); });
+      // La barre d'adresse d'Android provoque un resize à tout moment, y compris
+      // pendant un lancer : on ne repart pas de zéro, on suit le nouveau cadre.
+      function onResize() {
+        setAppHeight();
+        if (rolling) { measure(); for (const d of dice) draw(d); }
+        else layout();
+      }
+      window.addEventListener('resize', onResize);
+      window.addEventListener('orientationchange', onResize);
+      if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
       window.addEventListener('gita:langchange', () => { sync(); renderTotal(); });
 
       requestAnimationFrame(() => {
