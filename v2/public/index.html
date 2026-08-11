@@ -94,6 +94,11 @@
       opacity:0; transition:opacity .3s ease;
     }
     .tabbar.ready { opacity:1; }
+    /* La règle globale `button { touch-action: manipulation }` ne doit surtout
+       pas atteindre les onglets : ici le glissement pilote l'indicateur, il ne
+       doit jamais être interprété comme un défilement. On le réaffirme sur les
+       boutons eux-mêmes plutôt que de compter sur la contrainte de l'ancêtre. */
+    .tabbar button { touch-action:none; }
     /* Indicateur glissant : une seule pastille qui se déplace d'un onglet à
        l'autre, et qui suit le doigt quand on maintient en glissant. */
     .tab-ind {
@@ -583,7 +588,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v128';
+    const APP_BUILD = 'v129';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

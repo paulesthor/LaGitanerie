@@ -25,8 +25,15 @@
   <style>
     .mode-card { display:flex; align-items:center; gap:16px; padding:20px; border:2px solid var(--border); border-radius:var(--radius); background:var(--bg-card); cursor:pointer; transition:border-color var(--transition), transform var(--transition); text-align:left; width:100%; font-family:inherit; color:var(--text); }
     .mode-card:active { transform:scale(.98); }
-    .mode-card.classic:hover, .mode-card.classic:active { border-color:var(--orange); }
-    .mode-card.oral:hover, .mode-card.oral:active { border-color:var(--gold); }
+    /* Au doigt, :hover reste collé après le tap : la carte garde sa bordure de
+       couleur alors qu'on ne la touche plus. On garde donc :active pour tout le
+       monde, et :hover pour les seuls pointeurs qui survolent vraiment. */
+    .mode-card.classic:active { border-color:var(--orange); }
+    .mode-card.oral:active { border-color:var(--gold); }
+    @media (hover: hover) and (pointer: fine) {
+      .mode-card.classic:hover { border-color:var(--orange); }
+      .mode-card.oral:hover { border-color:var(--gold); }
+    }
     .mode-icon { font-size:2rem; width:52px; height:52px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
     .mode-card.classic .mode-icon { background:rgba(231,76,60,.14); color:var(--orange); }
     .mode-card.oral .mode-icon { background:rgba(243,156,18,.14); color:var(--gold); }

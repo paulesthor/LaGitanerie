@@ -51,8 +51,17 @@ html {
   -webkit-text-size-adjust: 100%;
   background: var(--bg);          /* évite un fond différent lors du rebond iOS */
   overscroll-behavior: none;      /* coupe le rubber-band au niveau du document */
-  scrollbar-gutter: stable;       /* réserve la place de la scrollbar (navigateurs récents) */
-  overflow-y: scroll;             /* barre toujours présente → aucun décalage entre pages (desktop, tous navigateurs) */
+}
+/* Réserver la place de la barre de défilement est un correctif DESKTOP : il
+   évite que les pages se décalent latéralement de l'une à l'autre. Appliqué au
+   mobile, il rend le document défilable en permanence — et sur Android une page
+   défilable fait rétracter la barre d'adresse, donc change la hauteur du
+   viewport en pleine utilisation. Réservé aux pointeurs fins. */
+@media (pointer: fine) {
+  html {
+    scrollbar-gutter: stable;
+    overflow-y: scroll;
+  }
 }
 body {
   font-family: var(--font-body);
@@ -66,6 +75,12 @@ body {
 }
 /* Les champs de saisie doivent rester sélectionnables/éditables malgré user-select:none */
 input, textarea, select { -webkit-user-select: text; user-select: text; }
+
+/* Tout ce qui se tape répond au premier contact : le navigateur n'a plus à
+   attendre un éventuel double-tap pour décider s'il doit zoomer. */
+button, a, label, select, summary, [role="button"], .btn {
+  touch-action: manipulation;
+}
 
 /* ---- Layout ---- */
 .screen {

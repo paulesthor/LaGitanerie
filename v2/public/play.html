@@ -197,7 +197,10 @@
     .timer-bar-wrap { height:4px; background:var(--bg-surface); border-radius:2px; overflow:hidden; }
     .timer-bar-fill { height:100%; background:var(--green); border-radius:2px; transition:width 1s linear, background .5s; }
     .timer-bar-fill.urgent { background:var(--red); }
-    .player-hand { display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+    /* pan-x : un glissement en diagonale sur la main fait defiler les cartes,
+       pas la page. Sans ca le geste part en defilement vertical des qu'il
+       n'est pas parfaitement horizontal. */
+    .player-hand { display:flex; gap:8px; flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; touch-action:pan-x; overscroll-behavior-x:contain; }
     .player-hand::-webkit-scrollbar { display:none; }
     .ph-card-back { width:48px; height:67px; border-radius:7px; flex-shrink:0; cursor:default; background-color:var(--card-back-color); background-image:var(--card-back-img); border:1px solid var(--card-back-border); box-shadow:var(--card-back-shadow); display:flex; align-items:center; justify-content:center; overflow:hidden; }
     .ph-card-back.clickable { border-color:var(--gold); box-shadow:0 0 10px rgba(243,156,18,.5); cursor:pointer; animation:pulse-card 1s infinite; }
