@@ -18,6 +18,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/oral.css">
   <script src="/js/i18n.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/fill/style.css">
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
@@ -253,88 +254,7 @@
     .stat-highlight-icon { font-size:1.8rem; flex-shrink:0; }
     .xp-section { text-align:center; padding:18px; background:rgba(243,156,18,.1); border-radius:var(--radius); border:1px solid rgba(243,156,18,.25); animation:scale-in .4s cubic-bezier(.34,1.4,.64,1) 1.4s both; }
 
-    /* ══ Mode Soirée (oral) — plein écran, paysage & portrait ══ */
-    .oral-screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:min(4vh,26px); padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 12px); background:radial-gradient(120% 90% at 50% 0%, #223141 0%, var(--bg) 70%); }
-    .oral-leave { position:absolute; top:calc(env(safe-area-inset-top) + 8px); left:12px; z-index:5; width:42px; height:42px; border-radius:50%; background:var(--bg-surface); border:1px solid var(--border); color:var(--text); font-size:1rem; cursor:pointer; }
-    .oral-code { position:absolute; top:calc(env(safe-area-inset-top) + 16px); right:16px; font-size:.8rem; color:var(--text-muted); }
-    .oral-stage { display:flex; flex-direction:column; align-items:center; gap:14px; width:100%; max-width:420px; }
-    .oral-progress { font-size:.85rem; font-weight:700; letter-spacing:.05em; color:var(--text-muted); }
-    .oral-placeholder { width:min(34vw,150px); aspect-ratio:5/7; border-radius:16px; border:2px dashed var(--border); display:flex; align-items:center; justify-content:center; font-size:2.4rem; color:var(--text-muted); }
-    .oral-host-bar { width:100%; max-width:360px; }
-    .oral-host-bar .btn { width:100%; }
-    .oral-wait { font-size:.85rem; color:var(--text-muted); text-align:center; }
-    .oral-py-slot { display:flex; align-items:center; justify-content:center; }
-    .oral-py-card { position:relative; width:min(34vw,150px); aspect-ratio:5/7; background:linear-gradient(158deg,#fff 0%,#f1f1ec 100%); border-radius:16px; box-shadow:inset 0 1px 0 rgba(255,255,255,.9), 0 0 0 1px rgba(0,0,0,.08), 0 18px 42px rgba(0,0,0,.5); font-weight:800; font-variant-numeric:lining-nums; animation:oral-flip .5s ease both; }
-    .oral-py-card::after { content:''; position:absolute; inset:6px; border-radius:11px; border:1px solid currentColor; opacity:.13; pointer-events:none; }
-    .oral-py-card.red { color:#d63031; } .oral-py-card.black { color:#1a1a24; }
-    .oral-py-card.culsec { box-shadow:0 0 0 2px var(--red), 0 0 22px rgba(231,76,60,.55), 0 18px 42px rgba(231,76,60,.42); }
-    .opc-idx { position:absolute; display:flex; flex-direction:column; align-items:center; line-height:.9; }
-    .opc-idx .r { font-size:clamp(1.05rem,4.8vw,1.7rem); }
-    .opc-idx .s { font-size:clamp(.7rem,3vw,1rem); margin-top:1px; }
-    .opc-idx.tl { top:9px; left:11px; } .opc-idx.br { bottom:9px; right:11px; transform:rotate(180deg); }
-    .opc-pip { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:clamp(2.3rem,11.5vw,4.2rem); filter:drop-shadow(0 2px 3px rgba(0,0,0,.18)); }
-    @keyframes oral-flip { from { transform:perspective(700px) rotateY(85deg); opacity:0; } to { transform:perspective(700px) rotateY(0); opacity:1; } }
-    .oral-sips { font-size:1.5rem; font-weight:800; color:var(--gold); text-align:center; min-height:1.6em; }
-    .oral-sips.culsec { color:var(--red); }
-    .oral-sips.done { color:var(--text-muted); font-size:1.1rem; }
-    .oral-end { font-size:2rem; text-align:center; color:var(--gold); font-weight:800; line-height:1.3; }
-    .oral-hand-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; }
-    .oral-hint { font-size:.72rem; color:var(--text-muted); text-align:center; }
-    .oral-hand { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-    .oral-card { width:min(20vw,74px); aspect-ratio:5/7; cursor:pointer; -webkit-tap-highlight-color:transparent; perspective:600px; }
-    .oc-inner { position:relative; width:100%; height:100%; transform-style:preserve-3d; transition:transform .45s ease; }
-    .oral-card.flipped .oc-inner { transform:rotateY(180deg); }
-    .oc-back, .oc-face { position:absolute; inset:0; border-radius:10px; backface-visibility:hidden; -webkit-backface-visibility:hidden; }
-    .oc-back { background-color:var(--card-back-color); background-image:var(--card-back-img); border:1px solid var(--card-back-border); box-shadow:var(--card-back-shadow); }
-    .oc-back::after { content:''; position:absolute; top:50%; left:50%; width:34%; aspect-ratio:1; transform:translate(-50%,-50%) rotate(45deg); border:1.5px solid rgba(255,255,255,.22); border-radius:3px; }
-    .oc-face { transform:rotateY(180deg); background:linear-gradient(158deg,#fff 0%,#f1f1ec 100%); box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); font-weight:800; font-variant-numeric:lining-nums; }
-    .oc-face::after { content:''; position:absolute; inset:3px; border-radius:8px; border:1px solid currentColor; opacity:.13; pointer-events:none; }
-    .oc-face.red { color:#d63031; } .oc-face.black { color:#1a1a24; }
-    .occ-idx { position:absolute; display:flex; flex-direction:column; align-items:center; line-height:.86; }
-    .occ-idx .r { font-size:.82rem; } .occ-idx .s { font-size:.55rem; margin-top:1px; }
-    .occ-idx.tl { top:4px; left:6px; } .occ-idx.br { bottom:4px; right:6px; transform:rotate(180deg); }
-    .occ-pip { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:1.7rem; filter:drop-shadow(0 1px 2px rgba(0,0,0,.15)); }
-    /* Pile de notifs « X montre sa carte » — plusieurs joueurs à la fois */
-    .oral-reveal-stack { position:fixed; top:calc(env(safe-area-inset-top) + 62px); left:50%; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center; gap:8px; z-index:400; pointer-events:none; width:max-content; max-width:92vw; max-height:60vh; overflow:hidden; }
-    .oral-reveal-chip { display:flex; align-items:center; gap:10px; max-width:92vw; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); padding:8px 12px; box-shadow:0 8px 24px rgba(0,0,0,.4); animation:orv-in .3s cubic-bezier(.34,1.56,.64,1) both; }
-    .oral-reveal-chip.out { animation:orv-out .3s ease forwards; }
-    @keyframes orv-in { from { opacity:0; transform:translateY(-14px) scale(.95); } to { opacity:1; transform:none; } }
-    @keyframes orv-out { to { opacity:0; transform:translateY(-14px) scale(.95); } }
-    .orv-mini { width:30px; height:42px; border-radius:5px; background:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.95rem; flex-shrink:0; box-shadow:inset 0 0 0 1px rgba(0,0,0,.1); }
-    .orv-mini.red { color:#d63031; } .orv-mini.black { color:#1a1a24; }
-    .orv-txt { min-width:0; }
-    .orv-who { font-size:.85rem; font-weight:700; line-height:1.2; max-width:56vw; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-    .orv-sub { font-size:.7rem; color:var(--text-muted); }
-    /* Photo d'un joueur aléatoire au centre d'une carte (option règles) */
-    .oc-photo { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:58%; aspect-ratio:1; border-radius:50%; overflow:hidden; border:2px solid currentColor; box-shadow:0 2px 6px rgba(0,0,0,.28); }
-    .oc-photo img { width:100%; height:100%; object-fit:cover; display:block; }
-    .oc-photo.emoji { display:flex; align-items:center; justify-content:center; font-size:1.4rem; background:var(--bg-surface); }
-    .oral-py-card .oc-photo.emoji { font-size:2.4rem; }
-    /* ── Styles de cartes (choisis par l'hôte) ── */
-    .cs-neon { --card-back-color:#12121f; --card-back-border:#2a2a45; --card-back-img:none; --card-back-shadow:inset 0 0 0 2px rgba(120,180,255,.22), inset 0 0 14px rgba(90,160,255,.25); }
-    .cs-neon .oc-face, .cs-neon .oral-py-card { background:linear-gradient(158deg,#1c1c2e 0%,#0d0d18 100%); }
-    .cs-neon .oc-face.red, .cs-neon .oral-py-card.red { color:#ff5c7a; }
-    .cs-neon .oc-face.black, .cs-neon .oral-py-card.black { color:#e6ecff; }
-    .cs-neon .opc-pip, .cs-neon .occ-pip { filter:drop-shadow(0 0 7px currentColor); }
-    .cs-neon .oc-face::after, .cs-neon .oral-py-card::after { opacity:.35; }
-    .cs-neon .oc-back::after { border-color:rgba(120,200,255,.5); box-shadow:0 0 8px rgba(90,180,255,.55); }
-    .cs-gold { --card-back-color:#2a2010; --card-back-border:#5a4a20; --card-back-img:none; --card-back-shadow:inset 0 0 0 2px rgba(201,162,74,.4), inset 0 0 0 4px #2a2010, inset 0 0 0 5px rgba(201,162,74,.18); }
-    .cs-gold .oc-face, .cs-gold .oral-py-card { background:linear-gradient(158deg,#fffdf3 0%,#efe3c4 100%); }
-    .cs-gold .oc-face.black, .cs-gold .oral-py-card.black { color:#2a2410; }
-    .cs-gold .oc-face.red, .cs-gold .oral-py-card.red { color:#b23a2b; }
-    .cs-gold .oc-face::after, .cs-gold .oral-py-card::after { border-color:#c9a24a; opacity:.55; }
-    .cs-gold .oc-back::after { border-color:rgba(201,162,74,.6); }
-    /* Paysage : les 4 cartes sur une seule ligne, tout condensé en hauteur */
-    @media (orientation:landscape) and (max-height:600px) {
-      .oral-screen { gap:2vh; justify-content:center; }
-      .oral-py-card { width:22vh; }
-      .oral-placeholder { width:22vh; }
-      .oral-hand { grid-template-columns:repeat(4,1fr); gap:2vh; }
-      .oral-card { width:11vh; }
-      .oral-sips { font-size:1.15rem; min-height:1.3em; }
-      .oral-hint { display:none; }
-      .oral-host-bar .btn { padding:12px; }
-    }
+    /* Mode Soirée : voir /css/oral.css (partagé avec soiree.html). */
 
     /* ── Bascule ── */
     .spa-loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); color:var(--text-muted); font-size:.9rem; gap:10px; z-index:10; }
@@ -354,7 +274,29 @@
     const session = requireSession('/lobbypyramide.html');
     if (!session) throw new Error('No session');
     const { gameId, playerId, isHost } = session;
-    const api = { gameId, playerId, isHost };
+
+    // ── Transport du mode Soirée ──
+    // pyramidOral.js ne parle plus à Firebase directement : il passe par ces
+    // quatre fonctions. La version hors ligne (soiree.html) en fournit d'autres
+    // qui écrivent en mémoire — le jeu, lui, est le même code des deux côtés.
+    const tx = {
+      async setOralIndex(idx) {
+        await update(ref(db, `games/${gameId}`), { oralIndex: idx, oralReveals: null });
+      },
+      async endGame() {
+        await update(ref(db, `games/${gameId}`), { phase: 'end' });
+      },
+      async reveal(payload) {
+        await update(ref(db, `games/${gameId}/oralReveals/${playerId}`), payload);
+      },
+      async leave() {
+        const { remove } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js');
+        try { await remove(ref(db, `games/${gameId}/players/${playerId}`)); } catch (e) {}
+        clearGameSession();
+        window.location.href = '/';
+      },
+    };
+    const api = { gameId, playerId, isHost, tx };
 
     const root = document.getElementById('view-root');
     const gameRef = ref(db, `games/${gameId}`);

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="fr"><head>
+  <meta charset="UTF-8">
+  <style id="gita-early-bg">html{background:#243242}</style>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#243242">
+  <title>Soirée hors ligne — La Gitanerie</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&amp;family=Playfair+Display:wght@700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/oral.css">
+  <script src="/js/i18n.js"></script>
+  <style>
+    .off-badge { display:inline-flex; align-items:center; gap:7px; align-self:center;
+      background:rgba(243,156,18,.14); color:var(--gold); border:1px solid rgba(243,156,18,.3);
+      border-radius:999px; padding:6px 14px; font-size:.76rem; font-weight:700;
+      text-transform:uppercase; letter-spacing:.05em; }
+    .off-code { font-family:var(--font-brand); font-size:2.6rem; font-weight:700; letter-spacing:.16em;
+      color:var(--gold); text-align:center; padding:18px 10px; background:var(--bg-card);
+      border:2px dashed rgba(243,156,18,.4); border-radius:var(--radius); }
+    .off-code-input { text-align:center; letter-spacing:.22em; text-transform:uppercase;
+      font-size:1.6rem; font-weight:700; font-family:var(--font-brand); }
+    /* Grille de numéros : une seule frappe, pas de clavier à ouvrir. */
+    .off-slots { display:grid; grid-template-columns:repeat(auto-fit, minmax(58px,1fr)); gap:10px; }
+    .off-slot { aspect-ratio:1; border-radius:var(--radius); background:var(--bg-raised);
+      border:2px solid var(--border-strong); color:var(--text); font-family:inherit;
+      font-size:1.5rem; font-weight:700; cursor:pointer; -webkit-tap-highlight-color:transparent;
+      transition:background .15s, border-color .15s, transform .1s; }
+    .off-slot:active { transform:scale(.94); }
+    .off-slot.sel { background:var(--orange); border-color:var(--orange); color:#1a1a1a; }
+    .off-slot.host { border-color:var(--gold); color:var(--gold); }
+    .off-step { display:flex; flex-direction:column; gap:16px; }
+    .off-step.hidden { display:none; }
+    /* Chez un joueur non-hôte, le téléphone ne porte QUE sa main : la pyramide
+       est sur l'écran de l'hôte, comme les cartes sont sur la vraie table. */
+    .oral-screen.hand-only .oral-stage,
+    .oral-screen.hand-only .oral-host-bar,
+    .oral-screen.hand-only .oral-wait { display:none; }
+    .oral-screen.hand-only { justify-content:center; }
+  </style>
+</head>
+<body>
+
+  <div class="screen" id="setup-screen">
+    <header class="app-header">
+      <button class="header-btn" id="btn-back" data-i18n-aria="common.back" aria-label="Retour"><i class="fas fa-arrow-left"></i></button>
+      <div class="header-brand"><i class="fas fa-guitar" style="color:var(--red);margin-right:6px;font-size:.9rem"></i>La <span class="brand-accent">Gitanerie</span></div>
+      <div style="width:36px"></div>
+    </header>
+
+    <div class="page-content">
+      <div class="flex-col gap-4" style="text-align:center">
+        <h2>🍻 <span data-i18n="off.title">Soirée hors ligne</span></h2>
+        <span class="off-badge"><i class="fas fa-wifi-slash"></i> <span data-i18n="off.badge">Sans connexion</span></span>
+        <p class="text-sm text-muted" data-i18n="off.intro">Aucun réseau nécessaire. Un code dit à voix haute suffit : chaque téléphone en déduit les mêmes cartes.</p>
+      </div>
+
+      <!-- ── Étape 1 : créer ou rejoindre ── -->
+      <div id="step-choice" class="off-step">
+        <button class="btn btn-primary" id="btn-create" style="padding:18px">
+          <i class="fas fa-crown"></i> <span data-i18n="off.create">Créer la partie</span>
+        </button>
+        <button class="btn" id="btn-join" style="padding:18px">
+          <i class="fas fa-right-to-bracket"></i> <span data-i18n="off.join">Rejoindre</span>
+        </button>
+      </div>
+
+      <!-- ── Étape 2a : l'hôte choisit le nombre de joueurs ── -->
+      <div id="step-create" class="off-step hidden">
+        <p class="text-sm text-muted" data-i18n="off.players">Vous êtes combien ?</p>
+        <div class="off-slots" id="count-grid"></div>
+        <div id="code-box" class="flex-col gap-10 hidden">
+          <div class="off-code" id="code-val">------</div>
+          <p class="text-sm text-muted" style="text-align:center" data-i18n="off.codeHint">Dis-le à voix haute. Chacun le tape sur son téléphone, puis donne son numéro autour de la table.</p>
+          <button class="btn btn-primary" id="btn-go-host" style="padding:18px">
+            <i class="fas fa-play"></i> <span data-i18n="off.start">C'est parti</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Étape 2b : le joueur tape le code puis son numéro ── -->
+      <div id="step-join" class="off-step hidden">
+        <div class="input-group">
+          <label for="code-input" data-i18n="off.enterCode">Le code de l'hôte</label>
+          <input class="input off-code-input" id="code-input" maxlength="6" autocomplete="off"
+                 autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="------">
+        </div>
+        <p class="text-sm" id="join-err" style="color:var(--red);display:none" data-i18n="off.badCode">Code invalide</p>
+        <div id="slot-box" class="flex-col gap-10 hidden">
+          <p class="text-sm text-muted" data-i18n="off.yourNumber">Tu es le combientième ?</p>
+          <p class="text-sm text-muted" style="opacity:.75" data-i18n="off.numberHint">En partant de l'hôte, dans le sens des aiguilles d'une montre. Le 1, c'est l'hôte.</p>
+          <div class="off-slots" id="slot-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-root"></div>
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    // ══════════════════════════════════════════════════════════════════
+    //  Soirée hors ligne
+    //  Aucun import Firebase : cette page doit fonctionner avec l'avion
+    //  activé. Le jeu lui-même est pyramidOral.js — le MÊME fichier qu'en
+    //  ligne — piloté par un transport en mémoire.
+    // ══════════════════════════════════════════════════════════════════
+    import { buildGame, makeCode, parseCode, MAX_OFFLINE_PLAYERS, MIN_OFFLINE_PLAYERS } from '/js/game/offline.js';
+    import { mount } from '/js/phases/pyramidOral.js';
+
+    const t = (k, v) => (window.t ? window.t(k, v) : k);
+    const $ = (id) => document.getElementById(id);
+    const setup = $('setup-screen');
+    const root  = $('view-root');
+
+    let pendingCode = null;
+
+    $('btn-back').onclick = () => {
+      // Retour d'étape en étape plutôt que sortie directe : c'est ce que fait
+      // le reste de l'app, et ça évite de perdre un code déjà annoncé.
+      if (!$('step-choice').classList.contains('hidden')) { window.location.href = '/pyramide.html'; return; }
+      showStep('choice');
+    };
+
+    function showStep(name) {
+      ['choice', 'create', 'join'].forEach((s) =>
+        $('step-' + s).classList.toggle('hidden', s !== name));
+    }
+
+    // ── Étape 2a : l'hôte ──
+    const countGrid = $('count-grid');
+    for (let n = MIN_OFFLINE_PLAYERS; n <= MAX_OFFLINE_PLAYERS; n++) {
+      const b = document.createElement('button');
+      b.className = 'off-slot';
+      b.textContent = n;
+      b.onclick = () => {
+        countGrid.querySelectorAll('.off-slot').forEach((x) => x.classList.remove('sel'));
+        b.classList.add('sel');
+        pendingCode = makeCode(n);
+        $('code-val').textContent = pendingCode;
+        $('code-box').classList.remove('hidden');
+        if (window.gitaVibrate) window.gitaVibrate(12);
+      };
+      countGrid.appendChild(b);
+    }
+
+    $('btn-create').onclick = () => showStep('create');
+    $('btn-join').onclick   = () => showStep('join');
+    $('btn-go-host').onclick = () => { if (pendingCode) startGame(pendingCode, 1); };
+
+    // ── Étape 2b : le joueur ──
+    const codeInput = $('code-input');
+    codeInput.addEventListener('input', () => {
+      const raw = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      codeInput.value = raw;
+      const parsed = parseCode(raw);
+      $('join-err').style.display = (raw.length === 6 && !parsed) ? '' : 'none';
+      $('slot-box').classList.toggle('hidden', !parsed);
+      if (parsed) buildSlots(parsed);
+    });
+
+    function buildSlots(parsed) {
+      const grid = $('slot-grid');
+      if (grid._for === parsed.code) return;
+      grid._for = parsed.code;
+      grid.innerHTML = '';
+      for (let n = 1; n <= parsed.numPlayers; n++) {
+        const b = document.createElement('button');
+        b.className = 'off-slot' + (n === 1 ? ' host' : '');
+        b.textContent = n;
+        // Le 1 est l'hôte : il a déjà lancé la partie de son côté, personne
+        // d'autre ne doit le prendre.
+        if (n === 1) { b.disabled = true; b.style.opacity = '.45'; }
+        else b.onclick = () => startGame(parsed.code, n);
+        grid.appendChild(b);
+      }
+    }
+
+    // ══════ La partie ══════
+    function startGame(code, slot) {
+      const game = buildGame(code, slot);
+      if (!game) return;
+      const isHost = slot === 1;
+
+      setup.style.display = 'none';
+
+      // ── Transport en mémoire ──
+      // Même contrat que le transport Firebase de play.html. Aucune écriture
+      // ne part nulle part : l'état de la partie vit dans cet objet.
+      const tx = {
+        async setOralIndex(idx) { game.oralIndex = idx; game.oralReveals = null; ctrl.update(game); },
+        async endGame() { showEnd(code, slot); },
+        // Hors ligne, montrer sa carte ne prévient personne : on la montre à la
+        // table, ce qui est exactement l'esprit du mode. La carte se retourne
+        // quand même localement, pyramidOral s'en charge avant cet appel.
+        async reveal() {},
+        async leave() { window.location.href = '/'; },
+      };
+
+      const ctrl = mount(root, { playerId: game.playerId, isHost, tx });
+      ctrl.update(game);
+
+      // Chez les joueurs, l'écran ne porte que la main.
+      if (!isHost) {
+        const screen = root.querySelector('.oral-screen');
+        if (screen) screen.classList.add('hand-only');
+        // On change la CLÉ, pas le texte : sinon le prochain changement de
+        // langue réappliquerait le libellé du mode en ligne par-dessus.
+        const hint = root.querySelector('#oral-hint');
+        if (hint) { hint.setAttribute('data-i18n', 'off.handOnly'); hint.textContent = t('off.handOnly'); }
+      }
+      _current = { ctrl, code, slot };
+    }
+
+    let _current = null;
+
+    function showEnd(code, slot) {
+      if (_current?.ctrl?.unmount) { try { _current.ctrl.unmount(); } catch (e) {} }
+      root.innerHTML = `
+        <div class="oral-screen" style="gap:22px">
+          <h2 style="font-family:var(--font-brand)">${t('off.finished')}</h2>
+          <p class="text-sm text-muted" style="text-align:center;max-width:300px">${t('off.finishedSub')}</p>
+          <button class="btn btn-primary" id="btn-again" style="padding:16px 28px">
+            <i class="fas fa-rotate-right"></i> ${t('off.replay')}
+          </button>
+          <button class="btn" id="btn-home" style="padding:14px 26px">${t('off.home')}</button>
+        </div>`;
+      $('btn-home').onclick  = () => { window.location.href = '/'; };
+      // Rejouer : nouveau code, même tablée. L'hôte le redit à voix haute.
+      $('btn-again').onclick = () => {
+        root.innerHTML = '';
+        setup.style.display = '';
+        pendingCode = null;
+        $('code-box').classList.add('hidden');
+        countGrid.querySelectorAll('.off-slot').forEach((x) => x.classList.remove('sel'));
+        codeInput.value = '';
+        $('slot-box').classList.add('hidden');
+        showStep('choice');
+      };
+    }
+
+    window.addEventListener('gita:langchange', () => window.I18N && window.I18N.apply(document));
+  </script>
+
+  <script src="/js/gestures.js"></script>
+</body></html>

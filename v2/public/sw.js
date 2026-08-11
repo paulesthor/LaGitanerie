@@ -1,4 +1,4 @@
-const CACHE = 'gitanerie-v129';
+const CACHE = 'gitanerie-v130';
 
 // Assets à pré-cacher à l'installation
 const PRECACHE = [
@@ -20,6 +20,12 @@ const PRECACHE = [
   '/profile.html',
   '/confidentialite.html',
   '/conditions.html',
+  // Soirée hors ligne : ces trois-là DOIVENT être en cache, c'est tout
+  // l'intérêt du mode — il doit s'ouvrir en mode avion.
+  '/soiree.html',
+  '/js/game/offline.js',
+  '/js/net.js',
+  '/css/oral.css',
   '/css/main.css',
   '/js/firebase-config.js',
   '/js/i18n.js',

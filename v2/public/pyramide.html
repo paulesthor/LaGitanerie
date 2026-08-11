@@ -57,7 +57,12 @@
         <p class="text-sm text-muted" data-i18n="pyr.chooseMode">Choisis ton mode de jeu</p>
       </div>
 
-      <button class="mode-card classic" onclick="window.location.href='/lobbypyramide.html?mode=classic'">
+      <div id="net-banner" class="card hidden" style="border-color:rgba(243,156,18,.35);background:rgba(243,156,18,.08);display:flex;align-items:center;gap:12px">
+        <i class="fas fa-wifi-slash" style="color:var(--gold);font-size:1.1rem"></i>
+        <span class="text-sm" data-i18n="pyr.offlineBanner">Pas de connexion. Seule la Soirée est jouable — elle n'a besoin d'aucun réseau.</span>
+      </div>
+
+      <button class="mode-card classic" id="card-classic">
         <div class="mode-icon"><i class="fas fa-mobile-screen-button"></i></div>
         <div style="flex:1">
           <div class="mode-title" data-i18n="mode.classic">Classique</div>
@@ -66,7 +71,7 @@
         <div class="mode-arrow">→</div>
       </button>
 
-      <button class="mode-card oral" onclick="window.location.href='/lobbypyramide.html?mode=oral'">
+      <button class="mode-card oral" id="card-oral">
         <div class="mode-icon"><i class="fas fa-champagne-glasses"></i></div>
         <div style="flex:1">
           <div class="mode-title" data-i18n="mode.oral">Soirée</div>
@@ -84,6 +89,44 @@
   </div>
 
   <div id="toast" class="toast"></div>
+
+  <script type="module">
+    // ── Bascule en ligne / hors ligne ──
+    // La sonde part au chargement : quand le joueur tape sur un mode, la
+    // réponse est déjà connue et la redirection est immédiate.
+    import { watch } from '/js/net.js';
+
+    let _online = null;   // null = pas encore su
+    const banner = document.getElementById('net-banner');
+    const cardClassic = document.getElementById('card-classic');
+    const cardOral    = document.getElementById('card-oral');
+
+    function applyNet(ok) {
+      _online = ok;
+      banner.classList.toggle('hidden', ok);
+      // La Pyramide classique a un état qui bouge à chaque tour : elle exige
+      // un arbitre, donc un réseau. On le dit au lieu de laisser le joueur
+      // se heurter à un écran de chargement qui ne finit jamais.
+      cardClassic.style.opacity = ok ? '' : '.45';
+    }
+    watch(applyNet);
+
+    cardOral.onclick = () => {
+      // Hors ligne → la Soirée locale. En ligne, ou tant qu'on ne sait pas
+      // encore, on garde le parcours normal : une sonde lente ne doit jamais
+      // dégrader l'expérience de quelqu'un qui a du réseau.
+      window.location.href = _online === false ? '/soiree.html' : '/lobbypyramide.html?mode=oral';
+    };
+    cardClassic.onclick = () => {
+      if (_online === false) {
+        const el = document.getElementById('toast');
+        if (el) { el.textContent = window.t ? window.t('pyr.classicNeedsNet') : ''; el.className = 'toast show error';
+                  setTimeout(() => { el.className = 'toast'; }, 3000); }
+        return;
+      }
+      window.location.href = '/lobbypyramide.html?mode=classic';
+    };
+  </script>
 
   <script type="module">
     import { auth, db, waitForAuth } from '/js/firebase-config.js';

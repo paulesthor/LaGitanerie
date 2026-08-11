@@ -3,9 +3,10 @@
 // C'est l'HÔTE qui retourne chaque carte (pas de timer imposé). Tout le reste
 // (donner les gorgées) se fait à l'oral. Seule interaction pour les joueurs :
 // double-taper une de tes cartes pour la montrer (prouver que tu ne mens pas).
-import { db } from '/js/firebase-config.js';
-import { ref, update, remove } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
-import { showToast, SUIT_SYMBOL, getSipsForCard, clearGameSession } from '/js/game/utils.js';
+// Aucun import Firebase ici : tout passe par api.tx. C'est ce qui permet à ce
+// même fichier de faire tourner la partie en ligne (transport Firebase) et hors
+// ligne (transport en mémoire, voir soiree.html) sans une ligne de différence.
+import { showToast, SUIT_SYMBOL, getSipsForCard } from '/js/game/utils.js';
 import { isPhotoAvatar } from '/js/game/avatar.js';
 
 // Raccourci de traduction (window.t vient de /js/i18n.js, chargé dans le <head>)
@@ -41,11 +42,10 @@ const VIEW = `
   </div>`;
 
 export function mount(root, api) {
-  const { gameId, playerId, isHost } = api;
+  const { playerId, isHost, tx } = api;
   root.innerHTML = VIEW;
   window.I18N && window.I18N.apply(root);
   const $ = (id) => root.querySelector('#' + id);
-  const gameRef = ref(db, `games/${gameId}`);
 
   let game = {};
   let _lastRenderIdx = -99;
@@ -57,9 +57,7 @@ export function mount(root, api) {
 
   $('btn-leave').onclick = async () => {
     if (!confirm(t('oral.confirmQuit'))) return;
-    try { await remove(ref(db, `games/${gameId}/players/${playerId}`)); } catch (e) {}
-    clearGameSession();
-    window.location.href = '/';
+    await tx.leave();
   };
 
   $('btn-flip').onclick = flipNext;
@@ -122,11 +120,11 @@ export function mount(root, api) {
       const order = game.pyramidOrder || [];
       const idx   = (game.oralIndex ?? -1) + 1;
       if (idx >= order.length) {
-        if (!_endWritten) { _endWritten = true; await update(gameRef, { phase: 'end' }); }
+        if (!_endWritten) { _endWritten = true; await tx.endGame(); }
         return;
       }
       // Nouvelle carte → on efface les preuves de la carte précédente.
-      await update(gameRef, { oralIndex: idx, oralReveals: null });
+      await tx.setOralIndex(idx);
     } catch (e) { showToast(t('err.network'), 'error'); }
     finally { _flipping = false; }
   }
@@ -239,7 +237,7 @@ export function mount(root, api) {
     clearTimeout(_hideTimer);
     _hideTimer = setTimeout(hideAllCards, REVEAL_MS);
     try {
-      await update(ref(db, `games/${gameId}/oralReveals/${playerId}`), {
+      await tx.reveal({
         name: game.players?.[playerId]?.name || t('game.player'),
         value: card.value, suit: card.suit, ts: Date.now(),
       });
