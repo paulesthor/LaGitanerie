@@ -198,6 +198,29 @@ de valider — c'est toi qui signes.
 Classement attendu : **PEGI 18 / Mature 17+**. C'est normal et ce n'est pas un
 problème — c'est cohérent avec le contrôle d'âge présent au lancement.
 
+### La phrase de bas d'accueil
+
+Le pied de page affiche, en français : *« L'abus d'alcool est recommandé par les
+collègues. »* C'est une parodie du message sanitaire obligatoire, avec un seul
+mot changé — le lecteur francophone restitue l'original de lui-même, et la
+blague se lit comme telle.
+
+Les autres langues n'ont pas de formule figée aussi reconnaissable : traduite
+littéralement, la phrase perd la référence et ne se lit plus que comme une
+incitation. Les versions EN/IT/ES énoncent donc **le vrai message d'abord**, la
+blague ensuite :
+
+| Langue | Texte affiché |
+|---|---|
+| FR | L'abus d'alcool est recommandé par les collègues. |
+| EN | Please drink responsibly. Your mates strongly disagree. |
+| IT | Bevi responsabilmente. I colleghi non sono d'accordo. |
+| ES | Bebe con moderación. Tus colegas opinan lo contrario. |
+
+Aucune de ces phrases ne recommande l'excès dans la voix de l'application : la
+recommandation absurde est explicitement attribuée à des tiers, et le conseil
+réel reste lisible en premier.
+
 ### Public cible
 Cocher **uniquement 18 ans et plus**. Ne jamais inclure une tranche mineure :
 ça déclencherait les règles « Familles », incompatibles avec le thème.

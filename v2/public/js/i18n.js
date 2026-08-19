@@ -574,7 +574,7 @@
       'home.wolf': 'Werewolf of Some Other Village',
       'home.wolfNote': "(sorry, didn't have the rights to the real name)",
       'home.wolfDesc': 'One night, one vote. Unmask the wolves… or survive.',
-      'home.disclaimer': 'Alcohol abuse is recommended by your mates.',
+      'home.disclaimer': 'Please drink responsibly. Your mates strongly disagree.',
 
       'profile.title': 'Profile',
       'profile.guestMode': 'Guest mode',
@@ -1190,7 +1190,7 @@
       'home.wolf': 'Lupo Mannaro di un altro paese',
       'home.wolfNote': '(scusa, non avevo i diritti sul nome vero)',
       'home.wolfDesc': 'Una sola notte, un solo voto. Smascherate i lupi… o sopravvivete.',
-      'home.disclaimer': "L'abuso di alcol è raccomandato dai colleghi.",
+      'home.disclaimer': "Bevi responsabilmente. I colleghi non sono d'accordo.",
 
       'profile.title': 'Profilo',
       'profile.guestMode': 'Modalità ospite',
@@ -1806,7 +1806,7 @@
       'home.wolf': 'Hombre Lobo de otro pueblo',
       'home.wolfNote': '(perdón, no tenía los derechos del nombre real)',
       'home.wolfDesc': 'Una sola noche, un solo voto. Desenmascarad a los lobos… o sobrevivid.',
-      'home.disclaimer': 'El abuso de alcohol está recomendado por los colegas.',
+      'home.disclaimer': 'Bebe con moderación. Tus colegas opinan lo contrario.',
 
       'profile.title': 'Perfil',
       'profile.guestMode': 'Modo invitado',
