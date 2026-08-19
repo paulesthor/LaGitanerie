@@ -200,8 +200,21 @@ export function mount(root, api) {
   $('btn-leave').onclick = async () => { await remove(ref(db, `games/${gameId}/players/${playerId}`)); clearGameSession(); window.location.href = '/'; };
   $('log-toggle').onclick = toggleLog;
 
-  // Reçoit chaque snapshot depuis le routeur
+  // Reçoit chaque snapshot depuis le routeur.
+  //
+  // ORDRE CRITIQUE : on enregistre l'état et on programme le rendu AVANT toute
+  // notification. play.html avale les exceptions de ctrl.update() ; une erreur
+  // dans une notif interrompait donc la fonction avant `scheduleRender()`, et
+  // l'écran du joueur se figeait définitivement — sans message, sans plantage.
+  // Un joueur monté avant l'arrivée de la pyramide ne la voyait alors jamais.
   function update_(newGame) {
+    game = newGame;
+    scheduleRender();
+    try { runNotifications(newGame); } catch (e) { console.error('[pyramide] notif', e); }
+    if (game.hostId === playerId) { try { checkAutoFlip(); } catch (e) { console.error(e); } }
+  }
+
+  function runNotifications(newGame) {
     const evTs = newGame.lastEvent?.timestamp || 0;
     if (evTs > lastEventTimestamp) {
       lastEventTimestamp = evTs;
@@ -233,10 +246,6 @@ export function mount(root, api) {
       lastMemRevealTs = mrTs;
       if (newGame.memoryReveal?.pid !== playerId) showMemRevealNotif(newGame.memoryReveal);
     }
-
-    game = newGame;
-    scheduleRender();
-    if (game.hostId === playerId) checkAutoFlip();
   }
 
   function renderAll() {
@@ -254,13 +263,32 @@ export function mount(root, api) {
       return;
     }
     $('memory-section').classList.add('hidden');
-    renderPyramid();
-    renderActionSections();
-    renderPlayersCards();
-    renderSidebar();
-    renderWaitingInfo();
-    renderTimer();
-    renderEventLog();
+    // La pyramide était masquée en phase mémoire et personne ne la ré-affichait.
+    $('pyramid-card').classList.remove('hidden');
+    // Chaque bloc est isolé : une erreur dans la barre latérale ou l'historique
+    // ne doit pas emporter la pyramide avec elle.
+    safe('pyramide',   renderPyramid);
+    safe('actions',    renderActionSections);
+    safe('mains',      renderPlayersCards);
+    safe('panneau',    renderSidebar);
+    safe('attente',    renderWaitingInfo);
+    safe('minuteur',   renderTimer);
+    safe('historique', renderEventLog);
+  }
+
+  function safe(label, fn) {
+    try { fn(); } catch (e) { console.error('[pyramide] rendu ' + label, e); }
+  }
+
+  // La base temps réel ne stocke pas de tableaux : elle renvoie un OBJET dès
+  // que les clés numériques deviennent trop espacées. `pyramid.forEach` levait
+  // alors une exception et toute la pyramide disparaissait. On normalise.
+  function asRows(v) {
+    if (Array.isArray(v)) return v;
+    if (v && typeof v === 'object') {
+      return Object.keys(v).sort((a, b) => a - b).map((k) => v[k]);
+    }
+    return [];
   }
 
   function toggleLog() {
@@ -312,9 +340,9 @@ export function mount(root, api) {
   function renderPyramid() {
     const area    = $('pyramid-area');
     area.innerHTML = '';
-    const pyramid  = game.pyramid || [];
+    const pyramid  = asRows(game.pyramid);
     adaptPyramidSize(pyramid.length || 5);
-    const order    = game.pyramidOrder || [];
+    const order    = asRows(game.pyramidOrder);
     const nextIdx  = game.nextCardIndex ?? 0;
     const nextPos  = order[nextIdx];
 
@@ -328,7 +356,10 @@ export function mount(root, api) {
       const multRow = game.rules?.sipsMultiplier || 1;
       const sips = isCulSec ? rawSipsRow : rawSipsRow * multRow;
 
-      row.forEach((card, colIndex) => {
+      asRows(row).forEach((rawCard, colIndex) => {
+        // Une case trouée arrive en null, pas en undefined : un paramètre par
+        // défaut ne suffirait pas.
+        const card = rawCard || {};
         const isNext  = nextPos && nextPos.row === rowIndex && nextPos.col === colIndex;
         const cardEl  = document.createElement('div');
         cardEl.className = `py-card ${card.revealed ? 'revealed' : ''} ${isCulSec ? 'culSec' : ''} ${isNext ? 'next-card' : ''}`;

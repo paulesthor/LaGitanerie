@@ -99,6 +99,20 @@
 
       // ── Pyramide : choix du mode ──
       'pyr.chooseMode': 'Choisis ton mode de jeu',
+      // ── Contrôle d'âge & page hors ligne ──
+      'age.title': 'Ta date de naissance',
+      'age.body': "La Gitanerie met en scène la consommation d'alcool et s'adresse aux personnes majeures.",
+      'age.month': 'Mois',
+      'age.year': 'Année',
+      'age.months': 'janvier,février,mars,avril,mai,juin,juillet,août,septembre,octobre,novembre,décembre',
+      'age.confirm': 'Continuer',
+      'age.denied': 'Reviens dans quelques années',
+      'age.deniedBody': "Cette application s'adresse aux personnes majeures.",
+      'offline.title': 'Pas de réseau',
+      'offline.body': "Cette page a besoin d'une connexion. Mais la Soirée, elle, se joue sans : un code dit à voix haute suffit.",
+      'offline.playOffline': 'Jouer en Soirée hors ligne',
+      'offline.dice': 'Lancer les dés',
+      'offline.retry': 'Réessayer',
       // ── Soirée hors ligne ──
       'pyr.offlineBanner': "Pas de connexion. Seule la Soirée est jouable — elle n'a besoin d'aucun réseau.",
       'pyr.classicNeedsNet': 'Le mode Classique a besoin d\u2019une connexion.',
@@ -606,6 +620,20 @@
       'settings.logout': 'Log out',
 
       'pyr.chooseMode': 'Choose your game mode',
+      // ── Age check & offline page ──
+      'age.title': 'Your date of birth',
+      'age.body': 'La Gitanerie features alcohol consumption and is intended for adults.',
+      'age.month': 'Month',
+      'age.year': 'Year',
+      'age.months': 'January,February,March,April,May,June,July,August,September,October,November,December',
+      'age.confirm': 'Continue',
+      'age.denied': 'Come back in a few years',
+      'age.deniedBody': 'This app is intended for adults.',
+      'offline.title': 'No connection',
+      'offline.body': 'This page needs a connection. Party mode does not: one code said out loud is enough.',
+      'offline.playOffline': 'Play Party mode offline',
+      'offline.dice': 'Roll the dice',
+      'offline.retry': 'Try again',
       // ── Offline party mode ──
       'pyr.offlineBanner': 'No connection. Only Party mode works — it needs no network at all.',
       'pyr.classicNeedsNet': 'Classic mode needs a connection.',
@@ -1208,6 +1236,20 @@
       'settings.logout': 'Esci',
 
       'pyr.chooseMode': 'Scegli la modalità di gioco',
+      // ── Verifica dell'età & pagina offline ──
+      'age.title': 'La tua data di nascita',
+      'age.body': "La Gitanerie mette in scena il consumo di alcol ed è rivolta ai maggiorenni.",
+      'age.month': 'Mese',
+      'age.year': 'Anno',
+      'age.months': 'gennaio,febbraio,marzo,aprile,maggio,giugno,luglio,agosto,settembre,ottobre,novembre,dicembre',
+      'age.confirm': 'Continua',
+      'age.denied': 'Torna tra qualche anno',
+      'age.deniedBody': 'Questa app è rivolta ai maggiorenni.',
+      'offline.title': 'Nessuna connessione',
+      'offline.body': 'Questa pagina richiede una connessione. La Serata no: basta un codice detto ad alta voce.',
+      'offline.playOffline': 'Gioca alla Serata offline',
+      'offline.dice': 'Lancia i dadi',
+      'offline.retry': 'Riprova',
       // ── Serata offline ──
       'pyr.offlineBanner': 'Nessuna connessione. Solo la modalità Serata è giocabile: non ha bisogno di rete.',
       'pyr.classicNeedsNet': 'La modalità Classica richiede una connessione.',
@@ -1810,6 +1852,20 @@
       'settings.logout': 'Cerrar sesión',
 
       'pyr.chooseMode': 'Elige tu modo de juego',
+      // ── Verificacion de edad y pagina sin conexion ──
+      'age.title': 'Tu fecha de nacimiento',
+      'age.body': 'La Gitanerie muestra el consumo de alcohol y esta dirigida a personas mayores de edad.',
+      'age.month': 'Mes',
+      'age.year': 'Ano',
+      'age.months': 'enero,febrero,marzo,abril,mayo,junio,julio,agosto,septiembre,octubre,noviembre,diciembre',
+      'age.confirm': 'Continuar',
+      'age.denied': 'Vuelve dentro de unos anos',
+      'age.deniedBody': 'Esta aplicacion esta dirigida a personas mayores de edad.',
+      'offline.title': 'Sin conexion',
+      'offline.body': 'Esta pagina necesita conexion. El modo Fiesta no: basta un codigo dicho en voz alta.',
+      'offline.playOffline': 'Jugar a Fiesta sin conexion',
+      'offline.dice': 'Tirar los dados',
+      'offline.retry': 'Reintentar',
       // ── Fiesta sin conexión ──
       'pyr.offlineBanner': 'Sin conexión. Solo el modo Fiesta funciona: no necesita ninguna red.',
       'pyr.classicNeedsNet': 'El modo Clásico necesita conexión.',

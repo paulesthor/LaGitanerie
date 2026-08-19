@@ -1,4 +1,4 @@
-const CACHE = 'gitanerie-v131';
+const CACHE = 'gitanerie-v132';
 
 // Assets à pré-cacher à l'installation
 const PRECACHE = [
@@ -23,6 +23,7 @@ const PRECACHE = [
   // Soirée hors ligne : ces trois-là DOIVENT être en cache, c'est tout
   // l'intérêt du mode — il doit s'ouvrir en mode avion.
   '/soiree.html',
+  '/offline.html',
   '/js/game/offline.js',
   '/js/net.js',
   '/css/oral.css',
@@ -30,6 +31,7 @@ const PRECACHE = [
   '/js/firebase-config.js',
   '/js/i18n.js',
   '/js/gestures.js',
+  '/js/agegate.js',
   '/js/logger.js',
   '/js/presence.js',
   '/js/game/utils.js',
@@ -122,7 +124,17 @@ self.addEventListener('fetch', e => {
           if (res && res.ok) cache.put(req, res.clone());
           return res;
         }).catch(() => cached);
-        return cached || network;
+        // Repli de navigation : sans lui, une page jamais visitée affichait le
+        // dinosaure de Chrome À L'INTÉRIEUR de l'app. On sert notre propre page,
+        // qui renvoie vers les deux modes jouables sans réseau.
+        if (cached) return cached;
+        return network.then((res) => {
+          if (res) return res;
+          throw new Error('offline');
+        }).catch(() => {
+          if (req.mode === 'navigate') return cache.match('/offline.html');
+          return Response.error();
+        });
       })
     )
   );
