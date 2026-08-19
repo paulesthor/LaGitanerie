@@ -75,8 +75,27 @@ export function createPyramid(numRows) {
 }
 
 export function defaultPyramidRows(numPlayers) {
-  return Math.min(5, 2 + numPlayers);
+  return Math.min(5, 2 + numPlayers, maxPyramidRows(numPlayers));
 }
+
+// ── Contrainte du paquet ──
+// Mains et pyramide se servent dans le MÊME paquet de 52 : 4 cartes par joueur,
+// puis r(r+1)/2 pour une pyramide de r rangées. Au-delà, la pyramide se
+// remplissait de cases vides sans que rien ne le signale (8 rangées suffisaient
+// à casser une partie à 5 joueurs). On borne donc les rangées au paquet réel.
+export const DECK_SIZE   = 52;
+export const CARDS_EACH  = 4;
+export const MAX_ROWS_UI = 8;
+
+export function maxPyramidRows(numPlayers, deckSize = DECK_SIZE) {
+  const left = deckSize - CARDS_EACH * numPlayers;
+  let r = 0;
+  while (((r + 1) * (r + 2)) / 2 <= left && r < MAX_ROWS_UI) r++;
+  return r;
+}
+
+// Nombre de joueurs au-delà duquel même une pyramide de 2 rangées ne tient plus.
+export const MAX_PLAYERS = Math.floor((DECK_SIZE - 3) / CARDS_EACH);   // 12
 
 // Ordre de retournement : bas-gauche → droite → remonte → sommet en dernier
 export function createPyramidOrder(numRows) {

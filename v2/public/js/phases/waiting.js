@@ -3,7 +3,7 @@ import { db, auth } from '/js/firebase-config.js';
 import { ref, update, remove, get, set, onDisconnect } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
 import {
   showToast, createDeck, createPyramid, createPyramidOrder,
-  defaultPyramidRows, clearGameSession
+  defaultPyramidRows, maxPyramidRows, MAX_PLAYERS, clearGameSession
 } from '/js/game/utils.js';
 import { avatarHTML } from '/js/game/avatar.js';
 
@@ -198,9 +198,20 @@ export function mount(root, api) {
   $('rules-toggle') && ($('rules-toggle').onclick = () => $('rules-accordion').classList.toggle('open'));
   $('rows-minus')   && ($('rows-minus').onclick = () => changeRows(-1));
   $('rows-plus')    && ($('rows-plus').onclick  = () => changeRows(+1));
+  let _numPlayers = 0;
   function changeRows(delta) {
-    rules.rows = Math.max(2, Math.min(8, rules.rows + delta));
-    $('val-rows').textContent = rules.rows;
+    // Plafond réel : mains + pyramide se servent dans le même paquet de 52.
+    const cap = Math.max(2, maxPyramidRows(_numPlayers || 2));
+    rules.rows = Math.max(2, Math.min(cap, rules.rows + delta));
+    paintRows();
+  }
+  function paintRows() {
+    const cap = Math.max(2, maxPyramidRows(_numPlayers || 2));
+    if (rules.rows > cap) rules.rows = cap;
+    $('val-rows') && ($('val-rows').textContent = rules.rows);
+    // Le + s'éteint au plafond : le joueur voit la limite au lieu de la subir.
+    $('rows-plus')  && ($('rows-plus').disabled  = rules.rows >= cap);
+    $('rows-minus') && ($('rows-minus').disabled = rules.rows <= 2);
   }
   root.querySelectorAll('.segmented').forEach(seg => {
     seg.querySelectorAll('.seg-btn').forEach(btn => {
@@ -238,15 +249,17 @@ export function mount(root, api) {
     $('player-count').textContent = entries.length;
 
     const numPlayers = entries.length;
+    _numPlayers = numPlayers;
     if (rules.rows === rules._defaultRows) {
       rules.rows = defaultPyramidRows(numPlayers);
       rules._defaultRows = rules.rows;
-      $('val-rows').textContent = rules.rows;
     } else if (!rules._defaultRows) {
       rules._defaultRows = defaultPyramidRows(numPlayers);
       rules.rows = rules._defaultRows;
-      $('val-rows').textContent = rules.rows;
     }
+    // Un joueur qui arrive peut rendre le réglage de l'hôte intenable :
+    // on rabaisse la pyramide plutôt que de distribuer des cases vides.
+    paintRows();
 
     const tip = $('invite-tip');
     if (tip) tip.classList.toggle('hidden', entries.length >= 4);
@@ -301,12 +314,14 @@ export function mount(root, api) {
     const players = game.players || {};
     const ids     = Object.keys(players);
     if (ids.length < 2) return showError(t('wait.need2'));
+    if (ids.length > MAX_PLAYERS) return showError(t('wait.tooMany', { n: MAX_PLAYERS }));
     const nonHostIds = ids.filter(id => id !== playerId);
     const allReady   = nonHostIds.every(id => players[id]?.ready);
     if (!allReady) return showError(t('wait.allMustBeReady'));
 
     const deck    = createDeck();
-    const numRows = rules.rows;
+    // Dernière barrière : entre l'affichage et le clic, l'effectif a pu bouger.
+    const numRows = Math.max(2, Math.min(rules.rows, maxPyramidRows(ids.length)));
     const pyramid = createPyramid(numRows);
     const order   = createPyramidOrder(numRows);
     const updates = {

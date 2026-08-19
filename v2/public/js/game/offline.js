@@ -12,12 +12,17 @@
 //  classique, elle, a un état qui bouge à chaque tour et exige un arbitre.
 // ══════════════════════════════════════════════════════════════════════
 
+// Les règles de tirage viennent de utils.js : c'est la MÊME source que le mode
+// en ligne. Les redéfinir ici ferait deux jeux différents selon la connexion.
+import { defaultPyramidRows, createPyramidOrder, maxPyramidRows, MAX_PLAYERS } from '/js/game/utils.js';
+
 // Alphabet sans I, O, 0, 1 : ces caractères se confondent à l'oral et à la
 // lecture, or le code est justement fait pour être crié à travers une table.
 export const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-// 4 cartes par joueur + 15 pour une pyramide de 5 rangs = 4n + 15 ≤ 52.
-export const MAX_OFFLINE_PLAYERS = 9;
+// Même plafond qu'en ligne : au-delà, même une pyramide de 2 rangées ne tient
+// plus dans le paquet.
+export const MAX_OFFLINE_PLAYERS = MAX_PLAYERS;
 export const MIN_OFFLINE_PLAYERS = 2;
 
 // ── Générateur pseudo-aléatoire à graine ──
@@ -83,18 +88,6 @@ export function parseCode(code) {
 const SUITS  = ['hearts', 'diamonds', 'clubs', 'spades'];
 const VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 
-export function defaultRows(numPlayers) {
-  return Math.min(5, 2 + numPlayers);
-}
-
-export function pyramidOrder(numRows) {
-  const order = [];
-  for (let row = numRows - 1; row >= 0; row--) {
-    for (let col = 0; col <= row; col++) order.push({ row, col });
-  }
-  return order;
-}
-
 export function deal(code) {
   const parsed = parseCode(code);
   if (!parsed) return null;
@@ -112,8 +105,8 @@ export function deal(code) {
     hands.push(deck.slice(i * 4, i * 4 + 4).map(c => ({ ...c, revealed: false })));
   }
 
-  const numRows = defaultRows(numPlayers);
-  const order   = pyramidOrder(numRows);
+  const numRows = Math.max(2, Math.min(defaultPyramidRows(numPlayers), maxPyramidRows(numPlayers)));
+  const order   = createPyramidOrder(numRows);
   const rest    = deck.slice(numPlayers * 4);
   const pyramid = Array.from({ length: numRows }, (_, r) =>
     Array.from({ length: r + 1 }, () => ({ revealed: false, value: null, suit: null })));

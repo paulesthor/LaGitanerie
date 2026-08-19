@@ -179,7 +179,7 @@
     import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
     import {
       getGuestName, setGuestName, getGuestAvatar, setGuestAvatar,
-      generateGameCode, setGameSession, showToast
+      generateGameCode, setGameSession, showToast, MAX_PLAYERS
     } from '/js/game/utils.js';
     import { compressAvatar, avatarHTML } from '/js/game/avatar.js';
 
@@ -423,6 +423,14 @@
           setGameSession({ gameId, playerId, isHost: false });
           window.location.href = `/play.html?gameId=${gameId}&playerId=${playerId}`;
           return;
+        }
+
+        // Salon plein : mains et pyramide se partagent un paquet de 52, on ne
+        // peut pas servir 4 cartes à un treizième joueur. On le dit ici plutôt
+        // que de laisser la partie démarrer avec une pyramide trouée.
+        const already = Object.keys(game.players || {});
+        if (!already.includes(playerId) && already.length >= MAX_PLAYERS) {
+          return (() => { showError(T('lobby.gameFull', { n: MAX_PLAYERS })); if (btn) btn.disabled = false; })();
         }
 
         await withRetry(() => set(ref(db, `games/${gameId}/players/${playerId}`), {
