@@ -23,6 +23,22 @@
   <meta property="og:locale" content="fr_FR">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "La Gitanerie", "alternateName": "La Gitanerie — La Pyramide", "applicationCategory": "GameApplication", "operatingSystem": "Android, iOS, Web", "url": "https://la-gitanerie.web.app/", "description": "Application gratuite de jeux de soirée : la Pyramide (jeu de cartes à boire) et un lanceur de dés. Chaque joueur voit ses cartes sur son propre téléphone. Sans installation, sans inscription, et jouable hors ligne.", "inLanguage": ["fr", "en", "it", "es"], "isAccessibleForFree": true, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "contentRating": "18+", "screenshot": "https://la-gitanerie.web.app/icons/icon-512.png", "featureList": ["La Pyramide en multijoueur", "Mode Soirée jouable hors ligne", "Lanceur de dés avec physique réelle", "Français, anglais, italien, espagnol"]}</script>
+  <!-- Capture au plus tôt : beforeinstallprompt ne se déclenche qu'une fois
+       par chargement, et un script de module (différé par nature) arriverait
+       trop tard pour l'attraper. On la stocke, la carte Réglages ne fait que
+       la relire. -->
+  <script>
+    window.__gitaInstallPrompt = null;
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window.__gitaInstallPrompt = e;
+      window.dispatchEvent(new Event('gita:installready'));
+    });
+    window.addEventListener('appinstalled', function () {
+      window.__gitaInstallPrompt = null;
+      window.dispatchEvent(new Event('gita:installdone'));
+    });
+  </script>
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -531,6 +547,25 @@
   <section id="view-reglages" class="tab-view">
     <div class="pane-head"><h1 data-i18n="settings.title">Réglages</h1></div>
     <div class="page-content">
+      <!-- Ajout à l'écran d'accueil : masquée par défaut, révélée seulement
+           quand une action réelle est possible (voir le script en bas de page) —
+           un bouton qui ne ferait rien au clic serait pire que son absence. -->
+      <div id="install-card" class="card flex-col gap-10 hidden">
+        <div class="flex-col gap-4">
+          <span class="font-bold" style="font-size:.92rem" data-i18n="settings.install">Ajouter à l'écran d'accueil</span>
+          <span class="text-sm text-muted" id="install-desc" data-i18n="settings.installDesc">Lance La Gitanerie comme une vraie application, en un geste — plus besoin de chercher l'onglet.</span>
+        </div>
+        <button id="btn-install" class="btn btn-primary btn-sm" style="width:100%">
+          <i class="fas fa-mobile-screen-button"></i> <span id="btn-install-label" data-i18n="settings.installBtn">Ajouter à l'écran d'accueil</span>
+        </button>
+        <!-- iOS n'expose aucune API pour déclencher l'installation : Safari
+             bloque volontairement ce mécanisme. On ne peut que montrer le chemin. -->
+        <ol id="install-ios-steps" class="install-steps hidden">
+          <li data-i18n-html="settings.installIOS1">Touche <i class="fas fa-arrow-up-from-bracket"></i> (Partager) en bas de Safari.</li>
+          <li data-i18n="settings.installIOS2">Fais défiler et choisis « Sur l'écran d'accueil ».</li>
+          <li data-i18n="settings.installIOS3">Confirme en haut à droite.</li>
+        </ol>
+      </div>
       <div class="card flex-col gap-12">
         <div class="flex items-center justify-between">
           <div class="flex-col gap-4" style="flex:1">
@@ -608,7 +643,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v135';
+    const APP_BUILD = 'v136';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
@@ -1374,6 +1409,59 @@
         localStorage.setItem('gita_haptics', cb.checked ? '1' : '0');
         if (cb.checked && window.gitaVibrate) window.gitaVibrate(20);
       });
+    })();
+
+    // Réglages — ajouter à l'écran d'accueil
+    (function () {
+      const card = document.getElementById('install-card');
+      const btn  = document.getElementById('btn-install');
+      const lbl  = document.getElementById('btn-install-label');
+      const desc = document.getElementById('install-desc');
+      const ios  = document.getElementById('install-ios-steps');
+      if (!card || !btn) return;
+
+      const isStandalone = () =>
+        window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone === true;
+      // Déjà installée : rien à proposer, et rien de pire qu'un bouton qui
+      // relance une installation déjà faite.
+      if (isStandalone()) return;
+
+      const ua = navigator.userAgent || '';
+      const isIOS = /iphone|ipad|ipod/i.test(ua) && !window.MSStream;
+
+      if (isIOS) {
+        // Safari ne donne AUCUN moyen de déclencher l'installation par script
+        // — c'est un choix délibéré d'Apple. On ne peut que montrer le chemin.
+        card.classList.remove('hidden');
+        if (desc) desc.textContent = T('settings.installDescIOS');
+        if (lbl)  lbl.textContent  = T('settings.installBtnIOS');
+        btn.onclick = () => { ios.classList.toggle('hidden'); if (window.gitaVibrate) window.gitaVibrate(10); };
+        return;
+      }
+
+      // Android / Chrome / Edge : l'événement a pu arriver avant que ce script
+      // ne s'exécute (capturé dans le <head>, voir window.__gitaInstallPrompt),
+      // ou peut encore arriver plus tard — les deux cas sont couverts.
+      function reveal() { card.classList.remove('hidden'); }
+      function hide()   { card.classList.add('hidden'); }
+      if (window.__gitaInstallPrompt) reveal();
+      window.addEventListener('gita:installready', reveal);
+      window.addEventListener('gita:installdone', hide);
+
+      btn.onclick = async () => {
+        const evt = window.__gitaInstallPrompt;
+        if (!evt) return;
+        btn.disabled = true;
+        evt.prompt();
+        try {
+          const choice = await evt.userChoice;
+          if (choice.outcome === 'accepted') hide();
+        } finally {
+          window.__gitaInstallPrompt = null;
+          btn.disabled = false;
+        }
+      };
     })();
 
     // ══════════ Système d'amis (RTDB) ══════════
