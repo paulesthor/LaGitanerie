@@ -101,6 +101,11 @@
     .pred-btn.hearts, .pred-btn.diamonds { border-color:#e74c3c; color:#e74c3c; font-size:1.4rem; }
     .pred-btn.clubs, .pred-btn.spades { border-color:#ecf0f1; color:#ecf0f1; font-size:1.4rem; }
     .waiting-msg { text-align:center; color:var(--text-muted); padding:12px; font-size:.9rem; }
+    /* Rappel cliquable : distribution des gorgées interrompue (fenêtre fermée
+       à côté, ou onglet rechargé) sans que l'obligation soit honorée. */
+    .reopen-give { cursor:pointer; background:var(--bg-card); border:1px solid var(--border-strong);
+      border-radius:var(--radius); font-weight:700; color:var(--text); transition:border-color var(--transition); }
+    .reopen-give:active { border-color:var(--orange); }
     @keyframes turn-pulse { 0%,100% { box-shadow:0 0 0 0 rgba(231,76,60,.55); } 55% { box-shadow:0 0 0 10px rgba(231,76,60,0); } }
     .turn-banner.mine { animation:turn-pulse 1.4s ease-out infinite; }
     @keyframes pred-up { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }

@@ -10,6 +10,7 @@ import { avatarHTML, isPhotoAvatar } from '/js/game/avatar.js';
 const t = (k, v) => (window.t ? window.t(k, v) : k);
 
 const vibrate = (p) => (window.gitaVibrate ? window.gitaVibrate(p) : navigator.vibrate?.(p));
+const sipsTxt = (n) => t(n > 1 ? 'game.sipsN' : 'game.sip1', { n });
 
 const VIEW = `
   <div class="screen">
@@ -262,8 +263,27 @@ export function mount(root, api) {
     const area = $('action-area');
     if (isAnimating) { area.innerHTML = ''; return; }
     const isMyTurn = game.currentTurn === playerId;
-    const myCards  = game.players?.[playerId]?.cards || [];
+    const me       = game.players?.[playerId] || {};
+    const myCards  = me.cards || [];
     const nextIdx  = myCards.findIndex(c => !c.revealed);
+    const owed     = me.pendingSips || 0;
+    // La fenêtre de répartition a pu être fermée d'un tap à côté (ou perdue à
+    // un rechargement) sans que les gorgées aient été attribuées. Tant que
+    // c'est le cas, on ne propose PAS la carte suivante — sinon la partie
+    // avance sans que personne n'ait jamais reçu ces gorgées, et rien ne fait
+    // plus jamais passer le tour puisque assignSips() n'aura pas été appelée.
+    if (isMyTurn && owed > 0) {
+      area.innerHTML = `
+        <div class="waiting-msg reopen-give" id="reopen-give" role="button" tabindex="0">
+          🍺 ${t('game.giveOwed', { sips: sipsTxt(owed) })}
+        </div>`;
+      const el = $('reopen-give');
+      if (el) {
+        el.onclick = () => showTargetModal(owed);
+        el.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showTargetModal(owed); } };
+      }
+      return;
+    }
     if (isMyTurn && nextIdx !== -1) {
       renderPrediction(area, nextIdx, myCards);
     } else if (isMyTurn && nextIdx === -1) {
@@ -334,7 +354,7 @@ export function mount(root, api) {
     const sips    = stepIdx + 1;
     vibrate(correct ? [50] : [150, 50, 150]);
     const revealTs = Date.now();
-    await update(ref(db, `games/${gameId}`), {
+    const revealUpdates = {
       [`players/${playerId}/cards/${stepIdx}/revealed`]: true,
       lastRevealedCard: { value: card.value, suit: card.suit, playerName: game.players[playerId].name },
       // Journal partagé (mini-chat du mode Soirée) : révélation + résultat.
@@ -342,7 +362,13 @@ export function mount(root, api) {
         type: 'reveal', byName: game.players[playerId].name,
         value: card.value, suit: card.suit, correct, sips, timestamp: revealTs
       }
-    });
+    };
+    // Persisté en base, pas seulement gardé en mémoire locale : si la fenêtre
+    // de distribution est fermée d'un tap à côté (ou si l'onglet est rechargé
+    // avant qu'on ait choisi la cible), l'obligation de donner ces gorgées ne
+    // doit pas disparaître avec elle.
+    if (correct) revealUpdates[`players/${playerId}/pendingSips`] = sips;
+    await update(ref(db, `games/${gameId}`), revealUpdates);
     setTimeout(async () => {
       isAnimating = false;
       if (correct) {
@@ -379,6 +405,7 @@ export function mount(root, api) {
     const now = Date.now();
     await passTurn({
       [`players/${targetId}/sipsToDrink`]: current + sips,
+      [`players/${playerId}/pendingSips`]: null,
       [`eventLog/${now}`]: {
         type: 'sips_given', fromName: game.players[playerId].name, toName: game.players[targetId].name,
         amount: sips, isCulSec: false, timestamp: now
