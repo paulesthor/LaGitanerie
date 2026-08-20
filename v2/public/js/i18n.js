@@ -49,6 +49,7 @@
       'home.wolfNote': "(deso j'avais pas les droits pour le vrai nom)",
       'home.wolfDesc': 'Une seule nuit, un seul vote. Démasquez les loups… ou survivez.',
       'home.disclaimer': "L'abus d'alcool est recommandé par les collègues.",
+      'home.rulesLink': 'Les règles de la Pyramide',
 
       // ── Profil ──
       'profile.title': 'Profil',
@@ -575,6 +576,7 @@
       'home.wolfNote': "(sorry, didn't have the rights to the real name)",
       'home.wolfDesc': 'One night, one vote. Unmask the wolves… or survive.',
       'home.disclaimer': 'Please drink responsibly. Your mates strongly disagree.',
+      'home.rulesLink': 'Pyramid drinking game rules',
 
       'profile.title': 'Profile',
       'profile.guestMode': 'Guest mode',
@@ -1191,6 +1193,7 @@
       'home.wolfNote': '(scusa, non avevo i diritti sul nome vero)',
       'home.wolfDesc': 'Una sola notte, un solo voto. Smascherate i lupi… o sopravvivete.',
       'home.disclaimer': "Bevi responsabilmente. I colleghi non sono d'accordo.",
+      'home.rulesLink': 'Le regole della Piramide',
 
       'profile.title': 'Profilo',
       'profile.guestMode': 'Modalità ospite',
@@ -1807,6 +1810,7 @@
       'home.wolfNote': '(perdón, no tenía los derechos del nombre real)',
       'home.wolfDesc': 'Una sola noche, un solo voto. Desenmascarad a los lobos… o sobrevivid.',
       'home.disclaimer': 'Bebe con moderación. Tus colegas opinan lo contrario.',
+      'home.rulesLink': 'Las reglas de la Pirámide',
 
       'profile.title': 'Perfil',
       'profile.guestMode': 'Modo invitado',

@@ -1,0 +1,42 @@
+# La Gitanerie — https://la-gitanerie.web.app
+#
+# Les robots des IA sont explicitement autorises : c'est par eux que passent
+# les reponses de ChatGPT, Perplexity, Claude et consorts. Les bloquer revient
+# a disparaitre de ces reponses.
+
+User-agent: *
+Allow: /
+
+# Robots d'entrainement et de recherche des assistants
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: anthropic-ai
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+User-agent: Bingbot
+Allow: /
+
+# Pages de partie : sans interet pour un moteur, elles n'existent que pendant
+# une soiree et changent a chaque seconde.
+Disallow: /play.html
+Disallow: /join.html
+Disallow: /game.html
+Disallow: /game2.html
+Disallow: /memorize.html
+Disallow: /end.html
+Disallow: /profile.html
+
+Sitemap: https://la-gitanerie.web.app/sitemap.xml

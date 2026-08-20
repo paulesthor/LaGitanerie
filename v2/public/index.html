@@ -10,6 +10,19 @@
   <meta name="apple-mobile-web-app-title" content="La Gitanerie">
   <meta name="theme-color" content="#243242">
   <title>La Gitanerie</title>
+  <meta name="description" content="Jouez à la Pyramide, le jeu de cartes à boire, sur vos téléphones : chacun voit ses cartes sur le sien. Gratuit, sans installation, et jouable hors ligne. Règles complètes incluses.">
+  <link rel="canonical" href="https://la-gitanerie.web.app/">
+  <link rel="alternate" hreflang="fr" href="https://la-gitanerie.web.app/">
+  <link rel="alternate" hreflang="x-default" href="https://la-gitanerie.web.app/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="La Gitanerie">
+  <meta property="og:title" content="La Gitanerie — La Pyramide et les dés, entre amis">
+  <meta property="og:description" content="Le jeu de cartes à boire de la Pyramide, sur vos téléphones. Chacun voit ses cartes sur le sien. Gratuit, sans installation, jouable hors ligne.">
+  <meta property="og:url" content="https://la-gitanerie.web.app/">
+  <meta property="og:image" content="https://la-gitanerie.web.app/icons/icon-512.png">
+  <meta property="og:locale" content="fr_FR">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "La Gitanerie", "alternateName": "La Gitanerie — La Pyramide", "applicationCategory": "GameApplication", "operatingSystem": "Android, iOS, Web", "url": "https://la-gitanerie.web.app/", "description": "Application gratuite de jeux de soirée : la Pyramide (jeu de cartes à boire) et un lanceur de dés. Chaque joueur voit ses cartes sur son propre téléphone. Sans installation, sans inscription, et jouable hors ligne.", "inLanguage": ["fr", "en", "it", "es"], "isAccessibleForFree": true, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "contentRating": "18+", "screenshot": "https://la-gitanerie.web.app/icons/icon-512.png", "featureList": ["La Pyramide en multijoueur", "Mode Soirée jouable hors ligne", "Lanceur de dés avec physique réelle", "Français, anglais, italien, espagnol"]}</script>
   <link rel="manifest" href="/manifest.json">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -100,6 +113,11 @@
        doit jamais être interprété comme un défilement. On le réaffirme sur les
        boutons eux-mêmes plutôt que de compter sur la contrainte de l'ancêtre. */
     .tabbar button { touch-action:none; }
+    /* Lien vers les règles : discret, mais présent. Une page que rien ne lie
+       n'est pratiquement jamais découverte — ni par un lecteur, ni par un robot. */
+    .home-rules { text-align:center; margin-top:calc(10px * var(--s,1)); }
+    .home-rules a { color:var(--text-muted); font-size:.78rem; text-decoration:underline;
+                    text-underline-offset:3px; }
     /* Indicateur glissant : une seule pastille qui se déplace d'un onglet à
        l'autre, et qui suit le doigt quand on maintient en glissant. */
     .tab-ind {
@@ -344,6 +362,7 @@
       </a>
     </nav>
 
+    <div class="home-rules"><a href="/regles-pyramide.html" data-i18n="home.rulesLink">Les règles de la Pyramide</a></div>
     <div class="home-footer" data-i18n="home.disclaimer">L'abus d'alcool est recommandé par les collègues.</div>
   </section>
 
@@ -589,7 +608,7 @@
     import { BADGES, BORDERS, TITLES, availableBorders, checkPseudoTitles, rewardName, rewardDesc, borderName } from '/js/game/badges.js';
     import { compressAvatar, isPhotoAvatar, avatarHTML } from '/js/game/avatar.js';
 
-    const APP_BUILD = 'v133';
+    const APP_BUILD = 'v134';
     document.getElementById('app-build').textContent = APP_BUILD;
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');

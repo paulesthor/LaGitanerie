@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://la-gitanerie.web.app/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://la-gitanerie.web.app/regles-pyramide.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="fr" href="https://la-gitanerie.web.app/regles-pyramide.html"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://la-gitanerie.web.app/en/pyramid-drinking-game-rules.html"/>
+    <xhtml:link rel="alternate" hreflang="it" href="https://la-gitanerie.web.app/it/regole-piramide.html"/>
+    <xhtml:link rel="alternate" hreflang="es" href="https://la-gitanerie.web.app/es/reglas-piramide.html"/>
+  </url>
+  <url><loc>https://la-gitanerie.web.app/en/pyramid-drinking-game-rules.html</loc><priority>0.9</priority></url>
+  <url><loc>https://la-gitanerie.web.app/it/regole-piramide.html</loc><priority>0.9</priority></url>
+  <url><loc>https://la-gitanerie.web.app/es/reglas-piramide.html</loc><priority>0.9</priority></url>
+  <url><loc>https://la-gitanerie.web.app/pyramide.html</loc><priority>0.7</priority></url>
+  <url><loc>https://la-gitanerie.web.app/des.html</loc><priority>0.6</priority></url>
+  <url><loc>https://la-gitanerie.web.app/soiree.html</loc><priority>0.6</priority></url>
+  <url><loc>https://la-gitanerie.web.app/confidentialite.html</loc><priority>0.2</priority></url>
+  <url><loc>https://la-gitanerie.web.app/conditions.html</loc><priority>0.2</priority></url>
+</urlset>
