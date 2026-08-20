@@ -601,7 +601,7 @@ export function mount(root, api) {
       if (deck.length === 0) { await update(gameRef, { phase: 'memoryReveal' }); return; }
       const card   = deck[0];
       const cardId = `${row}-${col}`;
-      const { isCulSec } = getSipsForCard(row, game.pyramid.length);
+      const { isCulSec } = getSipsForCard(row, asRows(game.pyramid).length);
       if (isCulSec) vibrate([300, 100, 300, 100, 300]);
       const updates = {
         [`pyramid/${row}/${col}/revealed`]: true,
@@ -639,6 +639,7 @@ export function mount(root, api) {
     if (!pendingGiveAction || isProcessing) return;
     const action = pendingGiveAction;
     pendingGiveAction = null;
+    isProcessing = true;
     $('modal-target').classList.remove('show');
     const { sips, isCulSec } = action;
     vibrate([80]);
@@ -656,7 +657,14 @@ export function mount(root, api) {
         toId: targetId, toName: game.players[targetId].name, amount: sips, isCulSec, timestamp: now
       }
     };
-    await update(gameRef, updates);
+    // Seule action de distribution sans retour d'erreur réseau, contrairement à
+    // handlePass/handleDrink/handleLiar/handleProofCard : un échec passait
+    // inaperçu. Le joueur voyait juste le bouton « Donner » réapparaître, sans
+    // savoir pourquoi. Le rendu se raccroche déjà tout seul (actedOnCard n'est
+    // jamais écrit si ça échoue), il ne manquait que le message.
+    try { await update(gameRef, updates); }
+    catch (e) { showToast(t('err.network'), 'error'); }
+    finally { isProcessing = false; }
   }
 
   async function handlePass() {

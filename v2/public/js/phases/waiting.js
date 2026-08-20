@@ -168,6 +168,7 @@ export function mount(root, api) {
   };
 
   $('btn-ready') && ($('btn-ready').onclick = async () => { await update(playerRef, { ready: !isReady }); });
+  let _starting = false;
   $('btn-start') && ($('btn-start').onclick = onStart);
 
   $('btn-leave').onclick = async () => {
@@ -309,6 +310,15 @@ export function mount(root, api) {
   }
 
   async function onStart() {
+    // Un double-tap (mobile, réseau lent, impatience de soirée) déclenchait
+    // deux lancements en parallèle : deux mélanges différents écrivaient sur
+    // la même partie, et si un joueur avait déjà agi entre les deux écritures,
+    // sa progression disparaissait sous la seconde. Un seul lancement à la fois.
+    if (_starting) return;
+    _starting = true;
+    const btn = $('btn-start');
+    if (btn) btn.disabled = true;
+    try {
     const snap    = await get(gameRef);
     const game    = snap.val();
     const players = game.players || {};
@@ -337,6 +347,13 @@ export function mount(root, api) {
     updates.deck = deck;
     await unpublishActiveGame();
     await update(gameRef, updates);
+    } finally {
+      _starting = false;
+      // Le bouton disparaît de toute façon dès que `status` passe à 'started'
+      // (le routeur démonte cette phase) ; le réactiver ne sert qu'en cas
+      // d'erreur avant l'écriture (need2 / tooMany / allMustBeReady).
+      if (btn) btn.disabled = false;
+    }
   }
 
   function showError(msg) {
