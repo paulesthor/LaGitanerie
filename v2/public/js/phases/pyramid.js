@@ -163,11 +163,10 @@ export function mount(root, api) {
     update(ref(db, `games/${gameId}/players/${playerId}/cards`), Object.fromEntries(shuffled.map((c, i) => [i, c])));
   }
 
-  const _cheatOk = () => {
-    const me = game.players?.[playerId];
-    return auth.currentUser?.email === 'esthor.pl@gmail.com'
-        && (me?.name || '').toLowerCase() === 'legrosfilipe';
-  };
+  // Triche dev : le compte Google suffit, plus besoin du pseudo "legrosfilipe"
+  // (qui servait avant à la fois de triche ET de farce — voir _shuffleImpostor,
+  // qui reste inchangée et continue de viser ce pseudo precis).
+  const _cheatOk = () => auth.currentUser?.email === 'esthor.pl@gmail.com';
   const _dblHandler = (e) => {
     if (!_cheatOk()) return;
     _cheatOn = !_cheatOn;

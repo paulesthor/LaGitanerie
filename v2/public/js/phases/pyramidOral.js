@@ -39,10 +39,11 @@ const VIEW = `
     <p id="oral-wait" class="oral-wait hidden" data-i18n="oral.waitFlip">En attente que l'hôte retourne la carte…</p>
 
     <div id="oral-reveal-stack" class="oral-reveal-stack"></div>
+    <div id="oral-cheat" class="oral-cheat hidden"></div>
   </div>`;
 
 export function mount(root, api) {
-  const { playerId, isHost, tx } = api;
+  const { playerId, isHost, tx, isDev } = api;
   root.innerHTML = VIEW;
   window.I18N && window.I18N.apply(root);
   const $ = (id) => root.querySelector('#' + id);
@@ -54,6 +55,21 @@ export function mount(root, api) {
   let _seenReveals = {};   // ts déjà affiché par joueur (gère les reveals simultanés)
   let _hideTimer = null;
   let _tapTimes = {};
+
+  // Triche dev : même geste et même condition qu'en mode Classique (voir
+  // pyramid.js) — le compte Google suffit. `isDev` est absent en hors ligne
+  // (soiree.html ne le fournit pas), donc la triche y est tout simplement
+  // indisponible : il n'existe pas de compte Google sans réseau.
+  let _cheatOn = false;
+  const _cheatOk = () => typeof isDev === 'function' && isDev();
+  const _dblHandler = (e) => {
+    if (!_cheatOk()) return;
+    _cheatOn = !_cheatOn;
+    e.preventDefault();
+    e.stopPropagation();
+    renderCheat();
+  };
+  document.addEventListener('dblclick', _dblHandler);
 
   $('btn-leave').onclick = async () => {
     if (!confirm(t('oral.confirmQuit'))) return;
@@ -72,6 +88,29 @@ export function mount(root, api) {
 
     syncReveals();
     renderStage();
+    if (_cheatOn) renderCheat();
+  }
+
+  // Mode Soirée ne montre normalement QUE sa propre main — c'est tout le
+  // principe du mode. La triche affiche les mains de tout le monde, dans un
+  // panneau à part : on ne touche pas à #oral-hand, qui reste la vue normale.
+  function renderCheat() {
+    const el = $('oral-cheat');
+    if (!el) return;
+    if (!_cheatOn) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+    const rows = Object.entries(game.players || {}).map(([id, p]) => {
+      const chips = (p.cards || []).map((c) => {
+        const sym = SUIT_SYMBOL[c.suit] || '';
+        const isRed = ['hearts', 'diamonds'].includes(c.suit);
+        return `<span class="oral-cheat-chip ${isRed ? 'red' : 'black'}">${c.value}${sym}</span>`;
+      }).join('');
+      return `<div class="oral-cheat-row">
+        <span class="oral-cheat-name">${p.name || '?'}${id === playerId ? ` (${t('wait.you')})` : ''}</span>
+        <span class="oral-cheat-cards">${chips}</span>
+      </div>`;
+    }).join('');
+    el.innerHTML = rows;
+    el.classList.remove('hidden');
   }
 
   // ── Reveals concurrents : chaque joueur écrit dans oralReveals/{pid}. On
@@ -246,6 +285,7 @@ export function mount(root, api) {
 
   function unmount() {
     clearTimeout(_hideTimer);
+    document.removeEventListener('dblclick', _dblHandler);
   }
 
   return { update: update_, unmount };

@@ -273,7 +273,7 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { db } from '/js/firebase-config.js';
+    import { db, auth } from '/js/firebase-config.js';
     import { ref, onValue, update, onDisconnect } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js';
     import { requireSession, showToast, clearGameSession } from '/js/game/utils.js';
 
@@ -302,7 +302,12 @@
         window.location.href = '/';
       },
     };
-    const api = { gameId, playerId, isHost, tx };
+    // Triche dev (voir toutes les mains, mode Soirée) : même geste et même
+    // condition que celle déjà en place dans pyramid.js (mode Classique) —
+    // le compte Google suffit. Évaluée à la demande (pas figée au montage) :
+    // l'état d'auth peut ne pas être encore résolu à cet instant.
+    const isDev = () => auth.currentUser?.email === 'esthor.pl@gmail.com';
+    const api = { gameId, playerId, isHost, tx, isDev };
 
     const root = document.getElementById('view-root');
     const gameRef = ref(db, `games/${gameId}`);
