@@ -1,0 +1,115 @@
+name: Build APK Android
+
+# Déclenchement manuel uniquement : signer une app avec la clé de production
+# n'est pas quelque chose qu'on veut voir partir à chaque simple push. Le
+# bouton se trouve dans l'onglet Actions du dépôt, sur ce workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "Nom de version affiché (ex. 1.1) — laisser vide pour ne pas y toucher"
+        required: false
+        default: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Nécessaire pour que l'étape de création de release puisse écrire sur le
+    # dépôt, quels que soient les réglages par défaut du dépôt.
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer le JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Installer le SDK Android et accepter les licences
+        uses: android-actions/setup-android@v4
+
+      - name: Mettre en cache les dépendances Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Installer Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      # Bubblewrap demande d'habitude, de façon interactive, s'il doit
+      # installer son propre JDK/SDK. Il n'y a pas de terminal ici : on lui
+      # indique directement ceux que les deux étapes précédentes ont déjà mis
+      # en place, pour qu'il saute cette question entièrement.
+      - name: Configurer Bubblewrap pour utiliser le JDK/SDK déjà installés
+        run: |
+          mkdir -p ~/.bubblewrap
+          cat > ~/.bubblewrap/config.json <<EOF
+          {"jdkPath":"${JAVA_HOME}","androidSdkPath":"${ANDROID_HOME}"}
+          EOF
+
+      # La clé de signature n'est jamais committée : elle n'existe que le
+      # temps de ce job, reconstituée depuis le secret du dépôt, puis
+      # disparaît avec le runner.
+      - name: Reconstituer la clé de signature
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android.keystore
+
+      - name: Ajuster le nom de version (optionnel)
+        if: ${{ github.event.inputs.version_name != '' }}
+        run: |
+          node -e "
+            const fs = require('fs');
+            const m = JSON.parse(fs.readFileSync('twa-manifest.json'));
+            m.appVersionName = process.env.VERSION_NAME;
+            fs.writeFileSync('twa-manifest.json', JSON.stringify(m, null, 2) + '\n');
+          "
+          # On retouche aussi la somme de contrôle : sinon Bubblewrap détecte
+          # le changement et pose une question interactive, qui bloquerait
+          # un run sans terminal.
+          node -e "
+            const crypto = require('crypto'), fs = require('fs');
+            const sum = crypto.createHash('sha1').update(fs.readFileSync('twa-manifest.json')).digest('hex');
+            fs.writeFileSync('manifest-checksum.txt', sum);
+          "
+        env:
+          VERSION_NAME: ${{ github.event.inputs.version_name }}
+
+      - name: Compiler et signer l'APK
+        env:
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bubblewrap build --skipPwaValidation < /dev/null
+
+      - name: Effacer la clé de signature du runner
+        if: always()
+        run: rm -f android.keystore
+
+      - name: Préparer le fichier à publier
+        run: cp app-release-signed.apk ../la-gitanerie.apk
+        working-directory: android
+
+      - name: Créer la release avec l'APK en pièce jointe
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: "La Gitanerie — APK Android (build ${{ github.run_number }})"
+          body: |
+            APK généré automatiquement par ce workflow, signé avec la clé de
+            production du projet. Installation directe sur Android (en dehors
+            du Play Store) : télécharger `la-gitanerie.apk` ci-dessous, puis
+            l'ouvrir sur le téléphone — Android demandera d'autoriser
+            l'installation depuis cette source la première fois.
+          files: la-gitanerie.apk
+          draft: false
+          prerelease: false

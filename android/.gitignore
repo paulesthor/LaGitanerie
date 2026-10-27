@@ -1,0 +1,17 @@
+# Jamais la clé de signature ni rien qui en dérive : elle est recréée à
+# chaque run du workflow depuis le secret ANDROID_KEYSTORE_BASE64.
+*.keystore
+*.jks
+
+# Chemins absolus propres à la machine qui a lancé `bubblewrap init`/`gradle`.
+local.properties
+
+# Sorties de build.
+.gradle/
+build/
+app/build/
+*.apk
+*.aab
+app-release-signed.apk
+app-release-bundle.aab
+app-release-unsigned-aligned.apk

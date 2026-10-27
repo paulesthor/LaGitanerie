@@ -1,0 +1,54 @@
+{
+  "packageId": "app.web.la_gitanerie.twa",
+  "host": "la-gitanerie.web.app",
+  "name": "La Gitanerie",
+  "launcherName": "Gitanerie",
+  "display": "standalone",
+  "themeColor": "#243242",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#243242",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://la-gitanerie.web.app/icons/icon-512.png",
+  "maskableIconUrl": "https://la-gitanerie.web.app/icons/icon-512-maskable.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "gitanerie"
+  },
+  "appVersionName": "3",
+  "appVersionCode": 3,
+  "shortcuts": [
+    {
+      "name": "La Pyramide",
+      "shortName": "Pyramide",
+      "url": "https://la-gitanerie.web.app/pyramide.html",
+      "chosenIconUrl": "https://la-gitanerie.web.app/icons/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://la-gitanerie.web.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://la-gitanerie.web.app/",
+  "minSdkVersion": 24,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [],
+  "appVersion": "3"
+}
